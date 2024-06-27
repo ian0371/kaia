@@ -42,6 +42,7 @@ import (
 	"github.com/klaytn/klaytn/common"
 	"github.com/klaytn/klaytn/common/hexutil"
 	"github.com/klaytn/klaytn/consensus"
+	"github.com/klaytn/klaytn/datasync/chaindatafetcher/kafka"
 	"github.com/klaytn/klaytn/log"
 	"github.com/klaytn/klaytn/networks/rpc"
 	"github.com/klaytn/klaytn/params"
@@ -319,7 +320,7 @@ func (api *CommonAPI) traceChain(start, end *types.Block, config *TraceConfig, n
 					txCtx := blockchain.NewEVMTxContext(msg, task.block.Header(), api.backend.ChainConfig())
 					blockCtx := blockchain.NewEVMBlockContext(task.block.Header(), newChainContext(localctx, api.backend), nil)
 
-					res, err := api.traceTx(localctx, msg, blockCtx, txCtx, task.statedb, config)
+					res, err, _ := api.traceTx(localctx, msg, blockCtx, txCtx, task.statedb, config)
 					if err != nil {
 						task.results[i] = &txTraceResult{TxHash: tx.Hash(), Error: err.Error()}
 						logger.Warn("Tracing failed", "hash", tx.Hash(), "block", task.block.NumberU64(), "err", err)
@@ -615,6 +616,7 @@ func (api *CommonAPI) traceBlock(ctx context.Context, block *types.Block, config
 	if threads > len(txs) {
 		threads = len(txs)
 	}
+	var internalTxTraces []*vm.InternalTxTrace
 	for th := 0; th < threads; th++ {
 		pend.Add(1)
 		go func() {
@@ -631,7 +633,8 @@ func (api *CommonAPI) traceBlock(ctx context.Context, block *types.Block, config
 
 				txCtx := blockchain.NewEVMTxContext(msg, block.Header(), api.backend.ChainConfig())
 				blockCtx := blockchain.NewEVMBlockContext(block.Header(), newChainContext(ctx, api.backend), nil)
-				res, err := api.traceTx(ctx, msg, blockCtx, txCtx, task.statedb, config)
+				res, err, internalTxTrace := api.traceTx(ctx, msg, blockCtx, txCtx, task.statedb, config)
+				internalTxTraces = append(internalTxTraces, internalTxTrace)
 				if err != nil {
 					results[task.index] = &txTraceResult{TxHash: txs[task.index].Hash(), Error: err.Error()}
 					continue
@@ -671,6 +674,21 @@ func (api *CommonAPI) traceBlock(ctx context.Context, block *types.Block, config
 	if failed != nil {
 		return nil, failed
 	}
+
+	type traceGroupResult struct {
+		BlockNumber      *big.Int              `json:"blockNumber"`
+		InternalTxTraces []*vm.InternalTxTrace `json:"result"`
+	}
+	kafkaData := &traceGroupResult{
+		BlockNumber:      block.Number(),
+		InternalTxTraces: internalTxTraces,
+	}
+	kafkaConfig := kafka.GetDefaultKafkaConfig()
+	kafkaConfig.Brokers = []string{"172.16.239.14:29092"}
+	kf, _ := kafka.NewKafka(kafkaConfig)
+	kf.Publish(kafkaConfig.GetTopicName(kafka.EventTraceGroup), kafkaData)
+	logger.Error("[ian.xx] Publishing to kafka")
+
 	return results, nil
 }
 
@@ -816,7 +834,8 @@ func (api *CommonAPI) TraceTransaction(ctx context.Context, hash common.Hash, co
 		return nil, err
 	}
 	// Trace the transaction and return
-	return api.traceTx(ctx, msg, blockCtx, txCtx, statedb, config)
+	ret, err, _ := api.traceTx(ctx, msg, blockCtx, txCtx, statedb, config)
+	return ret, err
 }
 
 // TraceCall lets you trace a given kaia_call. It collects the structured logs
@@ -879,13 +898,14 @@ func (api *CommonAPI) TraceCall(ctx context.Context, args kaiaapi.CallArgs, bloc
 	txCtx := blockchain.NewEVMTxContext(msg, block.Header(), api.backend.ChainConfig())
 	blockCtx := blockchain.NewEVMBlockContext(block.Header(), newChainContext(ctx, api.backend), nil)
 
-	return api.traceTx(ctx, msg, blockCtx, txCtx, statedb, config)
+	ret, err, _ := api.traceTx(ctx, msg, blockCtx, txCtx, statedb, config)
+	return ret, err
 }
 
 // traceTx configures a new tracer according to the provided configuration, and
 // executes the given message in the provided environment. The return value will
 // be tracer dependent.
-func (api *CommonAPI) traceTx(ctx context.Context, message blockchain.Message, blockCtx vm.BlockContext, txCtx vm.TxContext, statedb *state.StateDB, config *TraceConfig) (interface{}, error) {
+func (api *CommonAPI) traceTx(ctx context.Context, message blockchain.Message, blockCtx vm.BlockContext, txCtx vm.TxContext, statedb *state.StateDB, config *TraceConfig) (interface{}, error, *vm.InternalTxTrace) {
 	// Assemble the structured logger or the JavaScript tracer
 	var (
 		tracer vm.Tracer
@@ -897,7 +917,7 @@ func (api *CommonAPI) traceTx(ctx context.Context, message blockchain.Message, b
 		timeout := defaultTraceTimeout
 		if config.Timeout != nil {
 			if timeout, err = time.ParseDuration(*config.Timeout); err != nil {
-				return nil, err
+				return nil, err, nil
 			}
 		}
 
@@ -906,7 +926,7 @@ func (api *CommonAPI) traceTx(ctx context.Context, message blockchain.Message, b
 		} else {
 			// Construct the JavaScript tracer to execute with
 			if tracer, err = New(*config.Tracer, new(Context), api.unsafeTrace); err != nil {
-				return nil, err
+				return nil, err, nil
 			}
 		}
 		// Handle timeouts and RPC cancellations
@@ -939,7 +959,7 @@ func (api *CommonAPI) traceTx(ctx context.Context, message blockchain.Message, b
 
 	ret, err := blockchain.ApplyMessage(vmenv, message)
 	if err != nil {
-		return nil, fmt.Errorf("tracing failed: %v", err)
+		return nil, fmt.Errorf("tracing failed: %v", err), nil
 	}
 	// Depending on the tracer type, format and return the output
 	switch tracer := tracer.(type) {
@@ -947,26 +967,33 @@ func (api *CommonAPI) traceTx(ctx context.Context, message blockchain.Message, b
 		loggerTimeout := defaultLoggerTimeout
 		if config != nil && config.LoggerTimeout != nil {
 			if loggerTimeout, err = time.ParseDuration(*config.LoggerTimeout); err != nil {
-				return nil, err
+				return nil, err, nil
 			}
 		}
 		if logs, err := kaiaapi.FormatLogs(loggerTimeout, tracer.StructLogs()); err == nil {
+			internalTrace, _ := blockchain.GetInternalTxTrace(tracer)
 			return &kaiaapi.ExecutionResult{
 				Gas:         ret.UsedGas,
 				Failed:      ret.Failed(),
 				ReturnValue: fmt.Sprintf("%x", ret.Return()),
 				StructLogs:  logs,
-			}, nil
+			}, nil, internalTrace
 		} else {
-			return nil, err
+			return nil, err, nil
 		}
 
 	case *Tracer:
-		return tracer.GetResult()
+		ret, err := tracer.GetResult()
+		internalTrace, _ := blockchain.GetInternalTxTrace(tracer)
+		return ret, err, internalTrace
 	case *vm.InternalTxTracer:
-		return tracer.GetResult()
+		ret, err := tracer.GetResult()
+		internalTrace, _ := blockchain.GetInternalTxTrace(tracer)
+		return ret, err, internalTrace
 	case *vm.CallTracer:
-		return tracer.GetResult()
+		ret, err := tracer.GetResult()
+		internalTrace, _ := blockchain.GetInternalTxTrace(tracer)
+		return ret, err, internalTrace
 
 	default:
 		panic(fmt.Sprintf("bad tracer type %T", tracer))

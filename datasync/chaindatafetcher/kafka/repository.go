@@ -85,14 +85,11 @@ func (r *repository) HandleChainEvent(event blockchain.ChainEvent, dataType type
 		}
 		return r.kafka.Publish(r.kafka.getTopicName(EventBlockGroup), result)
 	case types.RequestTypeTraceGroup:
-		if len(event.InternalTxTraces) > 0 {
-			result := &traceGroupResult{
-				BlockNumber:      event.Block.Number(),
-				InternalTxTraces: event.InternalTxTraces,
-			}
-			return r.kafka.Publish(r.kafka.getTopicName(EventTraceGroup), result)
+		result := &traceGroupResult{
+			BlockNumber:      event.Block.Number(),
+			InternalTxTraces: event.InternalTxTraces,
 		}
-		return nil
+		return r.kafka.Publish(r.kafka.getTopicName(EventTraceGroup), result)
 	default:
 		return fmt.Errorf("not supported type. [blockNumber: %v, reqType: %v]", event.Block.NumberU64(), dataType)
 	}

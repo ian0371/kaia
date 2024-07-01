@@ -966,7 +966,7 @@ func (api *CommonAPI) traceTx(ctx context.Context, message blockchain.Message, b
 	case *vm.InternalTxTracer:
 		return tracer.GetResult()
 	case *vm.CallTracer:
-		return tracer.GetResultAsInternalTxTrace()
+		return tracer.GetResult()
 
 	default:
 		panic(fmt.Sprintf("bad tracer type %T", tracer))

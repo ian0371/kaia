@@ -129,6 +129,7 @@ const (
 	FORK
 	NodeCnGasPrice
 	KaiaXStaking
+	KaiaXGov
 
 	// ModuleNameLen should be placed at the end of the list.
 	ModuleNameLen

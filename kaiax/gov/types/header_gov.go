@@ -26,7 +26,7 @@ type voteData struct {
 
 type governanceData struct {
 	blockNum uint64
-	params   []param
+	params   map[string]param
 }
 
 type allParamsHistory map[string]*PartitionList[param] // p1 -> (activation1, value1), ...
@@ -156,7 +156,7 @@ func serializeVoteData(vote *voteData) ([]byte, error) {
 	return rlp.EncodeToBytes(v)
 }
 
-func parseHeaderGov(b []byte, blockNum uint64) (*governanceData, error) {
+func deserializeHeaderGov(b []byte, blockNum uint64) (*governanceData, error) {
 	rlpDecoded := []byte("")
 	err := rlp.DecodeBytes(b, &rlpDecoded)
 	if err != nil {
@@ -166,9 +166,18 @@ func parseHeaderGov(b []byte, blockNum uint64) (*governanceData, error) {
 	j := make(map[string]interface{})
 	json.Unmarshal(rlpDecoded, &j)
 
-	params := make([]param, 0, len(j))
-	for k, v := range j {
-		params = append(params, param{name: k, value: v})
+	ps, err := params.NewGovParamSetStrMap(j)
+	if err != nil {
+		return nil, err
+	}
+
+	params := make(map[string]param, len(j))
+	for k := range j {
+		value, ok := ps.Get(governance.GovernanceKeyMap[k])
+		if !ok {
+			return nil, errors.New("key not found")
+		}
+		params[k] = param{name: k, value: value}
 	}
 
 	return &governanceData{
@@ -201,7 +210,7 @@ func readGovernanceDataFromDB(chain ChainReader, db database.Database) []governa
 	if govBlocks != nil {
 		for _, blockNum := range *govBlocks {
 			header := chain.GetHeaderByNumber(blockNum)
-			parsedGov, err := parseHeaderGov(header.Governance, blockNum)
+			parsedGov, err := deserializeHeaderGov(header.Governance, blockNum)
 			if err != nil {
 				gov.Logger.Error("Failed to parse vote", "num", blockNum, "err", err)
 			}

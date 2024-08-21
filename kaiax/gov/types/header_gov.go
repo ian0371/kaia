@@ -15,7 +15,7 @@ import (
 
 type param struct {
 	name  string
-	value interface{}
+	value interface{} // canonical value
 }
 
 type voteData struct {
@@ -29,7 +29,7 @@ type governanceData struct {
 	params   []param
 }
 
-type allParamsHistory map[string]*PartitionList[param]
+type allParamsHistory map[string]*PartitionList[param] // p1 -> (activation1, value1), ...
 
 type HeaderGovernanceReader struct {
 	votes  []voteData
@@ -110,7 +110,7 @@ func headerActivationBlockPostKore(num, epoch uint64) uint64 {
 	return num + epoch
 }
 
-func parseHeaderVote(b []byte, blockNum uint64) (*voteData, error) {
+func deserializeHeaderVote(b []byte, blockNum uint64) (*voteData, error) {
 	var v struct {
 		Validator common.Address
 		Key       string
@@ -122,6 +122,7 @@ func parseHeaderVote(b []byte, blockNum uint64) (*voteData, error) {
 		return nil, err
 	}
 
+	// canonicalize. e.g., [0x1, 0xc9, 0xc3, 0x80] -> 0x1c9c380
 	ps, err := params.NewGovParamSetBytesMap(map[string][]byte{
 		v.Key: v.Value,
 	})
@@ -141,7 +142,7 @@ func parseHeaderVote(b []byte, blockNum uint64) (*voteData, error) {
 	}, nil
 }
 
-func serializeHeaderVote(vote *voteData) ([]byte, error) {
+func serializeVoteData(vote *voteData) ([]byte, error) {
 	v := &struct {
 		Validator common.Address
 		Key       string
@@ -182,7 +183,7 @@ func readVoteDataFromDB(chain ChainReader, db database.Database) []voteData {
 	if voteBlocks != nil {
 		for _, blockNum := range *voteBlocks {
 			header := chain.GetHeaderByNumber(blockNum)
-			parsedVote, err := parseHeaderVote(header.Vote, blockNum)
+			parsedVote, err := deserializeHeaderVote(header.Vote, blockNum)
 			if err != nil {
 				gov.Logger.Error("Failed to parse vote", "num", blockNum, "err", err)
 			}

@@ -7,15 +7,15 @@ import (
 )
 
 var (
-	voteDataBlocksKey = []byte("voteDataBlocks")
-	govDataBlocksKey  = []byte("governanceDataBlocks")
+	voteDataBlockNumsKey = []byte("voteDataBlocks")
+	govDataBlockNumsKey  = []byte("governanceDataBlocks")
 )
 
 type StoredVoteData []uint64
 type StoredGovData []uint64
 
 func ReadVoteDataBlocks(db database.Database) *StoredVoteData {
-	b, err := db.Get(voteDataBlocksKey)
+	b, err := db.Get(voteDataBlockNumsKey)
 	if err != nil || len(b) == 0 {
 		return nil
 	}
@@ -28,20 +28,20 @@ func ReadVoteDataBlocks(db database.Database) *StoredVoteData {
 	return ret
 }
 
-func WriteVoteDataBlocks(db database.Database, voteData *StoredVoteData) {
-	b, err := json.Marshal(voteData)
+func WriteVoteDataBlocks(db database.Database, voteDataBlockNums *StoredVoteData) {
+	b, err := json.Marshal(voteDataBlockNums)
 	if err != nil {
 		Logger.Error("Failed to marshal voteDataBlocks", "err", err)
 		return
 	}
 
-	if err := db.Put(voteDataBlocksKey, b); err != nil {
+	if err := db.Put(voteDataBlockNumsKey, b); err != nil {
 		Logger.Crit("Failed to write voteDataBlocks", "err", err)
 	}
 }
 
 func ReadGovDataBlocks(db database.Database) *StoredGovData {
-	b, err := db.Get(govDataBlocksKey)
+	b, err := db.Get(govDataBlockNumsKey)
 	if err != nil || len(b) == 0 {
 		return nil
 	}
@@ -61,7 +61,7 @@ func WriteGovDataBlocks(db database.Database, govData *StoredGovData) {
 		return
 	}
 
-	if err := db.Put(govDataBlocksKey, b); err != nil {
+	if err := db.Put(govDataBlockNumsKey, b); err != nil {
 		Logger.Crit("Failed to write voteDataBlocks", "err", err)
 	}
 }

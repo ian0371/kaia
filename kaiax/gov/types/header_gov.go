@@ -6,6 +6,7 @@ import (
 
 	"github.com/kaiachain/kaia/blockchain/types"
 	"github.com/kaiachain/kaia/common"
+	"github.com/kaiachain/kaia/governance"
 	"github.com/kaiachain/kaia/kaiax/gov"
 	"github.com/kaiachain/kaia/params"
 	"github.com/kaiachain/kaia/rlp"
@@ -42,37 +43,9 @@ type ChainReader interface {
 }
 
 func NewHeaderGovernanceReader(chain ChainReader, db database.Database, koreHf uint64) *HeaderGovernanceReader {
-	voteBlocks := gov.ReadVoteDataBlocks(db)
-	votes := make([]voteData, 0)
-	govs := make([]governanceData, 0)
-	if voteBlocks != nil {
-		for _, blockNum := range *voteBlocks {
-			header := chain.GetHeaderByNumber(blockNum)
-			parsedVote, err := parseHeaderVote(header.Vote, blockNum)
-			if err != nil {
-				gov.Logger.Error("Failed to parse vote", "num", blockNum, "err", err)
-			}
-
-			votes = append(votes, *parsedVote)
-		}
-	}
-
-	govBlocks := gov.ReadGovDataBlocks(db)
-	if govBlocks != nil {
-		for _, blockNum := range *govBlocks {
-			header := chain.GetHeaderByNumber(blockNum)
-			parsedGov, err := parseHeaderGov(header.Governance, blockNum)
-			if err != nil {
-				gov.Logger.Error("Failed to parse vote", "num", blockNum, "err", err)
-			}
-
-			govs = append(govs, *parsedGov)
-		}
-	}
-
 	return &HeaderGovernanceReader{
-		votes:  votes,
-		govs:   govs,
+		votes:  readVoteDataFromDB(chain, db),
+		govs:   readGovernanceDataFromDB(chain, db),
 		epoch:  params.DefaultEpoch,
 		koreHf: koreHf,
 	}
@@ -141,7 +114,7 @@ func parseHeaderVote(b []byte, blockNum uint64) (*voteData, error) {
 	var v struct {
 		Validator common.Address
 		Key       string
-		Value     interface{}
+		Value     []byte
 	}
 
 	err := rlp.DecodeBytes(b, &v)
@@ -149,11 +122,37 @@ func parseHeaderVote(b []byte, blockNum uint64) (*voteData, error) {
 		return nil, err
 	}
 
+	ps, err := params.NewGovParamSetBytesMap(map[string][]byte{
+		v.Key: v.Value,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	value, ok := ps.Get(governance.GovernanceKeyMap[v.Key])
+	if !ok {
+		return nil, errors.New("key not found")
+	}
+
 	return &voteData{
 		blockNum: blockNum,
 		voter:    v.Validator,
-		param:    param{name: v.Key, value: v.Value},
+		param:    param{name: v.Key, value: value},
 	}, nil
+}
+
+func serializeHeaderVote(vote *voteData) ([]byte, error) {
+	v := &struct {
+		Validator common.Address
+		Key       string
+		Value     interface{}
+	}{
+		Validator: vote.voter,
+		Key:       vote.param.name,
+		Value:     vote.param.value,
+	}
+
+	return rlp.EncodeToBytes(v)
 }
 
 func parseHeaderGov(b []byte, blockNum uint64) (*governanceData, error) {
@@ -175,4 +174,39 @@ func parseHeaderGov(b []byte, blockNum uint64) (*governanceData, error) {
 		blockNum: blockNum,
 		params:   params,
 	}, nil
+}
+
+func readVoteDataFromDB(chain ChainReader, db database.Database) []voteData {
+	voteBlocks := gov.ReadVoteDataBlocks(db)
+	votes := make([]voteData, 0)
+	if voteBlocks != nil {
+		for _, blockNum := range *voteBlocks {
+			header := chain.GetHeaderByNumber(blockNum)
+			parsedVote, err := parseHeaderVote(header.Vote, blockNum)
+			if err != nil {
+				gov.Logger.Error("Failed to parse vote", "num", blockNum, "err", err)
+			}
+
+			votes = append(votes, *parsedVote)
+		}
+	}
+
+	return votes
+}
+
+func readGovernanceDataFromDB(chain ChainReader, db database.Database) []governanceData {
+	govBlocks := gov.ReadGovDataBlocks(db)
+	govs := make([]governanceData, 0)
+	if govBlocks != nil {
+		for _, blockNum := range *govBlocks {
+			header := chain.GetHeaderByNumber(blockNum)
+			parsedGov, err := parseHeaderGov(header.Governance, blockNum)
+			if err != nil {
+				gov.Logger.Error("Failed to parse vote", "num", blockNum, "err", err)
+			}
+
+			govs = append(govs, *parsedGov)
+		}
+	}
+	return govs
 }

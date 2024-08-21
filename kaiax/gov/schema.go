@@ -11,16 +11,16 @@ var (
 	govDataBlocksKey  = []byte("governanceDataBlocks")
 )
 
-type storedVoteData []uint64
-type storedGovData []uint64
+type StoredVoteData []uint64
+type StoredGovData []uint64
 
-func ReadVoteDataBlocks(db database.Database) *storedVoteData {
+func ReadVoteDataBlocks(db database.Database) *StoredVoteData {
 	b, err := db.Get(voteDataBlocksKey)
 	if err != nil || len(b) == 0 {
 		return nil
 	}
 
-	ret := new(storedVoteData)
+	ret := new(StoredVoteData)
 	if err := json.Unmarshal(b, ret); err != nil {
 		Logger.Error("Invalid voteDataBlocks JSON", "err", err)
 		return nil
@@ -28,7 +28,7 @@ func ReadVoteDataBlocks(db database.Database) *storedVoteData {
 	return ret
 }
 
-func WriteVoteDataBlocks(db database.Database, voteData *storedVoteData) {
+func WriteVoteDataBlocks(db database.Database, voteData *StoredVoteData) {
 	b, err := json.Marshal(voteData)
 	if err != nil {
 		Logger.Error("Failed to marshal voteDataBlocks", "err", err)
@@ -40,13 +40,13 @@ func WriteVoteDataBlocks(db database.Database, voteData *storedVoteData) {
 	}
 }
 
-func ReadGovDataBlocks(db database.Database) *storedGovData {
+func ReadGovDataBlocks(db database.Database) *StoredGovData {
 	b, err := db.Get(govDataBlocksKey)
 	if err != nil || len(b) == 0 {
 		return nil
 	}
 
-	ret := new(storedGovData)
+	ret := new(StoredGovData)
 	if err := json.Unmarshal(b, ret); err != nil {
 		Logger.Error("Invalid govDataBlocks JSON", "err", err)
 		return nil
@@ -54,7 +54,7 @@ func ReadGovDataBlocks(db database.Database) *storedGovData {
 	return ret
 }
 
-func WriteGovDataBlocks(db database.Database, govData *storedGovData) {
+func WriteGovDataBlocks(db database.Database, govData *StoredGovData) {
 	b, err := json.Marshal(govData)
 	if err != nil {
 		Logger.Error("Failed to marshal govDataBlocks", "err", err)

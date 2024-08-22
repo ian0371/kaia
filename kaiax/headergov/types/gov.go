@@ -52,8 +52,8 @@ func (h *GovernanceCache) AddVote(num uint64, vote VoteData) {
 func (h *GovernanceCache) AddGov(num uint64, g GovernanceData) {
 	h.Govs = append(h.Govs, g)
 	ps, _ := g.ToParamSet() // TODO: handle error
-	if h.GovParams.GetItem(uint(num)) != nil {
-		ps = params.NewGovParamSetMerged(h.GovParams.GetItem(uint(num)), ps)
+	if lastPs := h.GovParams.GetItem(uint(num)); lastPs != nil {
+		ps = params.NewGovParamSetMerged(lastPs, ps)
 	}
 	h.GovParams.AddRecord(uint(num), ps)
 }

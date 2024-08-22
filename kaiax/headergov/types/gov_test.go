@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestGetAllParamsHistory(t *testing.T) {
+func TestGetGovParams(t *testing.T) {
 	govs := []GovernanceData{
 		0: {
 			BlockNum: 0,

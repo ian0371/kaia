@@ -39,63 +39,48 @@ func TestEffectiveParams(t *testing.T) {
 		},
 	}
 
-	mockCtrl := gomock.NewController(t)
-	chain := mocks.NewMockBlockChain(mockCtrl)
-	db := database.NewMemDB()
-	config := &params.ChainConfig{
-		KoreCompatibleBlock: big.NewInt(999999999),
-		Istanbul: &params.IstanbulConfig{
-			Epoch: 604800,
-		},
-	}
-	h := &HeaderGovModule{}
-	err := h.Init(&InitOpts{
-		Chain:       chain,
-		ChainKv:     db,
-		ChainConfig: config,
-	})
-	require.NoError(t, err)
-
-	for _, gov := range gov {
-		require.NoError(t, h.AddGov(&gov))
+	testCases := []struct {
+		desc          string
+		koreBlock     *big.Int
+		blockNum      uint64
+		expectedPrice uint64
+	}{
+		{"Pre-Kore, Block 0", big.NewInt(999999999), 0, 25},
+		{"Pre-Kore, Block 1209600", big.NewInt(999999999), 604800 * 2, 25},
+		{"Pre-Kore, Block 1209601", big.NewInt(999999999), 604800*2 + 1, 750},
+		{"Post-Kore, Block 0", big.NewInt(0), 0, 25},
+		{"Post-Kore, Block 1209600", big.NewInt(0), 604800 * 2, 750},
+		{"Post-Kore, Block 1209601", big.NewInt(0), 604800*2 + 1, 750},
 	}
 
-	pset, err := h.EffectiveParams(0)
-	require.NoError(t, err)
-	assert.Equal(t, uint64(25), pset.UnitPrice())
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			mockCtrl := gomock.NewController(t)
+			chain := mocks.NewMockBlockChain(mockCtrl)
+			db := database.NewMemDB()
+			config := &params.ChainConfig{
+				KoreCompatibleBlock: tc.koreBlock,
+				Istanbul: &params.IstanbulConfig{
+					Epoch: 604800,
+				},
+			}
+			h := &HeaderGovModule{}
+			err := h.Init(&InitOpts{
+				Chain:       chain,
+				ChainKv:     db,
+				ChainConfig: config,
+			})
+			require.NoError(t, err)
 
-	pset, err = h.EffectiveParams(604800 * 2)
-	require.NoError(t, err)
-	assert.Equal(t, uint64(25), pset.UnitPrice())
+			for _, g := range gov {
+				require.NoError(t, h.AddGov(&g))
+			}
 
-	pset, err = h.EffectiveParams(604800*2 + 1)
-	require.NoError(t, err)
-	assert.Equal(t, uint64(750), pset.UnitPrice())
-
-	config.KoreCompatibleBlock = big.NewInt(0)
-	db = database.NewMemDB()
-	h = &HeaderGovModule{}
-	err = h.Init(&InitOpts{
-		Chain:       chain,
-		ChainKv:     db,
-		ChainConfig: config,
-	})
-	require.NoError(t, err)
-	for _, gov := range gov {
-		assert.NoError(t, h.AddGov(&gov))
+			pset, err := h.EffectiveParams(tc.blockNum)
+			require.NoError(t, err)
+			assert.Equal(t, tc.expectedPrice, pset.UnitPrice())
+		})
 	}
-
-	pset, err = h.EffectiveParams(0)
-	require.NoError(t, err)
-	assert.Equal(t, uint64(25), pset.UnitPrice())
-
-	pset, err = h.EffectiveParams(604800 * 2)
-	require.NoError(t, err)
-	assert.Equal(t, uint64(750), pset.UnitPrice())
-
-	pset, err = h.EffectiveParams(604800*2 + 1)
-	require.NoError(t, err)
-	assert.Equal(t, uint64(750), pset.UnitPrice())
 }
 
 func TestCalcGovDataBlock(t *testing.T) {

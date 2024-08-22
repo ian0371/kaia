@@ -1,6 +1,9 @@
 package headergov
 
-import "github.com/kaiachain/kaia/blockchain/types"
+import (
+	"github.com/kaiachain/kaia/blockchain/types"
+	headergov_types "github.com/kaiachain/kaia/kaiax/headergov/types"
+)
 
 func (h *HeaderGovModule) VerifyHeader(*types.Header) error {
 	return nil // TODO: implement
@@ -15,13 +18,13 @@ func (h *HeaderGovModule) FinalizeBlock() (*types.Block, error) {
 }
 
 func (h *HeaderGovModule) PostInsertBlock(b *types.Block) error {
-	vote, err := deserializeHeaderVote(b.Header().Vote, b.NumberU64())
+	vote, err := headergov_types.DeserializeHeaderVote(b.Header().Vote, b.NumberU64())
 	if err != nil {
 		return err
 	}
 	h.AddVote(vote)
 
-	gov, err := deserializeHeaderGov(b.Header().Vote, b.NumberU64())
+	gov, err := headergov_types.DeserializeHeaderGov(b.Header().Vote, b.NumberU64())
 	if err != nil {
 		return err
 	}

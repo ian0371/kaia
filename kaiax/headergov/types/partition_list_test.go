@@ -19,6 +19,7 @@ func TestIntervalArray(t *testing.T) {
 	assert.Equal(t, 3, iv.GetItem(50))
 	assert.Equal(t, 3, iv.GetItem(100000))
 
+	// {0,1}, {5,4}, {10,2}, {50,3}
 	iv.AddRecord(5, 4)
 	assert.Equal(t, 1, iv.GetItem(0))
 	assert.Equal(t, 1, iv.GetItem(4))
@@ -29,6 +30,7 @@ func TestIntervalArray(t *testing.T) {
 	assert.Equal(t, 3, iv.GetItem(50))
 	assert.Equal(t, 3, iv.GetItem(100000))
 
+	// {0,1}, {5,4}, {10,2}, {20,5}, {50,3}
 	iv.AddRecord(20, 5)
 	assert.Equal(t, 1, iv.GetItem(0))
 	assert.Equal(t, 1, iv.GetItem(4))

@@ -33,7 +33,7 @@ func TestGetAllParamsHistory(t *testing.T) {
 		},
 	}
 
-	param1, err := GetAllParamsHistory(govs)
+	param1, err := GetGovParams(govs)
 	assert.NoError(t, err)
 	assert.Equal(t, uint64(100), param1.GetItem(0).UnitPrice())
 	assert.Equal(t, uint64(200), param1.GetItem(4).UnitPrice())

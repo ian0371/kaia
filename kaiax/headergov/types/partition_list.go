@@ -37,6 +37,11 @@ func (iv *PartitionList[T]) RemoveRecord(i uint) {
 }
 
 func (iv *PartitionList[T]) GetItem(height uint) T {
+	if len(*iv) == 0 {
+		var defaultValue T
+		return defaultValue
+	}
+
 	index := 0
 	for i := range *iv {
 		if i == len(*iv)-1 {

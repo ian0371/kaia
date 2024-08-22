@@ -19,9 +19,12 @@ type GovernanceData struct {
 	Params   map[string]Param
 }
 
+type GovParams = PartitionList[*params.GovParamSet]
+
 type GovernanceCache struct {
-	Votes []VoteData
-	Govs  []GovernanceData
+	Votes     []VoteData
+	Govs      []GovernanceData // TODO: remove or change to GovBlockNums
+	GovParams GovParams
 }
 
 func (h *GovernanceCache) VoteBlockNums() []uint64 {
@@ -48,10 +51,15 @@ func (h *GovernanceCache) AddVote(num uint64, vote VoteData) {
 // TODO: sort
 func (h *GovernanceCache) AddGov(num uint64, g GovernanceData) {
 	h.Govs = append(h.Govs, g)
+	ps, _ := g.ToParamSet() // TODO: handle error
+	if h.GovParams.GetItem(uint(num)) != nil {
+		ps = params.NewGovParamSetMerged(h.GovParams.GetItem(uint(num)), ps)
+	}
+	h.GovParams.AddRecord(uint(num), ps)
 }
 
-func GetAllParamsHistory(govs []GovernanceData) (PartitionList[*params.GovParamSet], error) {
-	ret := PartitionList[*params.GovParamSet]{}
+func GetGovParams(govs []GovernanceData) (GovParams, error) {
+	ret := GovParams{}
 
 	effectiveParams := &params.GovParamSet{}
 	for _, g := range govs {

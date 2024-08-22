@@ -21,6 +21,7 @@ var (
 type Param = headergov_types.Param
 type VoteData = headergov_types.VoteData
 type GovernanceData = headergov_types.GovernanceData
+type GovParams = headergov_types.GovParams
 type GovernanceCache = headergov_types.GovernanceCache
 
 type chain interface {
@@ -53,9 +54,11 @@ func (h *HeaderGovModule) Init(opts *InitOpts) error {
 	if h.epoch == 0 {
 		return errZeroEpoch
 	}
+
 	h.cache = GovernanceCache{
-		Votes: readVoteBlockNumsFromDB(h.Chain, h.ChainKv),
-		Govs:  readGovBlockNumsFromDB(h.Chain, h.ChainKv),
+		Votes:     readVoteBlockNumsFromDB(h.Chain, h.ChainKv),
+		Govs:      readGovBlockNumsFromDB(h.Chain, h.ChainKv),
+		GovParams: readGovParamsFromDB(h.Chain, h.ChainKv),
 	}
 
 	return nil
@@ -107,4 +110,18 @@ func readGovBlockNumsFromDB(chain chain, db database.Database) []GovernanceData 
 		}
 	}
 	return govs
+}
+
+func readGovParamsFromDB(chain chain, db database.Database) GovParams {
+	govBlockNums := ReadGovDataBlocks(db)
+	if govBlockNums == nil {
+		return GovParams{}
+	}
+
+	govParams := GovParams{}
+	for _, govBlockNum := range *govBlockNums {
+		govParams.AddRecord(uint(govBlockNum), ReadGovParams(db, govBlockNum))
+	}
+
+	return govParams
 }

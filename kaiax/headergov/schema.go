@@ -3,16 +3,24 @@ package headergov
 import (
 	"encoding/json"
 
+	"github.com/kaiachain/kaia/common"
+	"github.com/kaiachain/kaia/params"
 	"github.com/kaiachain/kaia/storage/database"
 )
 
 var (
 	voteDataBlockNumsKey = []byte("voteDataBlockNums")
 	govDataBlockNumsKey  = []byte("governanceDataBlockNums")
+	govParamSetKey       = []byte("governanceParamSet-")
 )
 
 type StoredVoteBlockNums []uint64
 type StoredGovBlockNums []uint64
+
+func makeKey(prefix []byte, num uint64) []byte {
+	byteKey := common.Int64ToByteLittleEndian(num)
+	return append(prefix, byteKey...)
+}
 
 func ReadVoteDataBlocks(db database.Database) *StoredVoteBlockNums {
 	b, err := db.Get(voteDataBlockNumsKey)
@@ -63,5 +71,31 @@ func WriteGovDataBlocks(db database.Database, govData *StoredGovBlockNums) {
 
 	if err := db.Put(govDataBlockNumsKey, b); err != nil {
 		logger.Crit("Failed to write voteDataBlocks", "err", err)
+	}
+}
+
+func ReadGovParams(db database.Database, num uint64) *params.GovParamSet {
+	b, err := db.Get(makeKey(govParamSetKey, num))
+	if err != nil || len(b) == 0 {
+		return nil
+	}
+
+	ps := new(params.GovParamSet)
+	if err := json.Unmarshal(b, ps); err != nil {
+		logger.Error("Invalid govParams JSON", "err", err)
+		return nil
+	}
+	return ps
+}
+
+func WriteGovParams(db database.Database, num uint64, ps *params.GovParamSet) {
+	b, err := json.Marshal(ps)
+	if err != nil {
+		logger.Error("Failed to marshal govParams", "err", err)
+		return
+	}
+
+	if err := db.Put(makeKey(govParamSetKey, num), b); err != nil {
+		logger.Crit("Failed to write govParams", "err", err)
 	}
 }

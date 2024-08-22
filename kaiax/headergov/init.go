@@ -21,7 +21,6 @@ var (
 type Param = headergov_types.Param
 type VoteData = headergov_types.VoteData
 type GovernanceData = headergov_types.GovernanceData
-type AllParamsHistory = headergov_types.AllParamsHistory
 type GovernanceCache = headergov_types.GovernanceCache
 
 type chain interface {

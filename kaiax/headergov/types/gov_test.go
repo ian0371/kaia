@@ -12,33 +12,31 @@ import (
 )
 
 func TestGetAllParamsHistory(t *testing.T) {
-	epoch := uint64(4)
-	koreHf := uint64(10000)
-	gov := []GovernanceData{
+	govs := []GovernanceData{
 		0: {
 			BlockNum: 0,
 			Params: map[string]Param{
-				"param1": {
-					Name:  "param1",
-					Value: 0,
+				governance.GovernanceKeyMapReverse[params.UnitPrice]: {
+					Name:  governance.GovernanceKeyMapReverse[params.UnitPrice],
+					Value: 100,
 				},
 			},
 		},
 		4: {
 			BlockNum: 4,
 			Params: map[string]Param{
-				"param1": {
-					Name:  "param1",
-					Value: 100,
+				governance.GovernanceKeyMapReverse[params.UnitPrice]: {
+					Name:  governance.GovernanceKeyMapReverse[params.UnitPrice],
+					Value: 200,
 				},
 			},
 		},
 	}
 
-	param1 := GetAllParamsHistory(gov, epoch, koreHf)["param1"]
-	assert.Equal(t, 0, param1.GetItem(0).Value)
-	assert.Equal(t, 0, param1.GetItem(8).Value)
-	assert.Equal(t, 100, param1.GetItem(9).Value)
+	param1, err := GetAllParamsHistory(govs)
+	assert.NoError(t, err)
+	assert.Equal(t, uint64(100), param1.GetItem(0).UnitPrice())
+	assert.Equal(t, uint64(200), param1.GetItem(4).UnitPrice())
 }
 
 func TestHeaderGovSerialization(t *testing.T) {

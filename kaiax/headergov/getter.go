@@ -7,14 +7,13 @@ import (
 
 func (h *HeaderGovModule) EffectiveParams(num uint64) (*params.GovParamSet, error) {
 	// TODO: only return when num <= head + 1
-	allParamsHistory := gov_types.GetAllParamsHistory(h.cache.Govs, h.epoch, h.ChainConfig.KoreCompatibleBlock.Uint64())
-	ret := make(map[string]interface{})
-	logger.Debug("EffectiveParams", "num", num, "allParamHistory", allParamsHistory)
-	for _, paramHistory := range allParamsHistory {
-		param := paramHistory.GetItem(uint(num))
-		ret[param.Name] = param.Value
+	allParamsHistory, err := gov_types.GetAllParamsHistory(h.cache.Govs)
+	if err != nil {
+		return nil, err
 	}
-	return params.NewGovParamSetStrMap(ret)
+
+	govBlock := CalcGovDataBlock(num, h.epoch, h.isKoreHF(num))
+	return allParamsHistory.GetItem(uint(govBlock)), nil
 }
 
 func CalcGovDataBlock(num uint64, epoch uint64, isKore bool) uint64 {

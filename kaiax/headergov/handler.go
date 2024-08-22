@@ -10,8 +10,9 @@ import (
 	"github.com/kaiachain/kaia/params"
 )
 
+// TODO: verify Vote.
+// TODO: filter valid votes (i.e., tally)
 func (h *HeaderGovModule) VerifyHeader(header *types.Header) error {
-	// TODO: verify Vote.
 
 	// verify Governance.
 	if header.Number.Uint64() == 0 {
@@ -28,7 +29,6 @@ func (h *HeaderGovModule) VerifyHeader(header *types.Header) error {
 	}
 
 	// 2. vote pass check
-	// TODO: filter valid votes (i.e., tally)
 	votes := h.getVotesInEpoch(calcEpochIdx(header.Number.Uint64()-1, h.epoch))
 	expectedParamSet := new(params.GovParamSet)
 	for _, vote := range votes {
@@ -55,34 +55,41 @@ func (h *HeaderGovModule) VerifyHeader(header *types.Header) error {
 	return nil
 }
 
-func (h *HeaderGovModule) PrepareHeader(*types.Header) (*types.Header, error) {
+// TODO: Add Gov to header.
+// TODO: if myVote exists, put Vote to header.
+func (h *HeaderGovModule) PrepareHeader(header *types.Header) (*types.Header, error) {
 	// if epoch block & vote exists in the last epoch, put Governance to header.
-	// if myVote exists, put Vote to header.
-	return nil, nil // TODO: implement
+	if header.Number.Uint64()%h.epoch == 0 {
+	}
+
+	return header, nil // TODO: implement
 }
 
-func (h *HeaderGovModule) FinalizeBlock() (*types.Block, error) {
-	return nil, nil
+func (h *HeaderGovModule) FinalizeBlock(b *types.Block) (*types.Block, error) {
+	return b, nil
 }
 
 func (h *HeaderGovModule) PostInsertBlock(b *types.Block) error {
-	vote, err := headergov_types.DeserializeHeaderVote(b.Header().Vote, b.NumberU64())
-	if err != nil {
-		return err
+	if len(b.Header().Vote) > 0 {
+		vote, err := headergov_types.DeserializeHeaderVote(b.Header().Vote, b.NumberU64())
+		if err != nil {
+			return err
+		}
+		h.AddVote(vote)
 	}
-	h.AddVote(vote)
 
-	gov, err := headergov_types.DeserializeHeaderGov(b.Header().Vote, b.NumberU64())
-	if err != nil {
-		return err
+	if len(b.Header().Governance) > 0 {
+		gov, err := headergov_types.DeserializeHeaderGov(b.Header().Vote, b.NumberU64())
+		if err != nil {
+			return err
+		}
+		h.AddGov(gov)
 	}
-	h.AddGov(gov)
 
 	return nil
 }
 
 func (h *HeaderGovModule) AddVote(vote *VoteData) error {
-	// TODO: sort
 	h.cache.AddVote(vote.BlockNum, *vote)
 
 	var data StoredVoteBlockNums = h.cache.VoteBlockNums()
@@ -91,7 +98,6 @@ func (h *HeaderGovModule) AddVote(vote *VoteData) error {
 }
 
 func (h *HeaderGovModule) AddGov(gov *GovernanceData) error {
-	// TODO: sort
 	h.cache.AddGov(gov.BlockNum, *gov)
 
 	var data StoredGovBlockNums = h.cache.GovBlockNums()

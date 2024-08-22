@@ -42,10 +42,12 @@ func (h *GovernanceCache) GovBlockNums() []uint64 {
 	return blockNums
 }
 
+// TODO: sort
 func (h *GovernanceCache) AddVote(num uint64, vote VoteData) {
 	h.Votes = append(h.Votes, vote)
 }
 
+// TODO: sort
 func (h *GovernanceCache) AddGov(num uint64, g GovernanceData) {
 	h.Govs = append(h.Govs, g)
 }

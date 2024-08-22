@@ -6,6 +6,7 @@ import (
 )
 
 func (h *HeaderGovModule) EffectiveParams(num uint64) (*params.GovParamSet, error) {
+	// TODO: only return when num <= head + 1
 	allParamsHistory := gov_types.GetAllParamsHistory(h.cache.Govs, h.epoch, h.ChainConfig.KoreCompatibleBlock.Uint64())
 	ret := make(map[string]interface{})
 	logger.Debug("EffectiveParams", "num", num, "allParamHistory", allParamsHistory)

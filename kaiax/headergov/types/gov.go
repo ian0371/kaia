@@ -139,6 +139,23 @@ func DeserializeHeaderVote(b []byte, blockNum uint64) (*VoteData, error) {
 	}, nil
 }
 
+func (g *GovernanceData) MarshalJSON() ([]byte, error) {
+	tmp := make(map[string]interface{})
+	for _, v := range g.Params {
+		tmp[v.Name] = v.Value
+	}
+
+	return json.Marshal(tmp)
+}
+
+func (g *GovernanceData) Serialize() ([]byte, error) {
+	j, err := g.MarshalJSON()
+	if err != nil {
+		return nil, err
+	}
+	return rlp.EncodeToBytes(j)
+}
+
 func DeserializeHeaderGov(b []byte, blockNum uint64) (*GovernanceData, error) {
 	rlpDecoded := []byte("")
 	err := rlp.DecodeBytes(b, &rlpDecoded)
@@ -168,17 +185,3 @@ func DeserializeHeaderGov(b []byte, blockNum uint64) (*GovernanceData, error) {
 		Params:   params,
 	}, nil
 }
-
-// func serializeGovData(gov *GovernanceData) ([]byte, error) {
-// 	v := &struct {
-// 		Validator common.Address
-// 		Key       string
-// 		Value     interface{}
-// 	}{
-// 		Validator: vote.Voter,
-// 		Key:       vote.Param.Name,
-// 		Value:     vote.Param.Value,
-// 	}
-//
-// 	return rlp.EncodeToBytes(v)
-// }

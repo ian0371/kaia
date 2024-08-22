@@ -36,3 +36,32 @@ func TestReadVoteBlockNumsFromDB(t *testing.T) {
 
 	assert.Equal(t, voteDatas, readVoteBlockNumsFromDB(chain, db))
 }
+
+func TestReadGovBlockNumsFromDB(t *testing.T) {
+	govDatas := []GovernanceData{
+		{BlockNum: 1, Params: map[string]Param{
+			governance.GovernanceKeyMapReverse[params.UnitPrice]: {Name: governance.GovernanceKeyMapReverse[params.UnitPrice], Value: uint64(100)},
+		}},
+		{BlockNum: 50, Params: map[string]Param{
+			governance.GovernanceKeyMapReverse[params.UnitPrice]: {Name: governance.GovernanceKeyMapReverse[params.UnitPrice], Value: uint64(200)},
+		}},
+		{BlockNum: 100, Params: map[string]Param{
+			governance.GovernanceKeyMapReverse[params.UnitPrice]: {Name: governance.GovernanceKeyMapReverse[params.UnitPrice], Value: uint64(300)},
+		}},
+	}
+
+	mockCtrl := gomock.NewController(t)
+	chain := mocks.NewMockBlockChain(mockCtrl)
+
+	db := database.NewMemDB()
+	govDataBlockNums := make(StoredGovBlockNums, 0, len(govDatas))
+	for _, govData := range govDatas {
+		headerGovData, err := govData.Serialize()
+		chain.EXPECT().GetHeaderByNumber(uint64(govData.BlockNum)).Return(&types.Header{Governance: headerGovData})
+		require.NoError(t, err)
+		govDataBlockNums = append(govDataBlockNums, govData.BlockNum)
+	}
+	WriteGovDataBlocks(db, &govDataBlockNums)
+
+	assert.Equal(t, govDatas, readGovBlockNumsFromDB(chain, db))
+}

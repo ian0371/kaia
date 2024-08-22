@@ -1,15 +1,63 @@
 package headergov
 
 import (
+	"errors"
+	"fmt"
+	"reflect"
+
 	"github.com/kaiachain/kaia/blockchain/types"
 	headergov_types "github.com/kaiachain/kaia/kaiax/headergov/types"
+	"github.com/kaiachain/kaia/params"
 )
 
-func (h *HeaderGovModule) VerifyHeader(*types.Header) error {
-	return nil // TODO: implement
+func (h *HeaderGovModule) VerifyHeader(header *types.Header) error {
+	// TODO: verify Vote.
+
+	// verify Governance.
+	if header.Number.Uint64() == 0 {
+		return nil
+	}
+
+	// 1. epoch check
+	if header.Number.Uint64()%h.epoch != 0 {
+		if len(header.Governance) > 0 {
+			return errors.New("governance is not allowed in non-epoch block")
+		} else {
+			return nil
+		}
+	}
+
+	// 2. vote pass check
+	// TODO: filter valid votes (i.e., tally)
+	votes := h.getVotesInEpoch(calcEpochIdx(header.Number.Uint64()-1, h.epoch))
+	expectedParamSet := new(params.GovParamSet)
+	for _, vote := range votes {
+		voteParamSet, err := vote.ToParamSet()
+		if err != nil {
+			return err
+		}
+		expectedParamSet = params.NewGovParamSetMerged(expectedParamSet, voteParamSet)
+	}
+
+	deserializedGov, err := headergov_types.DeserializeHeaderGov(header.Governance, header.Number.Uint64())
+	if err != nil {
+		return err
+	}
+	headerParamSet, err := deserializedGov.ToParamSet()
+	if err != nil {
+		return err
+	}
+
+	if !reflect.DeepEqual(expectedParamSet, headerParamSet) {
+		return fmt.Errorf("expected ParamSet: %v, header ParamSet: %v", expectedParamSet, headerParamSet)
+	}
+
+	return nil
 }
 
 func (h *HeaderGovModule) PrepareHeader(*types.Header) (*types.Header, error) {
+	// if epoch block & vote exists in the last epoch, put Governance to header.
+	// if myVote exists, put Vote to header.
 	return nil, nil // TODO: implement
 }
 
@@ -34,6 +82,7 @@ func (h *HeaderGovModule) PostInsertBlock(b *types.Block) error {
 }
 
 func (h *HeaderGovModule) AddVote(vote *VoteData) error {
+	// TODO: sort
 	h.cache.AddVote(vote.BlockNum, *vote)
 
 	var data StoredVoteBlockNums = h.cache.VoteBlockNums()
@@ -42,9 +91,25 @@ func (h *HeaderGovModule) AddVote(vote *VoteData) error {
 }
 
 func (h *HeaderGovModule) AddGov(gov *GovernanceData) error {
+	// TODO: sort
 	h.cache.AddGov(gov.BlockNum, *gov)
 
 	var data StoredGovBlockNums = h.cache.GovBlockNums()
 	WriteGovDataBlocks(h.ChainKv, &data)
 	return nil
+}
+
+func (h *HeaderGovModule) getVotesInEpoch(epochIdx uint64) []VoteData {
+	ret := make([]VoteData, 0)
+	for _, vote := range h.cache.Votes {
+		if calcEpochIdx(vote.BlockNum, h.epoch) == epochIdx {
+			ret = append(ret, vote)
+		}
+	}
+
+	return ret
+}
+
+func calcEpochIdx(blockNum uint64, epoch uint64) uint64 {
+	return blockNum / epoch
 }

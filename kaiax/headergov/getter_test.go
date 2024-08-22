@@ -1,6 +1,7 @@
 package headergov
 
 import (
+	"fmt"
 	"math/big"
 	"testing"
 
@@ -95,4 +96,35 @@ func TestEffectiveParams(t *testing.T) {
 	pset, err = h.EffectiveParams(604800*2 + 1)
 	require.NoError(t, err)
 	assert.Equal(t, uint64(750), pset.UnitPrice())
+}
+
+func TestCalcGovDataBlock(t *testing.T) {
+	epoch := uint64(604800)
+	koreHF := epoch * 3
+
+	testCases := []struct {
+		blockNum    uint64
+		expectedGov uint64
+	}{
+		{0, 0},
+		{epoch - 1, 0},
+		{epoch, 0},
+		{epoch + 1, 0},
+		{epoch*2 - 1, 0},
+		{epoch * 2, 0},
+		{epoch*2 + 1, epoch},
+		{epoch*3 - 1, epoch},
+		{epoch * 3, epoch * 2},
+		{epoch*3 + 1, epoch * 2},
+		{epoch*4 - 1, epoch * 2},
+		{epoch * 4, epoch * 3},
+		{epoch*4 + 1, epoch * 3},
+	}
+
+	for _, tc := range testCases {
+		t.Run(fmt.Sprintf("Block %d", tc.blockNum), func(t *testing.T) {
+			result := CalcGovDataBlock(tc.blockNum, epoch, tc.blockNum >= koreHF)
+			assert.Equal(t, tc.expectedGov, result, "Incorrect governance data block for block %d", tc.blockNum)
+		})
+	}
 }

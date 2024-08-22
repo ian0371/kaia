@@ -16,3 +16,22 @@ func (h *HeaderGovModule) EffectiveParams(num uint64) (*params.GovParamSet, erro
 	}
 	return params.NewGovParamSetStrMap(ret)
 }
+
+func CalcGovDataBlock(num uint64, epoch uint64, isKore bool) uint64 {
+	if num <= epoch {
+		return 0
+	}
+	if isKore {
+		if num%epoch == 0 {
+			return num - epoch
+		} else {
+			return num - num%epoch - epoch
+		}
+	} else {
+		if num%epoch == 0 {
+			return num - 2*epoch
+		} else {
+			return num - num%epoch - epoch
+		}
+	}
+}

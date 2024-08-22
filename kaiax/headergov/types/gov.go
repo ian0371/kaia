@@ -55,20 +55,18 @@ func GetAllParamsHistory(govs []GovernanceData, epoch uint64, koreHf uint64) All
 	ret := make(AllParamsHistory)
 
 	for _, g := range govs {
-		for _, p := range g.Params {
-			ia, ok := ret[p.Name]
-			if !ok {
-				ret[p.Name] = &PartitionList[Param]{}
-				ia = ret[p.Name]
-			}
-
+		for paramName, p := range g.Params {
 			activation := uint64(0)
 			if g.BlockNum < koreHf {
 				activation = headerGovActivationBlockPreKore(g.BlockNum, epoch)
 			} else {
 				activation = headerGovActivationBlockPostKore(g.BlockNum, epoch)
 			}
-			ia.AddRecord(uint(activation), p)
+
+			if _, exists := ret[paramName]; !exists {
+				ret[paramName] = &PartitionList[Param]{}
+			}
+			ret[paramName].AddRecord(uint(activation), p)
 		}
 	}
 

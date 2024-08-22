@@ -9,7 +9,6 @@ func (h *HeaderGovModule) EffectiveParams(num uint64) (*params.GovParamSet, erro
 	allParamsHistory := gov_types.GetAllParamsHistory(h.cache.Govs, h.epoch, h.ChainConfig.KoreCompatibleBlock.Uint64())
 	ret := make(map[string]interface{})
 	for _, paramHistory := range allParamsHistory {
-
 		param := paramHistory.GetItem(uint(num))
 		logger.Debug("EffectiveParams",
 			"num", num,

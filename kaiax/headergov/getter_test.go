@@ -83,7 +83,7 @@ func TestEffectiveParams(t *testing.T) {
 	}
 }
 
-func TestCalcGovDataBlock(t *testing.T) {
+func TestSourceBlockNum(t *testing.T) {
 	epoch := uint64(604800)
 	testCases := []struct {
 		blockNum    uint64
@@ -115,7 +115,7 @@ func TestCalcGovDataBlock(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(fmt.Sprintf("Block %d", tc.blockNum), func(t *testing.T) {
-			result := CalcGovDataBlock(tc.blockNum, epoch, tc.isKore)
+			result := SourceBlockNum(tc.blockNum, epoch, tc.isKore)
 			assert.Equal(t, tc.expectedGov, result, "Incorrect governance data block for block %d", tc.blockNum)
 		})
 	}

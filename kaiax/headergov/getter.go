@@ -6,11 +6,11 @@ import (
 
 func (h *HeaderGovModule) EffectiveParams(num uint64) (*params.GovParamSet, error) {
 	// TODO: only return when num <= head + 1
-	govBlock := CalcGovDataBlock(num, h.epoch, h.isKoreHF(num))
-	return h.cache.GovMap.GetItem(uint(govBlock)), nil
+	sourceBlock := SourceBlockNum(num, h.epoch, h.isKoreHF(num))
+	return h.cache.GovMap.GetItem(uint(sourceBlock)), nil
 }
 
-func CalcGovDataBlock(num uint64, epoch uint64, isKore bool) uint64 {
+func SourceBlockNum(num, epoch uint64, isKore bool) uint64 {
 	if num <= epoch {
 		return 0
 	}

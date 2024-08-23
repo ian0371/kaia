@@ -21,7 +21,7 @@ var (
 type Param = headergov_types.Param
 type VoteData = headergov_types.VoteData
 type GovernanceData = headergov_types.GovernanceData
-type GovParams = headergov_types.GovParams
+type GovBlockNumToGovParamSetMap = headergov_types.GovBlockNumToGovParamSetMap
 type GovernanceCache = headergov_types.GovernanceCache
 
 type chain interface {
@@ -56,9 +56,9 @@ func (h *HeaderGovModule) Init(opts *InitOpts) error {
 	}
 
 	h.cache = GovernanceCache{
-		Votes:     readVoteBlockNumsFromDB(h.Chain, h.ChainKv),
-		Govs:      readGovBlockNumsFromDB(h.Chain, h.ChainKv),
-		GovParams: readGovParamsFromDB(h.Chain, h.ChainKv),
+		Votes:  readVoteBlockNumsFromDB(h.Chain, h.ChainKv),
+		Govs:   readGovBlockNumsFromDB(h.Chain, h.ChainKv),
+		GovMap: readGovMapFromDB(h.Chain, h.ChainKv),
 	}
 
 	return nil
@@ -78,7 +78,7 @@ func (s *HeaderGovModule) isKoreHF(num uint64) bool {
 }
 
 func readVoteBlockNumsFromDB(chain chain, db database.Database) []VoteData {
-	voteBlocks := ReadVoteDataBlocks(db)
+	voteBlocks := ReadVoteDataBlockNums(db)
 	votes := make([]VoteData, 0)
 	if voteBlocks != nil {
 		for _, blockNum := range *voteBlocks {
@@ -96,7 +96,7 @@ func readVoteBlockNumsFromDB(chain chain, db database.Database) []VoteData {
 }
 
 func readGovBlockNumsFromDB(chain chain, db database.Database) []GovernanceData {
-	govBlocks := ReadGovDataBlocks(db)
+	govBlocks := ReadGovDataBlockNums(db)
 	govs := make([]GovernanceData, 0)
 	if govBlocks != nil {
 		for _, blockNum := range *govBlocks {
@@ -112,15 +112,15 @@ func readGovBlockNumsFromDB(chain chain, db database.Database) []GovernanceData 
 	return govs
 }
 
-func readGovParamsFromDB(chain chain, db database.Database) GovParams {
-	govBlockNums := ReadGovDataBlocks(db)
-	if govBlockNums == nil {
-		return GovParams{}
+func readGovMapFromDB(chain chain, db database.Database) GovBlockNumToGovParamSetMap {
+	govBlockNums := ReadGovDataBlockNums(db)
+	if govBlockNums == nil || len(*govBlockNums) == 0 {
+		return GovBlockNumToGovParamSetMap{}
 	}
 
-	govParams := GovParams{}
+	govParams := GovBlockNumToGovParamSetMap{}
 	for _, govBlockNum := range *govBlockNums {
-		govParams.AddRecord(uint(govBlockNum), ReadGovParams(db, govBlockNum))
+		govParams.AddRecord(uint(govBlockNum), ReadGovParamSet(db, govBlockNum))
 	}
 
 	return govParams

@@ -93,7 +93,7 @@ func (h *HeaderGovModule) AddVote(vote *VoteData) error {
 	h.cache.AddVote(vote.BlockNum, *vote)
 
 	var data StoredVoteBlockNums = h.cache.VoteBlockNums()
-	WriteVoteDataBlocks(h.ChainKv, &data)
+	WriteVoteDataBlockNums(h.ChainKv, &data)
 	return nil
 }
 
@@ -101,7 +101,7 @@ func (h *HeaderGovModule) AddGov(gov *GovernanceData) error {
 	h.cache.AddGov(gov.BlockNum, *gov)
 
 	var data StoredGovBlockNums = h.cache.GovBlockNums()
-	WriteGovDataBlocks(h.ChainKv, &data)
+	WriteGovDataBlockNums(h.ChainKv, &data)
 	return nil
 }
 

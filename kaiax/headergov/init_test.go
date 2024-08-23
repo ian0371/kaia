@@ -32,7 +32,7 @@ func TestReadVoteBlockNumsFromDB(t *testing.T) {
 		require.NoError(t, err)
 		voteDataBlockNums = append(voteDataBlockNums, voteData.BlockNum)
 	}
-	WriteVoteDataBlocks(db, &voteDataBlockNums)
+	WriteVoteDataBlockNums(db, &voteDataBlockNums)
 
 	assert.Equal(t, voteDatas, readVoteBlockNumsFromDB(chain, db))
 }
@@ -61,7 +61,32 @@ func TestReadGovBlockNumsFromDB(t *testing.T) {
 		require.NoError(t, err)
 		govDataBlockNums = append(govDataBlockNums, govData.BlockNum)
 	}
-	WriteGovDataBlocks(db, &govDataBlockNums)
+	WriteGovDataBlockNums(db, &govDataBlockNums)
 
 	assert.Equal(t, govDatas, readGovBlockNumsFromDB(chain, db))
+}
+
+func TestReadGovMapFromDB(t *testing.T) {
+	mockCtrl := gomock.NewController(t)
+	chain := mocks.NewMockBlockChain(mockCtrl)
+	db := database.NewMemDB()
+
+	ps1, _ := params.NewGovParamSetIntMap(map[int]interface{}{
+		params.UnitPrice: uint64(100),
+	})
+	ps2, _ := params.NewGovParamSetIntMap(map[int]interface{}{
+		params.UnitPrice: uint64(200),
+	})
+	govMap := GovBlockNumToGovParamSetMap{}
+	govMap.AddRecord(1, ps1)
+	WriteGovParamSet(db, 1, ps1)
+
+	govMap.AddRecord(2, ps2)
+	WriteGovParamSet(db, 2, ps2)
+
+	WriteGovDataBlockNums(db, &StoredGovBlockNums{1, 2})
+
+	assert.Equal(t, ps1, ReadGovParamSet(db, 1))
+	assert.Equal(t, ps2, ReadGovParamSet(db, 2))
+	assert.Equal(t, govMap, readGovMapFromDB(chain, db))
 }

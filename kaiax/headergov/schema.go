@@ -22,7 +22,7 @@ func makeKey(prefix []byte, num uint64) []byte {
 	return append(prefix, byteKey...)
 }
 
-func ReadVoteDataBlocks(db database.Database) *StoredVoteBlockNums {
+func ReadVoteDataBlockNums(db database.Database) *StoredVoteBlockNums {
 	b, err := db.Get(voteDataBlockNumsKey)
 	if err != nil || len(b) == 0 {
 		return nil
@@ -36,7 +36,7 @@ func ReadVoteDataBlocks(db database.Database) *StoredVoteBlockNums {
 	return ret
 }
 
-func WriteVoteDataBlocks(db database.Database, voteDataBlockNums *StoredVoteBlockNums) {
+func WriteVoteDataBlockNums(db database.Database, voteDataBlockNums *StoredVoteBlockNums) {
 	b, err := json.Marshal(voteDataBlockNums)
 	if err != nil {
 		logger.Error("Failed to marshal voteDataBlocks", "err", err)
@@ -48,7 +48,7 @@ func WriteVoteDataBlocks(db database.Database, voteDataBlockNums *StoredVoteBloc
 	}
 }
 
-func ReadGovDataBlocks(db database.Database) *StoredGovBlockNums {
+func ReadGovDataBlockNums(db database.Database) *StoredGovBlockNums {
 	b, err := db.Get(govDataBlockNumsKey)
 	if err != nil || len(b) == 0 {
 		return nil
@@ -62,7 +62,7 @@ func ReadGovDataBlocks(db database.Database) *StoredGovBlockNums {
 	return ret
 }
 
-func WriteGovDataBlocks(db database.Database, govData *StoredGovBlockNums) {
+func WriteGovDataBlockNums(db database.Database, govData *StoredGovBlockNums) {
 	b, err := json.Marshal(govData)
 	if err != nil {
 		logger.Error("Failed to marshal govDataBlocks", "err", err)
@@ -74,7 +74,7 @@ func WriteGovDataBlocks(db database.Database, govData *StoredGovBlockNums) {
 	}
 }
 
-func ReadGovParams(db database.Database, num uint64) *params.GovParamSet {
+func ReadGovParamSet(db database.Database, num uint64) *params.GovParamSet {
 	b, err := db.Get(makeKey(govParamSetKey, num))
 	if err != nil || len(b) == 0 {
 		return nil
@@ -82,13 +82,13 @@ func ReadGovParams(db database.Database, num uint64) *params.GovParamSet {
 
 	ps := new(params.GovParamSet)
 	if err := json.Unmarshal(b, ps); err != nil {
-		logger.Error("Invalid govParams JSON", "err", err)
+		logger.Error("Invalid GovParamSet JSON", "num", num, "err", err)
 		return nil
 	}
 	return ps
 }
 
-func WriteGovParams(db database.Database, num uint64, ps *params.GovParamSet) {
+func WriteGovParamSet(db database.Database, num uint64, ps *params.GovParamSet) {
 	b, err := json.Marshal(ps)
 	if err != nil {
 		logger.Error("Failed to marshal govParams", "err", err)
@@ -96,6 +96,6 @@ func WriteGovParams(db database.Database, num uint64, ps *params.GovParamSet) {
 	}
 
 	if err := db.Put(makeKey(govParamSetKey, num), b); err != nil {
-		logger.Crit("Failed to write govParams", "err", err)
+		logger.Crit("Failed to write GovParamSet", "num", num, "err", err)
 	}
 }

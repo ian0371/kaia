@@ -17,6 +17,7 @@ package params
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"math/big"
 	"reflect"
@@ -576,6 +577,25 @@ func (p *GovParamSet) ToChainConfig() *ChainConfig {
 	ret.Governance = p.ToGovernanceConfig()
 
 	return &ret
+}
+
+func (p *GovParamSet) MarshalJSON() ([]byte, error) {
+	return json.Marshal(p.StrMap())
+}
+
+func (p *GovParamSet) UnmarshalJSON(data []byte) error {
+	strMap := make(map[string]interface{})
+	if err := json.Unmarshal(data, &strMap); err != nil {
+		return err
+	}
+
+	ps, err := NewGovParamSetStrMap(strMap)
+	if err != nil {
+		return err
+	}
+
+	p.items = ps.IntMap()
+	return nil
 }
 
 // Nominal getters. Shortcut for MustGet() + type assertion.

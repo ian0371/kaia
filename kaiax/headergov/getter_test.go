@@ -85,30 +85,37 @@ func TestEffectiveParams(t *testing.T) {
 
 func TestCalcGovDataBlock(t *testing.T) {
 	epoch := uint64(604800)
-	koreHF := epoch * 3
-
 	testCases := []struct {
 		blockNum    uint64
+		isKore      bool
 		expectedGov uint64
 	}{
-		{0, 0},
-		{epoch - 1, 0},
-		{epoch, 0},
-		{epoch + 1, 0},
-		{epoch*2 - 1, 0},
-		{epoch * 2, 0},
-		{epoch*2 + 1, epoch},
-		{epoch*3 - 1, epoch},
-		{epoch * 3, epoch * 2},
-		{epoch*3 + 1, epoch * 2},
-		{epoch*4 - 1, epoch * 2},
-		{epoch * 4, epoch * 3},
-		{epoch*4 + 1, epoch * 3},
+		{0, false, 0},
+		{1*epoch - 1, false, 0},
+		{1*epoch + 0, false, 0},
+		{1*epoch + 1, false, 0},
+		{2*epoch - 1, false, 0},
+		{2*epoch + 0, false, 0},
+		{2*epoch + 1, false, epoch},
+		{3*epoch - 1, false, epoch},
+		{3*epoch + 0, false, epoch},
+		{3*epoch + 1, false, 2 * epoch},
+
+		{0, true, 0},
+		{1*epoch - 1, true, 0},
+		{1*epoch + 0, true, 0},
+		{1*epoch + 1, true, 0},
+		{2*epoch - 1, true, 0},
+		{2*epoch + 0, true, epoch},
+		{2*epoch + 1, true, epoch},
+		{3*epoch - 1, true, epoch},
+		{3*epoch + 0, true, 2 * epoch},
+		{3*epoch + 1, true, 2 * epoch},
 	}
 
 	for _, tc := range testCases {
 		t.Run(fmt.Sprintf("Block %d", tc.blockNum), func(t *testing.T) {
-			result := CalcGovDataBlock(tc.blockNum, epoch, tc.blockNum >= koreHF)
+			result := CalcGovDataBlock(tc.blockNum, epoch, tc.isKore)
 			assert.Equal(t, tc.expectedGov, result, "Incorrect governance data block for block %d", tc.blockNum)
 		})
 	}

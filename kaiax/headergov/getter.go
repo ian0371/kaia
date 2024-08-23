@@ -14,17 +14,8 @@ func CalcGovDataBlock(num uint64, epoch uint64, isKore bool) uint64 {
 	if num <= epoch {
 		return 0
 	}
-	if isKore {
-		if num%epoch == 0 {
-			return num - epoch
-		} else {
-			return num - num%epoch - epoch
-		}
-	} else {
-		if num%epoch == 0 {
-			return num - 2*epoch
-		} else {
-			return num - num%epoch - epoch
-		}
+	if !isKore {
+		num -= 1
 	}
+	return num - num%epoch - epoch
 }

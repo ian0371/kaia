@@ -31,42 +31,45 @@ func TestHeaderVerify(t *testing.T) {
 		ChainConfig: config,
 	})
 	require.NoError(t, err)
-
 	h.AddVote(&VoteData{
 		BlockNum: 1,
-		Param: Param{
-			Name:  governance.GovernanceKeyMapReverse[params.UnitPrice],
-			Value: uint64(100),
-		},
+		Name:     governance.GovernanceKeyMapReverse[params.UnitPrice],
+		Value:    uint64(100),
 	})
 
 	gov := GovernanceData{
 		BlockNum: 604800,
-		Params: map[string]Param{
-			governance.GovernanceKeyMapReverse[params.UnitPrice]: {
-				Name:  governance.GovernanceKeyMapReverse[params.UnitPrice],
-				Value: uint64(100),
-			},
+		Params: map[string]interface{}{
+			governance.GovernanceKeyMapReverse[params.UnitPrice]: uint64(100),
 		},
 	}
 	govBytes, err := gov.Serialize()
 	require.NoError(t, err)
 
-	err = h.VerifyHeader(&types.Header{
-		Number:     big.NewInt(604799),
-		Governance: govBytes,
-	})
-	assert.Error(t, err)
+	tcs := []struct {
+		blockNum uint64
+		gov      []byte
+		isError  bool
+	}{
+		{604799, nil, false},
+		{604799, govBytes, true},
 
-	err = h.VerifyHeader(&types.Header{
-		Number:     big.NewInt(604800),
-		Governance: govBytes,
-	})
-	assert.NoError(t, err)
+		{604800, nil, true},
+		{604800, govBytes, false},
 
-	err = h.VerifyHeader(&types.Header{
-		Number:     big.NewInt(604801),
-		Governance: govBytes,
-	})
-	assert.Error(t, err)
+		{604801, nil, false},
+		{604801, govBytes, true},
+	}
+
+	for _, tc := range tcs {
+		err = h.VerifyHeader(&types.Header{
+			Number:     big.NewInt(int64(tc.blockNum)),
+			Governance: tc.gov,
+		})
+		if tc.isError {
+			assert.Error(t, err)
+		} else {
+			assert.NoError(t, err)
+		}
+	}
 }

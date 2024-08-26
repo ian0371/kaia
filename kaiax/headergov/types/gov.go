@@ -9,54 +9,12 @@ import (
 	"github.com/kaiachain/kaia/rlp"
 )
 
-type Param struct {
-	Name  string
-	Value interface{} // canonical value
-}
-
 type GovernanceData struct {
 	BlockNum uint64
-	Params   map[string]Param
+	Params   map[string]interface{}
 }
 
 type GovHistory = PartitionList[*params.GovParamSet]
-
-type GovernanceCache struct {
-	Votes      []VoteData
-	Govs       []GovernanceData // TODO: remove or change to GovBlockNums
-	GovHistory GovHistory
-}
-
-func (h *GovernanceCache) VoteBlockNums() []uint64 {
-	blockNums := make([]uint64, 0)
-	for _, vote := range h.Votes {
-		blockNums = append(blockNums, vote.BlockNum)
-	}
-	return blockNums
-}
-
-func (h *GovernanceCache) GovBlockNums() []uint64 {
-	blockNums := make([]uint64, 0)
-	for _, vote := range h.Govs {
-		blockNums = append(blockNums, vote.BlockNum)
-	}
-	return blockNums
-}
-
-// TODO: sort
-func (h *GovernanceCache) AddVote(num uint64, vote VoteData) {
-	h.Votes = append(h.Votes, vote)
-}
-
-// TODO: sort
-func (h *GovernanceCache) AddGov(num uint64, g GovernanceData) {
-	h.Govs = append(h.Govs, g)
-	ps, _ := g.ToParamSet() // TODO: handle error
-	if lastPs := h.GovHistory.GetItem(uint(num)); lastPs != nil {
-		ps = params.NewGovParamSetMerged(lastPs, ps)
-	}
-	h.GovHistory.AddRecord(uint(num), ps)
-}
 
 func GetGovParams(govs []GovernanceData) (GovHistory, error) {
 	ret := GovHistory{}
@@ -75,24 +33,10 @@ func GetGovParams(govs []GovernanceData) (GovHistory, error) {
 	return ret, nil
 }
 
-func headerGovActivationBlockPreKore(govDataBlockNum, epoch uint64) uint64 {
-	if govDataBlockNum == 0 {
-		return 0
-	}
-	return govDataBlockNum + epoch + 1
-}
-
-func headerGovActivationBlockPostKore(govDataBlockNum, epoch uint64) uint64 {
-	if govDataBlockNum == 0 {
-		return 0
-	}
-	return govDataBlockNum + epoch
-}
-
 func (g *GovernanceData) MarshalJSON() ([]byte, error) {
 	tmp := make(map[string]interface{})
-	for _, v := range g.Params {
-		tmp[v.Name] = v.Value
+	for name, value := range g.Params {
+		tmp[name] = value
 	}
 
 	return json.Marshal(tmp)
@@ -100,8 +44,8 @@ func (g *GovernanceData) MarshalJSON() ([]byte, error) {
 
 func (g *GovernanceData) ToParamSet() (*params.GovParamSet, error) {
 	tmp := make(map[string]interface{})
-	for _, v := range g.Params {
-		tmp[v.Name] = v.Value
+	for name, value := range g.Params {
+		tmp[name] = value
 	}
 	return params.NewGovParamSetStrMap(tmp)
 }
@@ -129,13 +73,13 @@ func DeserializeHeaderGov(b []byte, blockNum uint64) (*GovernanceData, error) {
 		return nil, err
 	}
 
-	params := make(map[string]Param, len(j))
+	params := make(map[string]interface{}, len(j))
 	for k := range j {
 		value, ok := ps.Get(governance.GovernanceKeyMap[k])
 		if !ok {
 			return nil, errors.New("key not found")
 		}
-		params[k] = Param{Name: k, Value: value}
+		params[k] = value
 	}
 
 	return &GovernanceData{

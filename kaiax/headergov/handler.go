@@ -116,6 +116,34 @@ func (h *HeaderGovModule) getVotesInEpoch(epochIdx uint64) []VoteData {
 	return ret
 }
 
+func (h *HeaderGovModule) VerifyVote(key string, val interface{}) error {
+	_, err := params.NewGovParamSetStrMap(map[string]interface{}{
+		key: val,
+	})
+	if err != nil {
+		return err
+	}
+
+	/*
+		if key == "governance.removevalidator" {
+			if h.isRemovingSelf(val.(string)) {
+				return errRemoveSelf
+			}
+		}
+		if key == "kip71.lowerboundbasefee" {
+			if val.(uint64) > pset.UpperBoundBaseFee() {
+				return errInvalidLowerBound
+			}
+		}
+		if key == "kip71.upperboundbasefee" {
+			if val.(uint64) < pset.LowerBoundBaseFee() {
+				return errInvalidUpperBound
+			}
+		}
+	*/
+	return nil
+}
+
 func calcEpochIdx(blockNum uint64, epoch uint64) uint64 {
 	return blockNum / epoch
 }

@@ -12,12 +12,13 @@ import (
 type VoteData struct {
 	BlockNum uint64
 	Voter    common.Address
-	Param    Param
+	Name     string
+	Value    interface{}
 }
 
 func (vote *VoteData) ToParamSet() (*params.GovParamSet, error) {
 	tmp := map[string]interface{}{
-		vote.Param.Name: vote.Param.Value,
+		vote.Name: vote.Value,
 	}
 
 	return params.NewGovParamSetStrMap(tmp)
@@ -30,8 +31,8 @@ func (vote *VoteData) Serialize() ([]byte, error) {
 		Value     interface{}
 	}{
 		Validator: vote.Voter,
-		Key:       vote.Param.Name,
-		Value:     vote.Param.Value,
+		Key:       vote.Name,
+		Value:     vote.Value,
 	}
 
 	return rlp.EncodeToBytes(v)
@@ -65,6 +66,7 @@ func DeserializeHeaderVote(b []byte, blockNum uint64) (*VoteData, error) {
 	return &VoteData{
 		BlockNum: blockNum,
 		Voter:    v.Validator,
-		Param:    Param{Name: v.Key, Value: value},
+		Name:     v.Key,
+		Value:    value,
 	}, nil
 }

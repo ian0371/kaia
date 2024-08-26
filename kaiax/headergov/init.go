@@ -18,7 +18,6 @@ var (
 	errNoChainConfig = errors.New("ChainConfig or Istanbul is not set")
 )
 
-type Param = headergov_types.Param
 type VoteData = headergov_types.VoteData
 type GovernanceData = headergov_types.GovernanceData
 type GovHistory = headergov_types.GovHistory
@@ -26,6 +25,7 @@ type GovernanceCache = headergov_types.GovernanceCache
 
 type chain interface {
 	GetHeaderByNumber(number uint64) *types.Header
+	CurrentBlock() *types.Block
 }
 
 type InitOpts struct {
@@ -57,7 +57,6 @@ func (h *HeaderGovModule) Init(opts *InitOpts) error {
 
 	h.cache = GovernanceCache{
 		Votes:      readVoteBlockNumsFromDB(h.Chain, h.ChainKv),
-		Govs:       readGovBlockNumsFromDB(h.Chain, h.ChainKv),
 		GovHistory: readGovHistoryFromDB(h.Chain, h.ChainKv),
 	}
 
@@ -93,23 +92,6 @@ func readVoteBlockNumsFromDB(chain chain, db database.Database) []VoteData {
 	}
 
 	return votes
-}
-
-func readGovBlockNumsFromDB(chain chain, db database.Database) []GovernanceData {
-	govBlocks := ReadGovDataBlockNums(db)
-	govs := make([]GovernanceData, 0)
-	if govBlocks != nil {
-		for _, blockNum := range *govBlocks {
-			header := chain.GetHeaderByNumber(blockNum)
-			parsedGov, err := headergov_types.DeserializeHeaderGov(header.Governance, blockNum)
-			if err != nil {
-				logger.Error("Failed to parse vote", "num", blockNum, "err", err)
-			}
-
-			govs = append(govs, *parsedGov)
-		}
-	}
-	return govs
 }
 
 func readGovHistoryFromDB(chain chain, db database.Database) GovHistory {

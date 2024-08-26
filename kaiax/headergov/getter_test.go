@@ -21,20 +21,14 @@ func TestEffectiveParams(t *testing.T) {
 	gov := []GovernanceData{
 		{
 			BlockNum: 0,
-			Params: map[string]Param{
-				paramName: {
-					Name:  paramName,
-					Value: uint64(25),
-				},
+			Params: map[string]interface{}{
+				paramName: uint64(25),
 			},
 		},
 		{
 			BlockNum: 604800,
-			Params: map[string]Param{
-				paramName: {
-					Name:  paramName,
-					Value: uint64(750),
-				},
+			Params: map[string]interface{}{
+				paramName: uint64(750),
 			},
 		},
 	}

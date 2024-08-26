@@ -16,9 +16,9 @@ import (
 
 func TestReadVoteBlockNumsFromDB(t *testing.T) {
 	voteDatas := []VoteData{
-		{BlockNum: 1, Voter: common.Address{1}, Param: Param{Name: governance.GovernanceKeyMapReverse[params.UnitPrice], Value: uint64(100)}},
-		{BlockNum: 50, Voter: common.Address{2}, Param: Param{Name: governance.GovernanceKeyMapReverse[params.UnitPrice], Value: uint64(200)}},
-		{BlockNum: 100, Voter: common.Address{3}, Param: Param{Name: governance.GovernanceKeyMapReverse[params.UnitPrice], Value: uint64(300)}},
+		{BlockNum: 1, Voter: common.Address{1}, Name: governance.GovernanceKeyMapReverse[params.UnitPrice], Value: uint64(100)},
+		{BlockNum: 50, Voter: common.Address{2}, Name: governance.GovernanceKeyMapReverse[params.UnitPrice], Value: uint64(200)},
+		{BlockNum: 100, Voter: common.Address{3}, Name: governance.GovernanceKeyMapReverse[params.UnitPrice], Value: uint64(300)},
 	}
 
 	mockCtrl := gomock.NewController(t)
@@ -35,35 +35,6 @@ func TestReadVoteBlockNumsFromDB(t *testing.T) {
 	WriteVoteDataBlockNums(db, &voteDataBlockNums)
 
 	assert.Equal(t, voteDatas, readVoteBlockNumsFromDB(chain, db))
-}
-
-func TestReadGovBlockNumsFromDB(t *testing.T) {
-	govDatas := []GovernanceData{
-		{BlockNum: 1, Params: map[string]Param{
-			governance.GovernanceKeyMapReverse[params.UnitPrice]: {Name: governance.GovernanceKeyMapReverse[params.UnitPrice], Value: uint64(100)},
-		}},
-		{BlockNum: 50, Params: map[string]Param{
-			governance.GovernanceKeyMapReverse[params.UnitPrice]: {Name: governance.GovernanceKeyMapReverse[params.UnitPrice], Value: uint64(200)},
-		}},
-		{BlockNum: 100, Params: map[string]Param{
-			governance.GovernanceKeyMapReverse[params.UnitPrice]: {Name: governance.GovernanceKeyMapReverse[params.UnitPrice], Value: uint64(300)},
-		}},
-	}
-
-	mockCtrl := gomock.NewController(t)
-	chain := mocks.NewMockBlockChain(mockCtrl)
-
-	db := database.NewMemDB()
-	govDataBlockNums := make(StoredGovBlockNums, 0, len(govDatas))
-	for _, govData := range govDatas {
-		headerGovData, err := govData.Serialize()
-		chain.EXPECT().GetHeaderByNumber(uint64(govData.BlockNum)).Return(&types.Header{Governance: headerGovData})
-		require.NoError(t, err)
-		govDataBlockNums = append(govDataBlockNums, govData.BlockNum)
-	}
-	WriteGovDataBlockNums(db, &govDataBlockNums)
-
-	assert.Equal(t, govDatas, readGovBlockNumsFromDB(chain, db))
 }
 
 func TestReadGovMapFromDB(t *testing.T) {

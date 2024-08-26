@@ -31,7 +31,7 @@ func TestHeaderVerify(t *testing.T) {
 		ChainConfig: config,
 	})
 	require.NoError(t, err)
-	h.AddVote(&VoteData{
+	h.HandleVote(&VoteData{
 		BlockNum: 1,
 		Name:     governance.GovernanceKeyMapReverse[params.UnitPrice],
 		Value:    uint64(100),

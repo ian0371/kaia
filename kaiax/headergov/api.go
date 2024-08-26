@@ -39,13 +39,13 @@ func newHeaderGovAPI(s *HeaderGovModule) *headerGovAPI {
 
 func (api *headerGovAPI) Vote(key string, val interface{}) (string, error) {
 	blockNumber := api.s.Chain.CurrentBlock().NumberU64()
-	pset, err := api.s.EffectiveParams(blockNumber + 1)
+	gp, err := api.s.EffectiveParams(blockNumber + 1)
 	if err != nil {
 		return "", err
 	}
 
 	// TODO: check node address
-	gMode := pset.GovernanceModeInt()
+	gMode := gp.GovernanceMode
 	if gMode == params.GovernanceMode_Single || true {
 		return "", errPermissionDenied
 	}

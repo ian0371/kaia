@@ -17,34 +17,34 @@ import (
 
 func TestEffectiveParams(t *testing.T) {
 	log.EnableLogForTest(log.LvlCrit, log.LvlDebug)
-	paramName := governance.GovernanceKeyMapReverse[params.UnitPrice]
+	gasPrice := governance.GovernanceKeyMapReverse[params.UnitPrice]
 	gov := []GovernanceData{
 		{
 			BlockNum: 0,
 			Params: map[string]interface{}{
-				paramName: uint64(25),
+				gasPrice: uint64(25),
 			},
 		},
 		{
 			BlockNum: 604800,
 			Params: map[string]interface{}{
-				paramName: uint64(750),
+				gasPrice: uint64(750),
 			},
 		},
 	}
 
 	testCases := []struct {
 		desc          string
-		koreBlock     *big.Int
+		koreBlock     uint64
 		blockNum      uint64
 		expectedPrice uint64
 	}{
-		{"Pre-Kore, Block 0", big.NewInt(999999999), 0, 25},
-		{"Pre-Kore, Block 1209600", big.NewInt(999999999), 604800 * 2, 25},
-		{"Pre-Kore, Block 1209601", big.NewInt(999999999), 604800*2 + 1, 750},
-		{"Post-Kore, Block 0", big.NewInt(0), 0, 25},
-		{"Post-Kore, Block 1209600", big.NewInt(0), 604800 * 2, 750},
-		{"Post-Kore, Block 1209601", big.NewInt(0), 604800*2 + 1, 750},
+		{"Pre-Kore, Block 0", 999999999, 0, 25},
+		{"Pre-Kore, Block 1209600", 999999999, 1209600, 25},
+		{"Pre-Kore, Block 1209601", 999999999, 1209601, 750},
+		{"Post-Kore, Block 0", 0, 0, 25},
+		{"Post-Kore, Block 1209600", 0, 1209600, 750},
+		{"Post-Kore, Block 1209601", 0, 1209601, 750},
 	}
 
 	for _, tc := range testCases {
@@ -53,7 +53,7 @@ func TestEffectiveParams(t *testing.T) {
 			chain := mocks.NewMockBlockChain(mockCtrl)
 			db := database.NewMemDB()
 			config := &params.ChainConfig{
-				KoreCompatibleBlock: tc.koreBlock,
+				KoreCompatibleBlock: big.NewInt(int64(tc.koreBlock)),
 				Istanbul: &params.IstanbulConfig{
 					Epoch: 604800,
 				},
@@ -67,12 +67,12 @@ func TestEffectiveParams(t *testing.T) {
 			require.NoError(t, err)
 
 			for _, g := range gov {
-				require.NoError(t, h.AddGov(&g))
+				h.HandleGov(&g)
 			}
 
-			pset, err := h.EffectiveParams(tc.blockNum)
+			gp, err := h.EffectiveParams(tc.blockNum)
 			require.NoError(t, err)
-			assert.Equal(t, tc.expectedPrice, pset.UnitPrice())
+			assert.Equal(t, tc.expectedPrice, gp.UnitPrice)
 		})
 	}
 }

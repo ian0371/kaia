@@ -11,28 +11,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestGetGovParams(t *testing.T) {
-	govs := []GovernanceData{
-		0: {
-			BlockNum: 0,
-			Params: map[string]interface{}{
-				governance.GovernanceKeyMapReverse[params.UnitPrice]: 100,
-			},
-		},
-		4: {
-			BlockNum: 4,
-			Params: map[string]interface{}{
-				governance.GovernanceKeyMapReverse[params.UnitPrice]: 200,
-			},
-		},
-	}
-
-	param1, err := GetGovParams(govs)
-	assert.NoError(t, err)
-	assert.Equal(t, uint64(100), param1.GetItem(0).UnitPrice())
-	assert.Equal(t, uint64(200), param1.GetItem(4).UnitPrice())
-}
-
 func TestHeaderGovSerialization(t *testing.T) {
 	tcs := []struct {
 		serializedGovData string

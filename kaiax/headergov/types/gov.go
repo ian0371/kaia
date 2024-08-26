@@ -11,26 +11,7 @@ import (
 
 type GovernanceData struct {
 	BlockNum uint64
-	Params   map[string]interface{}
-}
-
-type GovHistory = PartitionList[*params.GovParamSet]
-
-func GetGovParams(govs []GovernanceData) (GovHistory, error) {
-	ret := GovHistory{}
-
-	effectiveParams := &params.GovParamSet{}
-	for _, g := range govs {
-		ps, err := g.ToParamSet()
-		if err != nil {
-			return ret, err
-		}
-		effectiveParams = params.NewGovParamSetMerged(effectiveParams, ps)
-		copied := *effectiveParams
-		ret.AddRecord(uint(g.BlockNum), &copied)
-	}
-
-	return ret, nil
+	Params   map[string]interface{} // canonicalized value
 }
 
 func (g *GovernanceData) MarshalJSON() ([]byte, error) {
@@ -40,14 +21,6 @@ func (g *GovernanceData) MarshalJSON() ([]byte, error) {
 	}
 
 	return json.Marshal(tmp)
-}
-
-func (g *GovernanceData) ToParamSet() (*params.GovParamSet, error) {
-	tmp := make(map[string]interface{})
-	for name, value := range g.Params {
-		tmp[name] = value
-	}
-	return params.NewGovParamSetStrMap(tmp)
 }
 
 func (g *GovernanceData) Serialize() ([]byte, error) {

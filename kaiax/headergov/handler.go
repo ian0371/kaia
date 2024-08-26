@@ -30,26 +30,20 @@ func (h *HeaderGovModule) VerifyHeader(header *types.Header) error {
 
 	// 2. vote pass check
 	votes := h.getVotesInEpoch(calcEpochIdx(header.Number.Uint64()-1, h.epoch))
-	expectedParamSet := new(params.GovParamSet)
+	expected := GovernanceParam{}
 	for _, vote := range votes {
-		voteParamSet, err := vote.ToParamSet()
-		if err != nil {
-			return err
-		}
-		expectedParamSet = params.NewGovParamSetMerged(expectedParamSet, voteParamSet)
+		expected.SetFromVoteData(&vote)
 	}
 
 	deserializedGov, err := headergov_types.DeserializeHeaderGov(header.Governance, header.Number.Uint64())
 	if err != nil {
 		return err
 	}
-	headerParamSet, err := deserializedGov.ToParamSet()
-	if err != nil {
-		return err
-	}
+	actual := GovernanceParam{}
+	actual.SetFromGovernanceData(deserializedGov)
 
-	if !reflect.DeepEqual(expectedParamSet, headerParamSet) {
-		return fmt.Errorf("expected ParamSet: %v, header ParamSet: %v", expectedParamSet, headerParamSet)
+	if !reflect.DeepEqual(expected, actual) {
+		return fmt.Errorf("expected GovernanceParam: %v, actual: %v", expected, actual)
 	}
 
 	return nil
@@ -75,7 +69,7 @@ func (h *HeaderGovModule) PostInsertBlock(b *types.Block) error {
 		if err != nil {
 			return err
 		}
-		h.AddVote(vote)
+		h.HandleVote(vote)
 	}
 
 	if len(b.Header().Governance) > 0 {
@@ -83,13 +77,13 @@ func (h *HeaderGovModule) PostInsertBlock(b *types.Block) error {
 		if err != nil {
 			return err
 		}
-		h.AddGov(gov)
+		h.HandleGov(gov)
 	}
 
 	return nil
 }
 
-func (h *HeaderGovModule) AddVote(vote *VoteData) error {
+func (h *HeaderGovModule) HandleVote(vote *VoteData) error {
 	h.cache.AddVote(vote.BlockNum, *vote)
 
 	var data StoredVoteBlockNums = h.cache.VoteBlockNums()
@@ -97,9 +91,17 @@ func (h *HeaderGovModule) AddVote(vote *VoteData) error {
 	return nil
 }
 
-func (h *HeaderGovModule) AddGov(gov *GovernanceData) error {
-	h.cache.AddGov(gov.BlockNum, *gov)
+func (h *HeaderGovModule) HandleGov(gov *GovernanceData) error {
+	h.cache.AddGovernance(gov.BlockNum, *gov)
 
+	// merge gov based on latest effective params.
+	gp, err := h.EffectiveParams(gov.BlockNum)
+	if err != nil {
+		return err
+	}
+
+	gp.SetFromGovernanceData(gov)
+	WriteGovernanceParam(h.ChainKv, gov.BlockNum, &gp)
 	var data StoredGovBlockNums = h.cache.GovBlockNums()
 	WriteGovDataBlockNums(h.ChainKv, &data)
 	return nil

@@ -34,7 +34,7 @@ func TestReadVoteBlockNumsFromDB(t *testing.T) {
 	}
 	WriteVoteDataBlockNums(db, &voteDataBlockNums)
 
-	assert.Equal(t, voteDatas, readVoteBlockNumsFromDB(chain, db))
+	assert.Equal(t, voteDatas, readVoteDataFromDB(chain, db))
 }
 
 func TestReadGovMapFromDB(t *testing.T) {
@@ -42,22 +42,23 @@ func TestReadGovMapFromDB(t *testing.T) {
 	chain := mocks.NewMockBlockChain(mockCtrl)
 	db := database.NewMemDB()
 
-	ps1, _ := params.NewGovParamSetIntMap(map[int]interface{}{
-		params.UnitPrice: uint64(100),
-	})
-	ps2, _ := params.NewGovParamSetIntMap(map[int]interface{}{
-		params.UnitPrice: uint64(200),
-	})
-	govMap := GovHistory{}
-	govMap.AddRecord(1, ps1)
-	WriteGovParamSet(db, 1, ps1)
+	ps1 := &GovernanceParam{
+		UnitPrice: uint64(100),
+	}
+	ps2 := &GovernanceParam{
+		UnitPrice: uint64(200),
+	}
 
-	govMap.AddRecord(2, ps2)
-	WriteGovParamSet(db, 2, ps2)
-
+	WriteGovernanceParam(db, 1, ps1)
+	WriteGovernanceParam(db, 2, ps2)
 	WriteGovDataBlockNums(db, &StoredGovBlockNums{1, 2})
 
-	assert.Equal(t, ps1, ReadGovParamSet(db, 1))
-	assert.Equal(t, ps2, ReadGovParamSet(db, 2))
-	assert.Equal(t, govMap, readGovHistoryFromDB(chain, db))
+	govs := []GovernanceData{
+		{BlockNum: 1, Params: map[string]interface{}{"UnitPrice": ps1.UnitPrice}},
+		{BlockNum: 2, Params: map[string]interface{}{"UnitPrice": ps2.UnitPrice}},
+	}
+
+	assert.Equal(t, ps1, ReadGovernanceParam(db, 1))
+	assert.Equal(t, ps2, ReadGovernanceParam(db, 2))
+	assert.Equal(t, govs, readGovDataFromDB(chain, db))
 }

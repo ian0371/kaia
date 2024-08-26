@@ -20,7 +20,8 @@ var (
 
 type VoteData = headergov_types.VoteData
 type GovernanceData = headergov_types.GovernanceData
-type GovHistory = headergov_types.GovHistory
+type GovernanceHistory = headergov_types.GovernanceHistory
+type GovernanceParam = headergov_types.GovernanceParam
 type GovernanceCache = headergov_types.GovernanceCache
 
 type chain interface {
@@ -56,8 +57,8 @@ func (h *HeaderGovModule) Init(opts *InitOpts) error {
 	}
 
 	h.cache = GovernanceCache{
-		Votes:      readVoteBlockNumsFromDB(h.Chain, h.ChainKv),
-		GovHistory: readGovHistoryFromDB(h.Chain, h.ChainKv),
+		Votes:       readVoteDataFromDB(h.Chain, h.ChainKv),
+		Governances: readGovDataFromDB(h.Chain, h.ChainKv),
 	}
 
 	return nil
@@ -76,7 +77,7 @@ func (s *HeaderGovModule) isKoreHF(num uint64) bool {
 	return s.ChainConfig.IsKoreForkEnabled(new(big.Int).SetUint64(num))
 }
 
-func readVoteBlockNumsFromDB(chain chain, db database.Database) []VoteData {
+func readVoteDataFromDB(chain chain, db database.Database) []VoteData {
 	voteBlocks := ReadVoteDataBlockNums(db)
 	votes := make([]VoteData, 0)
 	if voteBlocks != nil {
@@ -94,16 +95,19 @@ func readVoteBlockNumsFromDB(chain chain, db database.Database) []VoteData {
 	return votes
 }
 
-func readGovHistoryFromDB(chain chain, db database.Database) GovHistory {
-	govBlockNums := ReadGovDataBlockNums(db)
-	if govBlockNums == nil || len(*govBlockNums) == 0 {
-		return GovHistory{}
-	}
+func readGovDataFromDB(chain chain, db database.Database) []GovernanceData {
+	govBlocks := ReadGovDataBlockNums(db)
+	govs := make([]GovernanceData, 0)
+	if govBlocks != nil {
+		for _, blockNum := range *govBlocks {
+			header := chain.GetHeaderByNumber(blockNum)
+			parsedGov, err := headergov_types.DeserializeHeaderGov(header.Governance, blockNum)
+			if err != nil {
+				logger.Error("Failed to parse vote", "num", blockNum, "err", err)
+			}
 
-	govParams := GovHistory{}
-	for _, govBlockNum := range *govBlockNums {
-		govParams.AddRecord(uint(govBlockNum), ReadGovParamSet(db, govBlockNum))
+			govs = append(govs, *parsedGov)
+		}
 	}
-
-	return govParams
+	return govs
 }

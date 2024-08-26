@@ -12,8 +12,8 @@ import (
 type VoteData struct {
 	BlockNum uint64
 	Voter    common.Address
-	Name     string
-	Value    interface{}
+	Name     string      // TODO: map[string]interface{}
+	Value    interface{} // canonicalized value
 }
 
 func (vote *VoteData) ToParamSet() (*params.GovParamSet, error) {

@@ -84,38 +84,38 @@ func TestEffectiveParams(t *testing.T) {
 }
 
 func TestSourceBlockNum(t *testing.T) {
-	epoch := uint64(604800)
+	epoch := uint64(1000)
 	testCases := []struct {
 		blockNum    uint64
 		isKore      bool
 		expectedGov uint64
 	}{
 		{0, false, 0},
-		{1*epoch - 1, false, 0},
-		{1*epoch + 0, false, 0},
-		{1*epoch + 1, false, 0},
-		{2*epoch - 1, false, 0},
-		{2*epoch + 0, false, 0},
-		{2*epoch + 1, false, epoch},
-		{3*epoch - 1, false, epoch},
-		{3*epoch + 0, false, epoch},
-		{3*epoch + 1, false, 2 * epoch},
+		{999, false, 0},
+		{1000, false, 0},
+		{1001, false, 0},
+		{1999, false, 0},
+		{2000, false, 0},
+		{2001, false, 1000},
+		{2999, false, 1000},
+		{3000, false, 1000},
+		{3001, false, 2000},
 
 		{0, true, 0},
-		{1*epoch - 1, true, 0},
-		{1*epoch + 0, true, 0},
-		{1*epoch + 1, true, 0},
-		{2*epoch - 1, true, 0},
-		{2*epoch + 0, true, epoch},
-		{2*epoch + 1, true, epoch},
-		{3*epoch - 1, true, epoch},
-		{3*epoch + 0, true, 2 * epoch},
-		{3*epoch + 1, true, 2 * epoch},
+		{999, true, 0},
+		{1000, true, 0},
+		{1001, true, 0},
+		{1999, true, 0},
+		{2000, true, 1000},
+		{2001, true, 1000},
+		{2999, true, 1000},
+		{3000, true, 2000},
+		{3001, true, 2000},
 	}
 
 	for _, tc := range testCases {
 		t.Run(fmt.Sprintf("Block %d", tc.blockNum), func(t *testing.T) {
-			result := SourceBlockNum(tc.blockNum, epoch, tc.isKore)
+			result := PrevEpochStart(tc.blockNum, epoch, tc.isKore)
 			assert.Equal(t, tc.expectedGov, result, "Incorrect governance data block for block %d", tc.blockNum)
 		})
 	}

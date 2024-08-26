@@ -77,7 +77,7 @@ func TestReadGovMapFromDB(t *testing.T) {
 	ps2, _ := params.NewGovParamSetIntMap(map[int]interface{}{
 		params.UnitPrice: uint64(200),
 	})
-	govMap := GovBlockNumToGovParamSetMap{}
+	govMap := GovHistory{}
 	govMap.AddRecord(1, ps1)
 	WriteGovParamSet(db, 1, ps1)
 
@@ -88,5 +88,5 @@ func TestReadGovMapFromDB(t *testing.T) {
 
 	assert.Equal(t, ps1, ReadGovParamSet(db, 1))
 	assert.Equal(t, ps2, ReadGovParamSet(db, 2))
-	assert.Equal(t, govMap, readGovMapFromDB(chain, db))
+	assert.Equal(t, govMap, readGovHistoryFromDB(chain, db))
 }

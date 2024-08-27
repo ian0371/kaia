@@ -9,15 +9,13 @@ import (
 )
 
 func TestGetGovHistory(t *testing.T) {
-	govs := []GovernanceData{
+	govs := map[uint64]GovernanceData{
 		0: {
-			BlockNum: 0,
 			Params: map[string]interface{}{
 				governance.GovernanceKeyMapReverse[params.UnitPrice]: uint64(100),
 			},
 		},
 		4: {
-			BlockNum: 4,
 			Params: map[string]interface{}{
 				governance.GovernanceKeyMapReverse[params.UnitPrice]: uint64(200),
 			},
@@ -31,15 +29,13 @@ func TestGetGovHistory(t *testing.T) {
 }
 
 func TestSearch(t *testing.T) {
-	govs := []GovernanceData{
+	govs := map[uint64]GovernanceData{
 		0: {
-			BlockNum: 0,
 			Params: map[string]interface{}{
 				governance.GovernanceKeyMapReverse[params.UnitPrice]: uint64(100),
 			},
 		},
 		4: {
-			BlockNum: 4,
 			Params: map[string]interface{}{
 				governance.GovernanceKeyMapReverse[params.UnitPrice]: uint64(200),
 			},

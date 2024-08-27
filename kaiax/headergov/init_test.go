@@ -53,14 +53,14 @@ func TestReadGovDataFromDB(t *testing.T) {
 	WriteGovernanceParam(db, 2, ps2)
 	WriteGovDataBlockNums(db, &StoredGovBlockNums{1, 2})
 
-	govs := []GovernanceData{
-		{BlockNum: 1, Params: map[string]interface{}{governance.GovernanceKeyMapReverse[params.UnitPrice]: ps1.UnitPrice}},
-		{BlockNum: 2, Params: map[string]interface{}{governance.GovernanceKeyMapReverse[params.UnitPrice]: ps2.UnitPrice}},
+	govs := map[uint64]GovernanceData{
+		1: {Params: map[string]interface{}{governance.GovernanceKeyMapReverse[params.UnitPrice]: ps1.UnitPrice}},
+		2: {Params: map[string]interface{}{governance.GovernanceKeyMapReverse[params.UnitPrice]: ps2.UnitPrice}},
 	}
-	for _, govData := range govs {
+	for num, govData := range govs {
 		headerGovData, err := govData.Serialize()
 		require.NoError(t, err)
-		chain.EXPECT().GetHeaderByNumber(uint64(govData.BlockNum)).Return(&types.Header{Governance: headerGovData})
+		chain.EXPECT().GetHeaderByNumber(num).Return(&types.Header{Governance: headerGovData})
 	}
 
 	assert.Equal(t, ps1, ReadGovernanceParam(db, 1))

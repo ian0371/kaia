@@ -86,7 +86,7 @@ func (s *HeaderGovModule) isKoreHF(num uint64) bool {
 
 func readVoteDataFromDB(chain chain, db database.Database) map[uint64]VoteData {
 	voteBlocks := ReadVoteDataBlockNums(db)
-	votes := make(map[uint64]VoteData, 0)
+	votes := make(map[uint64]VoteData)
 	if voteBlocks != nil {
 		for _, blockNum := range *voteBlocks {
 			header := chain.GetHeaderByNumber(blockNum)
@@ -102,10 +102,10 @@ func readVoteDataFromDB(chain chain, db database.Database) map[uint64]VoteData {
 	return votes
 }
 
-func readGovDataFromDB(chain chain, db database.Database) []GovernanceData {
+func readGovDataFromDB(chain chain, db database.Database) map[uint64]GovernanceData {
 	govBlocks := ReadGovDataBlockNums(db)
+	govs := make(map[uint64]GovernanceData)
 	if govBlocks != nil {
-		govs := make([]GovernanceData, 0, len(*govBlocks))
 		for _, blockNum := range *govBlocks {
 			header := chain.GetHeaderByNumber(blockNum)
 			parsedGov, err := headergov_types.DeserializeHeaderGov(header.Governance, blockNum)
@@ -114,10 +114,9 @@ func readGovDataFromDB(chain chain, db database.Database) []GovernanceData {
 				panic(err)
 			}
 
-			govs = append(govs, *parsedGov)
+			govs[blockNum] = *parsedGov
 		}
-		return govs
-	} else {
-		return nil
 	}
+
+	return govs
 }

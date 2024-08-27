@@ -18,15 +18,13 @@ import (
 func TestEffectiveParams(t *testing.T) {
 	log.EnableLogForTest(log.LvlCrit, log.LvlDebug)
 	gasPrice := governance.GovernanceKeyMapReverse[params.UnitPrice]
-	gov := []GovernanceData{
-		{
-			BlockNum: 0,
+	gov := map[uint64]GovernanceData{
+		0: {
 			Params: map[string]interface{}{
 				gasPrice: uint64(25),
 			},
 		},
-		{
-			BlockNum: 604800,
+		604800: {
 			Params: map[string]interface{}{
 				gasPrice: uint64(750),
 			},
@@ -66,8 +64,8 @@ func TestEffectiveParams(t *testing.T) {
 			})
 			require.NoError(t, err)
 
-			for _, g := range gov {
-				h.HandleGov(&g)
+			for num, g := range gov {
+				h.HandleGov(num, &g)
 			}
 
 			gp, err := h.EffectiveParams(tc.blockNum)

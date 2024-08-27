@@ -38,7 +38,6 @@ func TestHeaderVerify(t *testing.T) {
 	})
 
 	gov := GovernanceData{
-		BlockNum: 604800,
 		Params: map[string]interface{}{
 			governance.GovernanceKeyMapReverse[params.UnitPrice]: uint64(100),
 		},

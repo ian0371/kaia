@@ -1,15 +1,28 @@
 package types
 
-import "errors"
+import (
+	"errors"
+	"sort"
+)
 
 type GovernanceHistory map[uint64]GovernanceParam
 
-func GetGovernanceHistory(govList []GovernanceData) GovernanceHistory {
-	gp := GovernanceParam{}
+func GetGovernanceHistory(govs map[uint64]GovernanceData) GovernanceHistory {
 	gh := make(map[uint64]GovernanceParam)
-	for _, gov := range govList {
-		gp.SetFromGovernanceData(&gov)
-		gh[gov.BlockNum] = gp
+
+	var sortedNums []uint64
+	for num := range govs {
+		sortedNums = append(sortedNums, num)
+	}
+	sort.Slice(sortedNums, func(i, j int) bool {
+		return sortedNums[i] < sortedNums[j]
+	})
+
+	gp := GovernanceParam{}
+	for _, num := range sortedNums {
+		govData := govs[num]
+		gp.SetFromGovernanceData(&govData)
+		gh[num] = gp
 	}
 	return gh
 }

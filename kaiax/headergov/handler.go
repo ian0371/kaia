@@ -81,31 +81,31 @@ func (h *HeaderGovModule) PostInsertBlock(b *types.Block) error {
 		if err != nil {
 			return err
 		}
-		h.HandleGov(gov)
+		h.HandleGov(b.NumberU64(), gov)
 	}
 
 	return nil
 }
 
-func (h *HeaderGovModule) HandleVote(num uint64, vote *VoteData) error {
-	h.cache.AddVote(num, *vote)
+func (h *HeaderGovModule) HandleVote(blockNum uint64, vote *VoteData) error {
+	h.cache.AddVote(blockNum, *vote)
 
 	var data StoredVoteBlockNums = h.cache.VoteBlockNums()
 	WriteVoteDataBlockNums(h.ChainKv, &data)
 	return nil
 }
 
-func (h *HeaderGovModule) HandleGov(gov *GovernanceData) error {
-	h.cache.AddGovernance(gov.BlockNum, *gov)
+func (h *HeaderGovModule) HandleGov(blockNum uint64, gov *GovernanceData) error {
+	h.cache.AddGovernance(blockNum, *gov)
 
 	// merge gov based on latest effective params.
-	gp, err := h.EffectiveParams(gov.BlockNum)
+	gp, err := h.EffectiveParams(blockNum)
 	if err != nil {
 		return err
 	}
 
 	gp.SetFromGovernanceData(gov)
-	WriteGovernanceParam(h.ChainKv, gov.BlockNum, &gp)
+	WriteGovernanceParam(h.ChainKv, blockNum, &gp)
 	var data StoredGovBlockNums = h.cache.GovBlockNums()
 	WriteGovDataBlockNums(h.ChainKv, &data)
 	return nil
@@ -113,17 +113,14 @@ func (h *HeaderGovModule) HandleGov(gov *GovernanceData) error {
 
 func (h *HeaderGovModule) getExpectedGovernance(blockNum uint64) GovernanceData {
 	votes := h.getVotesInEpoch(calcEpochIdx(blockNum, h.epoch) - 1)
-	fmt.Println(votes)
 	govs := GovernanceData{
-		BlockNum: blockNum,
-		Params:   make(map[string]interface{}),
+		Params: make(map[string]interface{}),
 	}
 
 	// TODO: add tally
 	for _, vote := range votes {
 		govs.Params[vote.Name] = vote.Value
 	}
-	fmt.Println(govs)
 
 	return govs
 }

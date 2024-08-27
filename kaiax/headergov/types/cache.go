@@ -2,7 +2,7 @@ package types
 
 type GovernanceCache struct {
 	Votes       map[uint64]VoteData
-	Governances []GovernanceData
+	Governances map[uint64]GovernanceData
 }
 
 func (h *GovernanceCache) VoteBlockNums() []uint64 {
@@ -15,8 +15,8 @@ func (h *GovernanceCache) VoteBlockNums() []uint64 {
 
 func (h *GovernanceCache) GovBlockNums() []uint64 {
 	blockNums := make([]uint64, 0)
-	for _, gov := range h.Governances {
-		blockNums = append(blockNums, gov.BlockNum)
+	for num := range h.Governances {
+		blockNums = append(blockNums, num)
 	}
 	return blockNums
 }
@@ -26,7 +26,7 @@ func (h *GovernanceCache) AddVote(num uint64, vote VoteData) {
 }
 
 func (h *GovernanceCache) AddGovernance(num uint64, gov GovernanceData) {
-	h.Governances = append(h.Governances, gov)
+	h.Governances[num] = gov
 }
 
 func (h *GovernanceCache) GetGovernanceHistory() GovernanceHistory {

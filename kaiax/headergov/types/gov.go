@@ -10,8 +10,7 @@ import (
 )
 
 type GovernanceData struct {
-	BlockNum uint64
-	Params   map[string]interface{} // canonicalized value
+	Params map[string]interface{} // canonicalized value
 }
 
 func (g *GovernanceData) MarshalJSON() ([]byte, error) {
@@ -56,7 +55,6 @@ func DeserializeHeaderGov(b []byte, blockNum uint64) (*GovernanceData, error) {
 	}
 
 	return &GovernanceData{
-		BlockNum: blockNum,
-		Params:   params,
+		Params: params,
 	}, nil
 }

@@ -246,43 +246,44 @@ func (api *GovernanceAPI) GetRewardsAccumulated(first rpc.BlockNumber, last rpc.
 	return accumRewards, nil
 }
 
+// TODO-kaiax: temporarily disabled in favor of kaiax/headergov
 // Vote injects a new vote for governance targets such as unitprice and governingnode.
-func (api *GovernanceAPI) Vote(key string, val interface{}) (string, error) {
-	blockNumber := api.governance.BlockChain().CurrentBlock().NumberU64()
-	pset, err := api.governance.EffectiveParams(blockNumber + 1)
-	if err != nil {
-		return "", err
-	}
-	gMode := pset.GovernanceModeInt()
-	gNode := pset.GoverningNode()
-
-	if gMode == params.GovernanceMode_Single && gNode != api.governance.NodeAddress() {
-		return "", errPermissionDenied
-	}
-	vote, ok := api.governance.ValidateVote(&GovernanceVote{Key: strings.ToLower(key), Value: val})
-	if !ok {
-		return "", errInvalidKeyValue
-	}
-	if vote.Key == "governance.removevalidator" {
-		if api.isRemovingSelf(val.(string)) {
-			return "", errRemoveSelf
-		}
-	}
-	if vote.Key == "kip71.lowerboundbasefee" {
-		if vote.Value.(uint64) > pset.UpperBoundBaseFee() {
-			return "", errInvalidLowerBound
-		}
-	}
-	if vote.Key == "kip71.upperboundbasefee" {
-		if vote.Value.(uint64) < pset.LowerBoundBaseFee() {
-			return "", errInvalidUpperBound
-		}
-	}
-	if api.governance.AddVote(key, val) {
-		return "Your vote is prepared. It will be put into the block header or applied when your node generates a block as a proposer. Note that your vote may be duplicate.", nil
-	}
-	return "", errInvalidKeyValue
-}
+// func (api *GovernanceAPI) Vote(key string, val interface{}) (string, error) {
+// 	blockNumber := api.governance.BlockChain().CurrentBlock().NumberU64()
+// 	pset, err := api.governance.EffectiveParams(blockNumber + 1)
+// 	if err != nil {
+// 		return "", err
+// 	}
+// 	gMode := pset.GovernanceModeInt()
+// 	gNode := pset.GoverningNode()
+//
+// 	if gMode == params.GovernanceMode_Single && gNode != api.governance.NodeAddress() {
+// 		return "", errPermissionDenied
+// 	}
+// 	vote, ok := api.governance.ValidateVote(&GovernanceVote{Key: strings.ToLower(key), Value: val})
+// 	if !ok {
+// 		return "", errInvalidKeyValue
+// 	}
+// 	if vote.Key == "governance.removevalidator" {
+// 		if api.isRemovingSelf(val.(string)) {
+// 			return "", errRemoveSelf
+// 		}
+// 	}
+// 	if vote.Key == "kip71.lowerboundbasefee" {
+// 		if vote.Value.(uint64) > pset.UpperBoundBaseFee() {
+// 			return "", errInvalidLowerBound
+// 		}
+// 	}
+// 	if vote.Key == "kip71.upperboundbasefee" {
+// 		if vote.Value.(uint64) < pset.LowerBoundBaseFee() {
+// 			return "", errInvalidUpperBound
+// 		}
+// 	}
+// 	if api.governance.AddVote(key, val) {
+// 		return "Your vote is prepared. It will be put into the block header or applied when your node generates a block as a proposer. Note that your vote may be duplicate.", nil
+// 	}
+// 	return "", errInvalidKeyValue
+// }
 
 func (api *GovernanceAPI) isRemovingSelf(val string) bool {
 	for _, str := range strings.Split(val, ",") {
@@ -375,29 +376,26 @@ func (api *GovernanceAPI) PendingChanges() map[string]interface{} {
 	return api.governance.PendingChanges()
 }
 
-func (api *GovernanceAPI) Votes() []GovernanceVote {
-	return api.governance.Votes()
-}
+// func (api *GovernanceAPI) Votes() []GovernanceVote {
+// 	return api.governance.Votes()
+// }
 
-func (api *GovernanceAPI) IdxCache() []uint64 {
-	return api.governance.IdxCache()
-}
-
-func (api *GovernanceAPI) IdxCacheFromDb() []uint64 {
-	return api.governance.IdxCacheFromDb()
-}
-
-// TODO-Kaia: Return error if invalid input is given such as pending or a too big number
-func (api *GovernanceAPI) ItemCacheFromDb(num *rpc.BlockNumber) map[string]interface{} {
-	blockNumber := uint64(0)
-	if num == nil || *num == rpc.LatestBlockNumber || *num == rpc.PendingBlockNumber {
-		blockNumber = api.governance.BlockChain().CurrentBlock().NumberU64()
-	} else {
-		blockNumber = uint64(num.Int64())
-	}
-	ret, _ := api.governance.DB().ReadGovernance(blockNumber)
-	return ret
-}
+// func (api *GovernanceAPI) IdxCache() []uint64 {
+// 	return api.governance.IdxCache()
+// }
+// func (api *GovernanceAPI) IdxCacheFromDb() []uint64 {
+// 	return api.governance.IdxCacheFromDb()
+// }
+// func (api *GovernanceAPI) ItemCacheFromDb(num *rpc.BlockNumber) map[string]interface{} {
+// 	blockNumber := uint64(0)
+// 	if num == nil || *num == rpc.LatestBlockNumber || *num == rpc.PendingBlockNumber {
+// 		blockNumber = api.governance.BlockChain().CurrentBlock().NumberU64()
+// 	} else {
+// 		blockNumber = uint64(num.Int64())
+// 	}
+// 	ret, _ := api.governance.DB().ReadGovernance(blockNumber)
+// 	return ret
+// }
 
 type VoteList struct {
 	Key      string
@@ -406,21 +404,21 @@ type VoteList struct {
 	BlockNum uint64
 }
 
-func (api *GovernanceAPI) MyVotes() []*VoteList {
-	ret := []*VoteList{}
-
-	for k, v := range api.governance.GetVoteMapCopy() {
-		item := &VoteList{
-			Key:      k,
-			Value:    v.Value,
-			Casted:   v.Casted,
-			BlockNum: v.Num,
-		}
-		ret = append(ret, item)
-	}
-
-	return ret
-}
+// func (api *GovernanceAPI) MyVotes() []*VoteList {
+// 	ret := []*VoteList{}
+//
+// 	for k, v := range api.governance.GetVoteMapCopy() {
+// 		item := &VoteList{
+// 			Key:      k,
+// 			Value:    v.Value,
+// 			Casted:   v.Casted,
+// 			BlockNum: v.Num,
+// 		}
+// 		ret = append(ret, item)
+// 	}
+//
+// 	return ret
+// }
 
 func (api *GovernanceAPI) MyVotingPower() (float64, error) {
 	if !api.isGovernanceModeBallot() {
@@ -466,9 +464,9 @@ func getChainConfig(governance Engine, num *rpc.BlockNumber) *params.ChainConfig
 	return config
 }
 
-func (api *GovernanceAPI) NodeAddress() common.Address {
-	return api.governance.NodeAddress()
-}
+// func (api *GovernanceAPI) NodeAddress() common.Address {
+// 	return api.governance.NodeAddress()
+// }
 
 func (api *GovernanceAPI) isGovernanceModeBallot() bool {
 	blockNumber := api.governance.BlockChain().CurrentBlock().NumberU64()

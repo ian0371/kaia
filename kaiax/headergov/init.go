@@ -1,6 +1,7 @@
 package headergov
 
 import (
+	"encoding/json"
 	"errors"
 	"math/big"
 
@@ -109,6 +110,23 @@ func readVoteDataFromDB(chain chain, db database.Database) map[uint64]VoteData {
 func readGovDataFromDB(chain chain, db database.Database) map[uint64]GovernanceData {
 	govBlocks := ReadGovDataBlockNums(db)
 	govs := make(map[uint64]GovernanceData)
+
+	// TODO: remove this.
+	if govBlocks == nil {
+		governanceHistoryKey := []byte("governanceIdxHistory")
+		history, err := db.Get(governanceHistoryKey)
+		if err != nil {
+			logger.Error("Failed to read governance history", "err", err)
+			return govs
+		}
+		idxHistory := make([]uint64, 0)
+		if err := json.Unmarshal(history, &idxHistory); err != nil {
+			logger.Error("Failed to unmarshal governance history", "err", err)
+			return govs
+		}
+		govBlocks = (*StoredGovBlockNums)(&idxHistory)
+	}
+
 	if govBlocks != nil {
 		for _, blockNum := range *govBlocks {
 			header := chain.GetHeaderByNumber(blockNum)

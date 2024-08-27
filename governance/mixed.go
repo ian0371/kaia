@@ -299,7 +299,8 @@ func (e *MixedEngine) GetGovernanceChange() map[string]interface{} {
 }
 
 func (e *MixedEngine) VerifyGovernance(received []byte) error {
-	return e.headerGov.VerifyGovernance(received)
+	return nil // TODO-kaiax: remove
+	// return e.headerGov.VerifyGovernance(received)
 }
 
 func (e *MixedEngine) ClearVotes(num uint64) {

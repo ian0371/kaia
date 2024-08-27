@@ -22,7 +22,7 @@ var (
 func (s *HeaderGovModule) APIs() []rpc.API {
 	return []rpc.API{
 		{
-			Namespace: "kaia",
+			Namespace: "governance",
 			Version:   "1.0",
 			Service:   newHeaderGovAPI(s),
 			Public:    true,
@@ -48,6 +48,11 @@ func (api *headerGovAPI) Vote(key string, val interface{}) (string, error) {
 	gMode := gp.GovernanceMode
 	if gMode == params.GovernanceMode_Single && api.s.NodeAddress != gp.GoverningNode {
 		return "", errPermissionDenied
+	}
+
+	// TODO: add string handler
+	if _, ok := val.(float64); ok {
+		val = uint64(val.(float64))
 	}
 
 	err = api.s.VerifyVote(&VoteData{
@@ -77,6 +82,18 @@ func (api *headerGovAPI) Vote(key string, val interface{}) (string, error) {
 		}
 	}
 
-	api.s.MyVotes = append(api.s.MyVotes, VoteData{Name: key, Value: val})
-	return "Your vote is prepared. It will be put into the block header or applied when your node generates a block as a proposer. Note that your vote may be duplicate.", nil
+	api.s.MyVotes = append(api.s.MyVotes, VoteData{Voter: api.s.NodeAddress, Name: key, Value: val})
+	return "(kaiax) Your vote is prepared. It will be put into the block header or applied when your node generates a block as a proposer. Note that your vote may be duplicate.", nil
+}
+
+func (api *headerGovAPI) IdxCache() []uint64 {
+	return api.s.cache.GovBlockNums()
+}
+
+func (api *headerGovAPI) MyVotes() []VoteData {
+	return api.s.MyVotes
+}
+
+func (api *headerGovAPI) NodeAddress() common.Address {
+	return api.s.NodeAddress
 }

@@ -97,7 +97,8 @@ func NewEthereumAPI(
 // Etherbase is the address of operating node.
 // Unlike Ethereum, it only returns the node address because Kaia does not have a POW mechanism.
 func (api *EthereumAPI) Etherbase() (common.Address, error) {
-	return api.governanceAPI.NodeAddress(), nil
+	// TODO-kaiax: temporarily disabled in favor of kaiax/headergov
+	return common.Address{}, nil
 }
 
 // Coinbase is the address of operating node (alias for Etherbase).

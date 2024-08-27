@@ -15,13 +15,15 @@ func (h *HeaderGovModule) VerifyHeader(header *types.Header) error {
 	}
 
 	// 1. Check Vote
-	if header.Vote != nil {
+	if len(header.Vote) > 0 {
 		vote, err := headergov_types.DeserializeHeaderVote(header.Vote, header.Number.Uint64())
 		if err != nil {
+			logger.Error("Failed to parse vote", "num", header.Number.Uint64(), "err", err)
 			return err
 		}
 		err = h.VerifyVote(vote)
 		if err != nil {
+			logger.Error("Failed to verify vote", "num", header.Number.Uint64(), "err", err)
 			return err
 		}
 	}
@@ -31,15 +33,18 @@ func (h *HeaderGovModule) VerifyHeader(header *types.Header) error {
 		if len(header.Governance) == 0 {
 			return nil
 		} else {
+			logger.Error("governance is not allowed in non-epoch block", "num", header.Number.Uint64())
 			return errors.New("governance is not allowed in non-epoch block")
 		}
 	} else {
 		expected := h.getExpectedGovernance(header.Number.Uint64())
 		actual, err := headergov_types.DeserializeHeaderGov(header.Governance, header.Number.Uint64())
 		if err != nil {
+			logger.Error("Failed to parse governance", "num", header.Number.Uint64(), "err", err)
 			return err
 		}
 		if !reflect.DeepEqual(&expected, actual) {
+			logger.Error("governance mismatch", "num", header.Number.Uint64(), "expected", &expected, "actual", actual)
 			return fmt.Errorf("expected governance: %v, actual: %v", &expected, actual)
 		}
 
@@ -58,6 +63,9 @@ func (h *HeaderGovModule) PrepareHeader(header *types.Header) (*types.Header, er
 		gov := h.getExpectedGovernance(header.Number.Uint64())
 		header.Governance, _ = gov.Serialize()
 	}
+
+	// TODO-kaiax: must be removed later. only for testing.
+	h.PostInsertBlock(types.NewBlock(header, nil, nil))
 
 	return header, nil
 }
@@ -120,6 +128,7 @@ func (h *HeaderGovModule) getExpectedGovernance(blockNum uint64) GovernanceData 
 	for _, vote := range votes {
 		govs.Params[vote.Name] = vote.Value
 	}
+	logger.Warn("getExpectedGovernance", "blockNum", blockNum, "votes", votes, "govs", govs)
 
 	return govs
 }
@@ -137,6 +146,7 @@ func (h *HeaderGovModule) getVotesInEpoch(epochIdx uint64) []VoteData {
 
 func (h *HeaderGovModule) VerifyVote(vote *VoteData) error {
 	gp := GovernanceParam{}
+	logger.Warn("VerifyVote", "vote", *vote)
 	err := gp.SetFromVoteData(vote)
 	if err != nil {
 		return err

@@ -543,6 +543,7 @@ func (s *CN) SetupKaiaModules() error {
 	s.RegisterJsonRpcModules(mStaking, hGov)
 
 	// TODO-kaiax: Register ConsensusModule to consensus engine
+	s.RegisterConsensusModules(hGov)
 	// TODO-kaiax: Register ExecutionModules to BlockChain
 	// TODO-kaiax: Register TxProcessModules to BlockChain
 
@@ -563,8 +564,7 @@ func (s *CN) RegisterJsonRpcModules(modules ...kaiax.JsonRpcModule) {
 }
 
 func (s *CN) RegisterConsensusModules(modules ...kaiax.ConsensusModule) {
-	// Add to s.modules so s.Start() and s.Stop() can call them.
-	s.consensusModules = append(s.consensusModules, modules...)
+	s.engine.SetConsensusModule(modules...)
 }
 
 // istanbul BFT

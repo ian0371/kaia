@@ -192,6 +192,14 @@ func (sb *backend) VerifyHeader(chain consensus.ChainReader, header *types.Heade
 	} else {
 		parent = append(parent, chain.GetHeader(header.ParentHash, header.Number.Uint64()-1))
 	}
+
+	for _, module := range sb.modules {
+		err := module.VerifyHeader(header)
+		if err != nil {
+			return err
+		}
+	}
+
 	return sb.verifyHeader(chain, header, parent)
 }
 
@@ -485,6 +493,14 @@ func (sb *backend) Prepare(chain consensus.ChainReader, header *types.Header) er
 		header.Time = big.NewInt(t.Unix())
 		header.TimeFoS = uint8((t.UnixNano() / 1000 / 1000 / 10) % 100)
 	}
+
+	for _, module := range sb.modules {
+		header, err = module.PrepareHeader(header)
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -582,6 +598,14 @@ func (sb *backend) Finalize(chain consensus.ChainReader, header *types.Header, s
 	}
 
 	header.Root = state.IntermediateRoot(true)
+	block := types.NewBlock(header, txs, receipts)
+
+	for _, module := range sb.modules {
+		block, err = module.FinalizeBlock(block)
+		if err != nil {
+			return nil, err
+		}
+	}
 
 	// Assemble and return the final block for sealing
 	return types.NewBlock(header, txs, receipts), nil

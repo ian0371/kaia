@@ -57,7 +57,7 @@ type ConsensusModule interface {
 	PrepareHeader(*types.Header) (*types.Header, error)
 
 	// Additional state transitions after block txs have been executed
-	FinalizeBlock() (*types.Block, error)
+	FinalizeBlock(*types.Block) (*types.Block, error)
 }
 
 // ExecutionModule deals with execution of confirmed blocks.

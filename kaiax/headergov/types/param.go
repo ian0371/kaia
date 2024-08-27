@@ -66,8 +66,7 @@ var (
 	defaultMinimumStake              = big.NewInt(2000000)
 	defaultStakeUpdateInterval       = uint64(86400) // 1 day
 	defaultProposerRefreshInterval   = uint64(3600)  // 1 hour
-	defaultPeriod                    = uint64(1)
-	defaultDeriveShaImpl             = uint64(0) // Orig
+	defaultDeriveShaImpl             = uint64(0)     // Orig
 )
 
 func GetDefaultGovernanceParam() *GovernanceParam {

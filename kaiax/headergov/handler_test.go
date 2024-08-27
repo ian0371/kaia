@@ -15,14 +15,14 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestHeaderVerify(t *testing.T) {
+func TestVerifyHeader(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	chain := mocks.NewMockBlockChain(mockCtrl)
 	db := database.NewMemDB()
 	config := &params.ChainConfig{
 		KoreCompatibleBlock: big.NewInt(999999999),
 		Istanbul: &params.IstanbulConfig{
-			Epoch: 604800,
+			Epoch: 1000,
 		},
 	}
 	h := &HeaderGovModule{}
@@ -32,7 +32,7 @@ func TestHeaderVerify(t *testing.T) {
 		ChainConfig: config,
 	})
 	require.NoError(t, err)
-	h.HandleVote(123, &VoteData{
+	h.HandleVote(500, &VoteData{
 		Name:  governance.GovernanceKeyMapReverse[params.UnitPrice],
 		Value: uint64(100),
 	})
@@ -50,14 +50,14 @@ func TestHeaderVerify(t *testing.T) {
 		gov      []byte
 		isError  bool
 	}{
-		{604799, nil, false},
-		{604799, govBytes, true},
+		{999, nil, false},
+		{999, govBytes, true},
 
-		{604800, nil, true},
-		{604800, govBytes, false},
+		{1000, nil, true},
+		{1000, govBytes, false},
 
-		{604801, nil, false},
-		{604801, govBytes, true},
+		{1001, nil, false},
+		{1001, govBytes, true},
 	}
 
 	for _, tc := range tcs {
@@ -73,4 +73,79 @@ func TestHeaderVerify(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestGetVotesInEpoch(t *testing.T) {
+	mockCtrl := gomock.NewController(t)
+	chain := mocks.NewMockBlockChain(mockCtrl)
+	db := database.NewMemDB()
+	config := &params.ChainConfig{
+		Istanbul: &params.IstanbulConfig{
+			Epoch: 1000,
+		},
+	}
+	h := &HeaderGovModule{}
+	err := h.Init(&InitOpts{
+		Chain:       chain,
+		ChainKv:     db,
+		ChainConfig: config,
+	})
+	require.NoError(t, err)
+	v1 := &VoteData{
+		Name:  governance.GovernanceKeyMapReverse[params.UnitPrice],
+		Value: uint64(100),
+	}
+	h.HandleVote(500, v1)
+	v2 := &VoteData{
+		Name:  governance.GovernanceKeyMapReverse[params.UnitPrice],
+		Value: uint64(200),
+	}
+	h.HandleVote(1500, v2)
+	assert.Equal(t, []VoteData{*v1}, h.getVotesInEpoch(0))
+	assert.Equal(t, []VoteData{*v2}, h.getVotesInEpoch(1))
+}
+
+func TestGetExpectedGovernance(t *testing.T) {
+	mockCtrl := gomock.NewController(t)
+	chain := mocks.NewMockBlockChain(mockCtrl)
+	db := database.NewMemDB()
+	config := &params.ChainConfig{
+		KoreCompatibleBlock: big.NewInt(999999999),
+		Istanbul: &params.IstanbulConfig{
+			Epoch: 1000,
+		},
+	}
+	h := &HeaderGovModule{}
+	err := h.Init(&InitOpts{
+		Chain:       chain,
+		ChainKv:     db,
+		ChainConfig: config,
+	})
+	require.NoError(t, err)
+
+	v1 := &VoteData{
+		Name:  governance.GovernanceKeyMapReverse[params.UnitPrice],
+		Value: uint64(100),
+	}
+	h.HandleVote(500, v1)
+	v2 := &VoteData{
+		Name:  governance.GovernanceKeyMapReverse[params.UnitPrice],
+		Value: uint64(200),
+	}
+	h.HandleVote(1500, v2)
+
+	g1 := &GovernanceData{
+		Params: map[string]interface{}{
+			governance.GovernanceKeyMapReverse[params.UnitPrice]: uint64(100),
+		},
+	}
+	h.HandleGov(1000, g1)
+	g2 := &GovernanceData{
+		Params: map[string]interface{}{
+			governance.GovernanceKeyMapReverse[params.UnitPrice]: uint64(200),
+		},
+	}
+	h.HandleGov(2000, g2)
+	assert.Equal(t, *g1, h.getExpectedGovernance(1000))
+	assert.Equal(t, *g2, h.getExpectedGovernance(2000))
 }

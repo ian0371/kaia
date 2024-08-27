@@ -3,6 +3,7 @@ package headergov
 import (
 	"errors"
 
+	"github.com/kaiachain/kaia/common"
 	"github.com/kaiachain/kaia/networks/rpc"
 	"github.com/kaiachain/kaia/params"
 )
@@ -44,14 +45,31 @@ func (api *headerGovAPI) Vote(key string, val interface{}) (string, error) {
 		return "", err
 	}
 
-	// TODO: check node address
 	gMode := gp.GovernanceMode
-	if gMode == params.GovernanceMode_Single || true {
+	if gMode == params.GovernanceMode_Single && api.s.NodeAddress != gp.GoverningNode {
 		return "", errPermissionDenied
 	}
+
 	err = api.s.VerifyVote(key, val)
 	if err != nil {
 		return "", err
+	}
+
+	if key == "governance.removevalidator" {
+		if val.(common.Address) == api.s.NodeAddress {
+			return "", errRemoveSelf
+		}
+	}
+
+	if key == "kip71.lowerboundbasefee" {
+		if val.(uint64) > gp.UpperBoundBaseFee {
+			return "", errInvalidLowerBound
+		}
+	}
+	if key == "kip71.upperboundbasefee" {
+		if val.(uint64) < gp.LowerBoundBaseFee {
+			return "", errInvalidUpperBound
+		}
 	}
 
 	return "", errInvalidKeyValue

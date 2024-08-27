@@ -127,11 +127,6 @@ func (h *HeaderGovModule) VerifyVote(key string, val interface{}) error {
 	}
 
 	/*
-		if key == "governance.removevalidator" {
-			if h.isRemovingSelf(val.(string)) {
-				return errRemoveSelf
-			}
-		}
 		if key == "kip71.lowerboundbasefee" {
 			if val.(uint64) > pset.UpperBoundBaseFee() {
 				return errInvalidLowerBound

@@ -5,6 +5,7 @@ import (
 	"math/big"
 
 	"github.com/kaiachain/kaia/blockchain/types"
+	"github.com/kaiachain/kaia/common"
 	headergov_types "github.com/kaiachain/kaia/kaiax/headergov/types"
 	"github.com/kaiachain/kaia/log"
 	"github.com/kaiachain/kaia/params"
@@ -33,11 +34,13 @@ type InitOpts struct {
 	ChainKv     database.Database
 	ChainConfig *params.ChainConfig
 	Chain       chain
+	NodeAddress common.Address
 }
 type HeaderGovModule struct {
 	ChainKv     database.Database
 	ChainConfig *params.ChainConfig
 	Chain       chain
+	NodeAddress common.Address
 
 	epoch uint64
 	cache GovernanceCache
@@ -47,6 +50,7 @@ func (h *HeaderGovModule) Init(opts *InitOpts) error {
 	h.ChainKv = opts.ChainKv
 	h.ChainConfig = opts.ChainConfig
 	h.Chain = opts.Chain
+	h.NodeAddress = opts.NodeAddress
 	if h.ChainConfig == nil || h.ChainConfig.Istanbul == nil {
 		return errNoChainConfig
 	}
@@ -97,17 +101,20 @@ func readVoteDataFromDB(chain chain, db database.Database) []VoteData {
 
 func readGovDataFromDB(chain chain, db database.Database) []GovernanceData {
 	govBlocks := ReadGovDataBlockNums(db)
-	govs := make([]GovernanceData, 0)
 	if govBlocks != nil {
+		govs := make([]GovernanceData, 0, len(*govBlocks))
 		for _, blockNum := range *govBlocks {
 			header := chain.GetHeaderByNumber(blockNum)
 			parsedGov, err := headergov_types.DeserializeHeaderGov(header.Governance, blockNum)
 			if err != nil {
 				logger.Error("Failed to parse vote", "num", blockNum, "err", err)
+				panic(err)
 			}
 
 			govs = append(govs, *parsedGov)
 		}
+		return govs
+	} else {
+		return nil
 	}
-	return govs
 }

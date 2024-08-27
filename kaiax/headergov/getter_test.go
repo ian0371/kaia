@@ -77,7 +77,7 @@ func TestEffectiveParams(t *testing.T) {
 	}
 }
 
-func TestSourceBlockNum(t *testing.T) {
+func TestPrevEpochStart(t *testing.T) {
 	epoch := uint64(1000)
 	testCases := []struct {
 		blockNum    uint64

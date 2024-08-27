@@ -28,8 +28,8 @@ func TestReadVoteBlockNumsFromDB(t *testing.T) {
 	voteDataBlockNums := make(StoredVoteBlockNums, 0, len(voteDatas))
 	for _, voteData := range voteDatas {
 		headerVoteData, err := voteData.Serialize()
-		chain.EXPECT().GetHeaderByNumber(uint64(voteData.BlockNum)).Return(&types.Header{Vote: headerVoteData})
 		require.NoError(t, err)
+		chain.EXPECT().GetHeaderByNumber(uint64(voteData.BlockNum)).Return(&types.Header{Vote: headerVoteData})
 		voteDataBlockNums = append(voteDataBlockNums, voteData.BlockNum)
 	}
 	WriteVoteDataBlockNums(db, &voteDataBlockNums)
@@ -37,7 +37,7 @@ func TestReadVoteBlockNumsFromDB(t *testing.T) {
 	assert.Equal(t, voteDatas, readVoteDataFromDB(chain, db))
 }
 
-func TestReadGovMapFromDB(t *testing.T) {
+func TestReadGovDataFromDB(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	chain := mocks.NewMockBlockChain(mockCtrl)
 	db := database.NewMemDB()
@@ -54,8 +54,13 @@ func TestReadGovMapFromDB(t *testing.T) {
 	WriteGovDataBlockNums(db, &StoredGovBlockNums{1, 2})
 
 	govs := []GovernanceData{
-		{BlockNum: 1, Params: map[string]interface{}{"UnitPrice": ps1.UnitPrice}},
-		{BlockNum: 2, Params: map[string]interface{}{"UnitPrice": ps2.UnitPrice}},
+		{BlockNum: 1, Params: map[string]interface{}{governance.GovernanceKeyMapReverse[params.UnitPrice]: ps1.UnitPrice}},
+		{BlockNum: 2, Params: map[string]interface{}{governance.GovernanceKeyMapReverse[params.UnitPrice]: ps2.UnitPrice}},
+	}
+	for _, govData := range govs {
+		headerGovData, err := govData.Serialize()
+		require.NoError(t, err)
+		chain.EXPECT().GetHeaderByNumber(uint64(govData.BlockNum)).Return(&types.Header{Governance: headerGovData})
 	}
 
 	assert.Equal(t, ps1, ReadGovernanceParam(db, 1))

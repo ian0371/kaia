@@ -36,11 +36,13 @@ type InitOpts struct {
 	Chain       chain
 	NodeAddress common.Address
 }
+
 type HeaderGovModule struct {
 	ChainKv     database.Database
 	ChainConfig *params.ChainConfig
 	Chain       chain
 	NodeAddress common.Address
+	MyVotes     []VoteData // queue
 
 	epoch uint64
 	cache GovernanceCache
@@ -51,6 +53,7 @@ func (h *HeaderGovModule) Init(opts *InitOpts) error {
 	h.ChainConfig = opts.ChainConfig
 	h.Chain = opts.Chain
 	h.NodeAddress = opts.NodeAddress
+	h.MyVotes = make([]VoteData, 0)
 	if h.ChainConfig == nil || h.ChainConfig.Istanbul == nil {
 		return errNoChainConfig
 	}

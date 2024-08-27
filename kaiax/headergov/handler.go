@@ -10,53 +10,57 @@ import (
 	"github.com/kaiachain/kaia/params"
 )
 
-// TODO: verify Vote.
-// TODO: filter valid votes (i.e., tally)
 func (h *HeaderGovModule) VerifyHeader(header *types.Header) error {
-
-	// verify Governance.
 	if header.Number.Uint64() == 0 {
 		return nil
 	}
 
-	// 1. epoch check
-	if header.Number.Uint64()%h.epoch != 0 {
-		if len(header.Governance) > 0 {
-			return errors.New("governance is not allowed in non-epoch block")
-		} else {
-			return nil
+	// 1. Check Vote
+	if header.Vote != nil {
+		vote, err := headergov_types.DeserializeHeaderVote(header.Vote, header.Number.Uint64())
+		if err != nil {
+			return err
+		}
+		err = h.VerifyVote(vote)
+		if err != nil {
+			return err
 		}
 	}
 
-	// 2. vote pass check
-	votes := h.getVotesInEpoch(calcEpochIdx(header.Number.Uint64()-1, h.epoch))
-	expected := GovernanceParam{}
-	for _, vote := range votes {
-		expected.SetFromVoteData(&vote)
-	}
+	// 2. Check Governance
+	if header.Number.Uint64()%h.epoch != 0 {
+		if len(header.Governance) == 0 {
+			return nil
+		} else {
+			return errors.New("governance is not allowed in non-epoch block")
+		}
+	} else {
+		expected := h.getExpectedGovernance(calcEpochIdx(header.Number.Uint64(), h.epoch))
+		actual, err := headergov_types.DeserializeHeaderGov(header.Governance, header.Number.Uint64())
+		if err != nil {
+			return err
+		}
+		if !reflect.DeepEqual(expected, actual) {
+			return fmt.Errorf("expected governance: %v, actual: %v", expected, actual)
+		}
 
-	deserializedGov, err := headergov_types.DeserializeHeaderGov(header.Governance, header.Number.Uint64())
-	if err != nil {
-		return err
+		return nil
 	}
-	actual := GovernanceParam{}
-	actual.SetFromGovernanceData(deserializedGov)
-
-	if !reflect.DeepEqual(expected, actual) {
-		return fmt.Errorf("expected GovernanceParam: %v, actual: %v", expected, actual)
-	}
-
-	return nil
 }
 
-// TODO: Add Gov to header.
-// TODO: if myVote exists, put Vote to header.
 func (h *HeaderGovModule) PrepareHeader(header *types.Header) (*types.Header, error) {
 	// if epoch block & vote exists in the last epoch, put Governance to header.
-	if header.Number.Uint64()%h.epoch == 0 {
+	if len(h.MyVotes) > 0 {
+		header.Vote, _ = h.MyVotes[0].Serialize()
+		h.MyVotes = h.MyVotes[1:]
 	}
 
-	return header, nil // TODO: implement
+	if header.Number.Uint64()%h.epoch == 0 {
+		gov := h.getExpectedGovernance(calcEpochIdx(header.Number.Uint64(), h.epoch))
+		header.Governance, _ = gov.Serialize()
+	}
+
+	return header, nil
 }
 
 func (h *HeaderGovModule) FinalizeBlock(b *types.Block) (*types.Block, error) {
@@ -107,7 +111,22 @@ func (h *HeaderGovModule) HandleGov(gov *GovernanceData) error {
 	return nil
 }
 
-func (h *HeaderGovModule) getVotesInEpoch(epochIdx uint64) []VoteData {
+func (h *HeaderGovModule) getExpectedGovernance(epochIdx uint64) GovernanceData {
+	votes := h.getExpectedVotes(epochIdx)
+	govs := GovernanceData{
+		BlockNum: epochIdx * h.epoch,
+		Params:   make(map[string]interface{}),
+	}
+
+	// TODO: add tally
+	for _, vote := range votes {
+		govs.Params[vote.Name] = vote.Value
+	}
+
+	return govs
+}
+
+func (h *HeaderGovModule) getExpectedVotes(epochIdx uint64) []VoteData {
 	ret := make([]VoteData, 0)
 	for _, vote := range h.cache.Votes {
 		if calcEpochIdx(vote.BlockNum, h.epoch) == epochIdx {
@@ -118,10 +137,13 @@ func (h *HeaderGovModule) getVotesInEpoch(epochIdx uint64) []VoteData {
 	return ret
 }
 
-func (h *HeaderGovModule) VerifyVote(key string, val interface{}) error {
-	_, err := params.NewGovParamSetStrMap(map[string]interface{}{
-		key: val,
-	})
+func (h *HeaderGovModule) VerifyVote(vote *VoteData) error {
+	if vote.BlockNum != h.Chain.CurrentBlock().NumberU64()+1 {
+		return errors.New("vote block number is not the previous block number")
+	}
+
+	gp := GovernanceParam{}
+	err := gp.SetFromVoteData(vote)
 	if err != nil {
 		return err
 	}
@@ -138,6 +160,17 @@ func (h *HeaderGovModule) VerifyVote(key string, val interface{}) error {
 			}
 		}
 	*/
+	return nil
+}
+
+func (h *HeaderGovModule) VerifyGov(key string, val interface{}) error {
+	_, err := params.NewGovParamSetStrMap(map[string]interface{}{
+		key: val,
+	})
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 

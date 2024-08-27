@@ -50,11 +50,17 @@ func (api *headerGovAPI) Vote(key string, val interface{}) (string, error) {
 		return "", errPermissionDenied
 	}
 
-	err = api.s.VerifyVote(key, val)
+	err = api.s.VerifyVote(&VoteData{
+		BlockNum: blockNumber,
+		Voter:    api.s.NodeAddress,
+		Name:     key,
+		Value:    val,
+	}, gp)
 	if err != nil {
 		return "", err
 	}
 
+	// TODO: check if val is in the validator set for addval, removeval
 	if key == "governance.removevalidator" {
 		if val.(common.Address) == api.s.NodeAddress {
 			return "", errRemoveSelf
@@ -72,5 +78,6 @@ func (api *headerGovAPI) Vote(key string, val interface{}) (string, error) {
 		}
 	}
 
-	return "", errInvalidKeyValue
+	api.s.MyVotes = append(api.s.MyVotes, VoteData{Name: key, Value: val})
+	return "Your vote is prepared. It will be put into the block header or applied when your node generates a block as a proposer. Note that your vote may be duplicate.", nil
 }

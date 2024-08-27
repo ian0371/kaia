@@ -84,9 +84,9 @@ func (s *HeaderGovModule) isKoreHF(num uint64) bool {
 	return s.ChainConfig.IsKoreForkEnabled(new(big.Int).SetUint64(num))
 }
 
-func readVoteDataFromDB(chain chain, db database.Database) []VoteData {
+func readVoteDataFromDB(chain chain, db database.Database) map[uint64]VoteData {
 	voteBlocks := ReadVoteDataBlockNums(db)
-	votes := make([]VoteData, 0)
+	votes := make(map[uint64]VoteData, 0)
 	if voteBlocks != nil {
 		for _, blockNum := range *voteBlocks {
 			header := chain.GetHeaderByNumber(blockNum)
@@ -95,7 +95,7 @@ func readVoteDataFromDB(chain chain, db database.Database) []VoteData {
 				logger.Error("Failed to parse vote", "num", blockNum, "err", err)
 			}
 
-			votes = append(votes, *parsedVote)
+			votes[blockNum] = *parsedVote
 		}
 	}
 

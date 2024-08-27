@@ -1,6 +1,7 @@
 package headergov
 
 import (
+	"fmt"
 	"math/big"
 	"testing"
 
@@ -31,10 +32,9 @@ func TestHeaderVerify(t *testing.T) {
 		ChainConfig: config,
 	})
 	require.NoError(t, err)
-	h.HandleVote(&VoteData{
-		BlockNum: 1,
-		Name:     governance.GovernanceKeyMapReverse[params.UnitPrice],
-		Value:    uint64(100),
+	h.HandleVote(123, &VoteData{
+		Name:  governance.GovernanceKeyMapReverse[params.UnitPrice],
+		Value: uint64(100),
 	})
 
 	gov := GovernanceData{
@@ -62,14 +62,16 @@ func TestHeaderVerify(t *testing.T) {
 	}
 
 	for _, tc := range tcs {
-		err = h.VerifyHeader(&types.Header{
-			Number:     big.NewInt(int64(tc.blockNum)),
-			Governance: tc.gov,
+		t.Run(fmt.Sprintf("BlockNum=%d,HasGov=%v", tc.blockNum, tc.gov != nil), func(t *testing.T) {
+			err := h.VerifyHeader(&types.Header{
+				Number:     big.NewInt(int64(tc.blockNum)),
+				Governance: tc.gov,
+			})
+			if tc.isError {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
 		})
-		if tc.isError {
-			assert.Error(t, err)
-		} else {
-			assert.NoError(t, err)
-		}
 	}
 }

@@ -35,13 +35,13 @@ func (h *HeaderGovModule) VerifyHeader(header *types.Header) error {
 			return errors.New("governance is not allowed in non-epoch block")
 		}
 	} else {
-		expected := h.getExpectedGovernance(calcEpochIdx(header.Number.Uint64(), h.epoch))
+		expected := h.getExpectedGovernance(header.Number.Uint64())
 		actual, err := headergov_types.DeserializeHeaderGov(header.Governance, header.Number.Uint64())
 		if err != nil {
 			return err
 		}
-		if !reflect.DeepEqual(expected, actual) {
-			return fmt.Errorf("expected governance: %v, actual: %v", expected, actual)
+		if !reflect.DeepEqual(&expected, actual) {
+			return fmt.Errorf("expected governance: %v, actual: %v", &expected, actual)
 		}
 
 		return nil
@@ -56,7 +56,7 @@ func (h *HeaderGovModule) PrepareHeader(header *types.Header) (*types.Header, er
 	}
 
 	if header.Number.Uint64()%h.epoch == 0 {
-		gov := h.getExpectedGovernance(calcEpochIdx(header.Number.Uint64(), h.epoch))
+		gov := h.getExpectedGovernance(header.Number.Uint64())
 		header.Governance, _ = gov.Serialize()
 	}
 
@@ -73,7 +73,7 @@ func (h *HeaderGovModule) PostInsertBlock(b *types.Block) error {
 		if err != nil {
 			return err
 		}
-		h.HandleVote(vote)
+		h.HandleVote(b.NumberU64(), vote)
 	}
 
 	if len(b.Header().Governance) > 0 {
@@ -87,8 +87,8 @@ func (h *HeaderGovModule) PostInsertBlock(b *types.Block) error {
 	return nil
 }
 
-func (h *HeaderGovModule) HandleVote(vote *VoteData) error {
-	h.cache.AddVote(vote.BlockNum, *vote)
+func (h *HeaderGovModule) HandleVote(num uint64, vote *VoteData) error {
+	h.cache.AddVote(num, *vote)
 
 	var data StoredVoteBlockNums = h.cache.VoteBlockNums()
 	WriteVoteDataBlockNums(h.ChainKv, &data)
@@ -111,10 +111,11 @@ func (h *HeaderGovModule) HandleGov(gov *GovernanceData) error {
 	return nil
 }
 
-func (h *HeaderGovModule) getExpectedGovernance(epochIdx uint64) GovernanceData {
-	votes := h.getExpectedVotes(epochIdx)
+func (h *HeaderGovModule) getExpectedGovernance(blockNum uint64) GovernanceData {
+	votes := h.getVotesInEpoch(calcEpochIdx(blockNum, h.epoch) - 1)
+	fmt.Println(votes)
 	govs := GovernanceData{
-		BlockNum: epochIdx * h.epoch,
+		BlockNum: blockNum,
 		Params:   make(map[string]interface{}),
 	}
 
@@ -122,14 +123,15 @@ func (h *HeaderGovModule) getExpectedGovernance(epochIdx uint64) GovernanceData 
 	for _, vote := range votes {
 		govs.Params[vote.Name] = vote.Value
 	}
+	fmt.Println(govs)
 
 	return govs
 }
 
-func (h *HeaderGovModule) getExpectedVotes(epochIdx uint64) []VoteData {
+func (h *HeaderGovModule) getVotesInEpoch(epochIdx uint64) []VoteData {
 	ret := make([]VoteData, 0)
-	for _, vote := range h.cache.Votes {
-		if calcEpochIdx(vote.BlockNum, h.epoch) == epochIdx {
+	for num, vote := range h.cache.Votes {
+		if calcEpochIdx(num, h.epoch) == epochIdx {
 			ret = append(ret, vote)
 		}
 	}
@@ -138,10 +140,6 @@ func (h *HeaderGovModule) getExpectedVotes(epochIdx uint64) []VoteData {
 }
 
 func (h *HeaderGovModule) VerifyVote(vote *VoteData) error {
-	if vote.BlockNum != h.Chain.CurrentBlock().NumberU64()+1 {
-		return errors.New("vote block number is not the previous block number")
-	}
-
 	gp := GovernanceParam{}
 	err := gp.SetFromVoteData(vote)
 	if err != nil {

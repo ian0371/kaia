@@ -15,26 +15,26 @@ import (
 )
 
 func TestReadVoteBlockNumsFromDB(t *testing.T) {
-	voteDatas := []VoteData{
-		{BlockNum: 1, Voter: common.Address{1}, Name: governance.GovernanceKeyMapReverse[params.UnitPrice], Value: uint64(100)},
-		{BlockNum: 50, Voter: common.Address{2}, Name: governance.GovernanceKeyMapReverse[params.UnitPrice], Value: uint64(200)},
-		{BlockNum: 100, Voter: common.Address{3}, Name: governance.GovernanceKeyMapReverse[params.UnitPrice], Value: uint64(300)},
+	votes := map[uint64]VoteData{
+		1:   {Voter: common.Address{1}, Name: governance.GovernanceKeyMapReverse[params.UnitPrice], Value: uint64(100)},
+		50:  {Voter: common.Address{2}, Name: governance.GovernanceKeyMapReverse[params.UnitPrice], Value: uint64(200)},
+		100: {Voter: common.Address{3}, Name: governance.GovernanceKeyMapReverse[params.UnitPrice], Value: uint64(300)},
 	}
 
 	mockCtrl := gomock.NewController(t)
 	chain := mocks.NewMockBlockChain(mockCtrl)
 
 	db := database.NewMemDB()
-	voteDataBlockNums := make(StoredVoteBlockNums, 0, len(voteDatas))
-	for _, voteData := range voteDatas {
+	voteDataBlockNums := make(StoredVoteBlockNums, 0, len(votes))
+	for num, voteData := range votes {
 		headerVoteData, err := voteData.Serialize()
 		require.NoError(t, err)
-		chain.EXPECT().GetHeaderByNumber(uint64(voteData.BlockNum)).Return(&types.Header{Vote: headerVoteData})
-		voteDataBlockNums = append(voteDataBlockNums, voteData.BlockNum)
+		chain.EXPECT().GetHeaderByNumber(num).Return(&types.Header{Vote: headerVoteData})
+		voteDataBlockNums = append(voteDataBlockNums, num)
 	}
 	WriteVoteDataBlockNums(db, &voteDataBlockNums)
 
-	assert.Equal(t, voteDatas, readVoteDataFromDB(chain, db))
+	assert.Equal(t, votes, readVoteDataFromDB(chain, db))
 }
 
 func TestReadGovDataFromDB(t *testing.T) {

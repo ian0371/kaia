@@ -10,10 +10,9 @@ import (
 )
 
 type VoteData struct {
-	BlockNum uint64
-	Voter    common.Address
-	Name     string      // TODO: map[string]interface{}
-	Value    interface{} // canonicalized value
+	Voter common.Address
+	Name  string      // TODO: map[string]interface{}
+	Value interface{} // canonicalized value
 }
 
 func (vote *VoteData) ToParamSet() (*params.GovParamSet, error) {
@@ -64,9 +63,8 @@ func DeserializeHeaderVote(b []byte, blockNum uint64) (*VoteData, error) {
 	}
 
 	return &VoteData{
-		BlockNum: blockNum,
-		Voter:    v.Validator,
-		Name:     v.Key,
-		Value:    value,
+		Voter: v.Validator,
+		Name:  v.Key,
+		Value: value,
 	}, nil
 }

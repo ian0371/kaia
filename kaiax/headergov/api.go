@@ -51,11 +51,10 @@ func (api *headerGovAPI) Vote(key string, val interface{}) (string, error) {
 	}
 
 	err = api.s.VerifyVote(&VoteData{
-		BlockNum: blockNumber,
-		Voter:    api.s.NodeAddress,
-		Name:     key,
-		Value:    val,
-	}, gp)
+		Voter: api.s.NodeAddress,
+		Name:  key,
+		Value: val,
+	})
 	if err != nil {
 		return "", err
 	}

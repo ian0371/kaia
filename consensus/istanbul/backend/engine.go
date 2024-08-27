@@ -41,6 +41,7 @@ import (
 	"github.com/kaiachain/kaia/consensus/istanbul/validator"
 	"github.com/kaiachain/kaia/consensus/misc"
 	"github.com/kaiachain/kaia/crypto/sha3"
+	"github.com/kaiachain/kaia/kaiax"
 	"github.com/kaiachain/kaia/networks/rpc"
 	"github.com/kaiachain/kaia/params"
 	"github.com/kaiachain/kaia/reward"
@@ -883,6 +884,10 @@ func (sb *backend) GetConsensusInfo(block *types.Block) (consensus.ConsensusInfo
 func (sb *backend) InitSnapshot() {
 	sb.recents.Purge()
 	sb.blsPubkeyProvider.ResetBlsCache()
+}
+
+func (sb *backend) SetConsensusModule(modules ...kaiax.ConsensusModule) {
+	sb.modules = append(sb.modules, modules...)
 }
 
 // prepareSnapshotApply is a helper function to prepare snapshot and headers for the given block number and hash.

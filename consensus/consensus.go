@@ -28,6 +28,7 @@ import (
 	"github.com/kaiachain/kaia/blockchain/state"
 	"github.com/kaiachain/kaia/blockchain/types"
 	"github.com/kaiachain/kaia/common"
+	"github.com/kaiachain/kaia/kaiax"
 	"github.com/kaiachain/kaia/networks/p2p"
 	"github.com/kaiachain/kaia/networks/rpc"
 	"github.com/kaiachain/kaia/params"
@@ -131,6 +132,8 @@ type Engine interface {
 	GetConsensusInfo(block *types.Block) (ConsensusInfo, error)
 
 	InitSnapshot()
+
+	SetConsensusModule(modules ...kaiax.ConsensusModule)
 }
 
 // PoW is a consensus engine based on proof-of-work.

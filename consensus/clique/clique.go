@@ -40,6 +40,7 @@ import (
 	"github.com/kaiachain/kaia/crypto"
 	"github.com/kaiachain/kaia/crypto/sha3"
 	"github.com/kaiachain/kaia/governance"
+	"github.com/kaiachain/kaia/kaiax"
 	"github.com/kaiachain/kaia/log"
 	"github.com/kaiachain/kaia/networks/rpc"
 	"github.com/kaiachain/kaia/params"
@@ -575,7 +576,8 @@ func (c *Clique) Prepare(chain consensus.ChainReader, header *types.Header) erro
 	return nil
 }
 
-func (c *Clique) InitSnapshot() {}
+func (c *Clique) InitSnapshot()                                       {}
+func (c *Clique) SetConsensusModule(modules ...kaiax.ConsensusModule) {}
 
 // Finalize implements consensus.Engine and returns the final block.
 func (c *Clique) Finalize(chain consensus.ChainReader, header *types.Header, state *state.StateDB, txs []*types.Transaction, receipts []*types.Receipt) (*types.Block, error) {

@@ -41,6 +41,7 @@ import (
 	"github.com/kaiachain/kaia/crypto/bls"
 	"github.com/kaiachain/kaia/event"
 	"github.com/kaiachain/kaia/governance"
+	"github.com/kaiachain/kaia/kaiax"
 	"github.com/kaiachain/kaia/log"
 	"github.com/kaiachain/kaia/reward"
 	"github.com/kaiachain/kaia/storage/database"
@@ -147,6 +148,8 @@ type backend struct {
 	nodetype common.ConnType
 
 	isRestoringSnapshots atomic.Bool
+
+	modules []kaiax.ConsensusModule
 }
 
 func (sb *backend) NodeType() common.ConnType {

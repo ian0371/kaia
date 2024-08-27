@@ -37,6 +37,7 @@ import (
 	"github.com/kaiachain/kaia/consensus/istanbul"
 	"github.com/kaiachain/kaia/contracts/contracts/testing/system_contracts"
 	"github.com/kaiachain/kaia/crypto"
+	"github.com/kaiachain/kaia/kaiax"
 	"github.com/kaiachain/kaia/log"
 	"github.com/kaiachain/kaia/networks/rpc"
 	"github.com/kaiachain/kaia/params"
@@ -801,5 +802,9 @@ func (s *supplyTestEngine) GetConsensusInfo(block *types.Block) (consensus.Conse
 }
 
 func (s *supplyTestEngine) InitSnapshot() {
+	// do nothing
+}
+
+func (s *supplyTestEngine) SetConsensusModule(modules ...kaiax.ConsensusModule) {
 	// do nothing
 }

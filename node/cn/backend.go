@@ -48,6 +48,7 @@ import (
 	"github.com/kaiachain/kaia/event"
 	"github.com/kaiachain/kaia/governance"
 	"github.com/kaiachain/kaia/kaiax"
+	"github.com/kaiachain/kaia/kaiax/headergov"
 	"github.com/kaiachain/kaia/kaiax/staking"
 	"github.com/kaiachain/kaia/networks/p2p"
 	"github.com/kaiachain/kaia/networks/rpc"
@@ -126,8 +127,9 @@ type CN struct {
 
 	APIBackend *CNAPIBackend
 
-	miner    Miner
-	gasPrice *big.Int
+	miner       Miner
+	gasPrice    *big.Int
+	nodeAddress common.Address
 
 	rewardbase common.Address
 
@@ -136,9 +138,10 @@ type CN struct {
 
 	lock sync.RWMutex // Protects the variadic fields (e.g. gas price)
 
-	components []interface{}
-	modules    []kaiax.BaseModule    // KaiaX Modules to start and stop along with CN
-	rpcModules []kaiax.JsonRpcModule // KaiaX Modules that provide JSON-RPC APIs
+	components       []interface{}
+	modules          []kaiax.BaseModule      // KaiaX Modules to start and stop along with CN
+	rpcModules       []kaiax.JsonRpcModule   // KaiaX Modules that provide JSON-RPC APIs
+	consensusModules []kaiax.ConsensusModule // KaiaX Modules for consensus
 
 	governance    governance.Engine
 	supplyManager reward.SupplyManager
@@ -247,7 +250,8 @@ func New(ctx *node.ServiceContext, config *Config) (*CN, error) {
 
 	// istanbul BFT. Derive and set node's address using nodekey
 	if cn.chainConfig.Istanbul != nil {
-		governance.SetNodeAddress(crypto.PubkeyToAddress(ctx.NodeKey().PublicKey))
+		cn.nodeAddress = crypto.PubkeyToAddress(ctx.NodeKey().PublicKey)
+		governance.SetNodeAddress(cn.nodeAddress)
 	}
 
 	logger.Info("Initialising Klaytn protocol", "versions", cn.engine.Protocol().Versions, "network", config.NetworkId)
@@ -511,6 +515,7 @@ func (s *CN) SetupKaiaModules() error {
 	// Construct modules
 	var (
 		mStaking = staking.NewStakingModule()
+		hGov     = headergov.NewHeaderGovModule()
 	)
 
 	// Initialize modules
@@ -522,11 +527,20 @@ func (s *CN) SetupKaiaModules() error {
 		return err
 	}
 
+	if err := hGov.Init(&headergov.InitOpts{
+		ChainKv:     s.chainDB.GetMiscDB(),
+		ChainConfig: s.chainConfig,
+		Chain:       s.blockchain,
+		NodeAddress: s.nodeAddress,
+	}); err != nil {
+		return err
+	}
+
 	// Register BaseModules to CN
-	s.RegisterBaseModules(mStaking)
+	s.RegisterBaseModules(mStaking, hGov)
 
 	// Register JsonRpcModules to CN
-	s.RegisterJsonRpcModules(mStaking)
+	s.RegisterJsonRpcModules(mStaking, hGov)
 
 	// TODO-kaiax: Register ConsensusModule to consensus engine
 	// TODO-kaiax: Register ExecutionModules to BlockChain
@@ -546,6 +560,11 @@ func (s *CN) RegisterBaseModules(modules ...kaiax.BaseModule) {
 func (s *CN) RegisterJsonRpcModules(modules ...kaiax.JsonRpcModule) {
 	// Add to s.modules so s.Start() and s.Stop() can call them.
 	s.rpcModules = append(s.rpcModules, modules...)
+}
+
+func (s *CN) RegisterConsensusModules(modules ...kaiax.ConsensusModule) {
+	// Add to s.modules so s.Start() and s.Stop() can call them.
+	s.consensusModules = append(s.consensusModules, modules...)
 }
 
 // istanbul BFT

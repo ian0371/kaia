@@ -33,6 +33,7 @@ import (
 	"github.com/kaiachain/kaia/blockchain/types"
 	"github.com/kaiachain/kaia/common"
 	"github.com/kaiachain/kaia/consensus"
+	"github.com/kaiachain/kaia/kaiax"
 	"github.com/kaiachain/kaia/params"
 )
 
@@ -350,7 +351,8 @@ func calcBlockScoreHomestead(time uint64, parent *types.Header) *big.Int {
 	return x
 }
 
-func (gxhash *Gxhash) InitSnapshot() {}
+func (gxhash *Gxhash) InitSnapshot()                                       {}
+func (gxhash *Gxhash) SetConsensusModule(modules ...kaiax.ConsensusModule) {}
 
 // VerifySeal implements consensus.Engine, checking whether the given block satisfies
 // the PoW blockscore requirements.

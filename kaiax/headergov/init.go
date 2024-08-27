@@ -48,6 +48,10 @@ type HeaderGovModule struct {
 	cache GovernanceCache
 }
 
+func NewHeaderGovModule() *HeaderGovModule {
+	return &HeaderGovModule{}
+}
+
 func (h *HeaderGovModule) Init(opts *InitOpts) error {
 	h.ChainKv = opts.ChainKv
 	h.ChainConfig = opts.ChainConfig

@@ -7,7 +7,6 @@ import (
 
 	"github.com/kaiachain/kaia/blockchain/types"
 	headergov_types "github.com/kaiachain/kaia/kaiax/headergov/types"
-	"github.com/kaiachain/kaia/params"
 )
 
 func (h *HeaderGovModule) VerifyHeader(header *types.Header) error {
@@ -158,10 +157,9 @@ func (h *HeaderGovModule) VerifyVote(vote *VoteData) error {
 	return nil
 }
 
-func (h *HeaderGovModule) VerifyGov(key string, val interface{}) error {
-	_, err := params.NewGovParamSetStrMap(map[string]interface{}{
-		key: val,
-	})
+func (h *HeaderGovModule) VerifyGov(gov *GovernanceData) error {
+	gp := GovernanceParam{}
+	err := gp.SetFromGovernanceData(gov)
 	if err != nil {
 		return err
 	}

@@ -11,7 +11,7 @@ import (
 
 type VoteData struct {
 	Voter common.Address
-	Name  string      // TODO: map[string]interface{}
+	Name  string
 	Value interface{} // canonicalized value
 }
 

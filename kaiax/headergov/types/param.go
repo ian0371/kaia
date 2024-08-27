@@ -33,6 +33,7 @@ const (
 	GovernanceMode_None = iota
 	GovernanceMode_Single
 	GovernanceMode_Ballot
+	GovernanceMode_End
 )
 
 const (
@@ -40,6 +41,7 @@ const (
 	RoundRobin = iota
 	Sticky
 	WeightedRandom
+	ProposerPolicy_End
 )
 
 var (
@@ -97,47 +99,134 @@ func GetDefaultGovernanceParam() *GovernanceParam {
 func (p *GovernanceParam) Set(key string, value interface{}) error {
 	switch key {
 	case "governance.governancemode":
-		p.GovernanceMode = value.(int)
+		if val, ok := value.(int); !ok {
+			return errors.New("invalid governance mode")
+		} else {
+			if val < 0 || val >= GovernanceMode_End {
+				return errors.New("invalid governance mode")
+			}
+			p.GovernanceMode = val
+		}
 	case "governance.governingnode":
-		p.GoverningNode = value.(common.Address)
+		if val, ok := value.(common.Address); !ok {
+			return errors.New("invalid governing node")
+		} else {
+			p.GoverningNode = val
+		}
 	case "governance.govparamcontract":
-		p.GovParamContract = value.(common.Address)
+		if val, ok := value.(common.Address); !ok {
+			return errors.New("invalid governance param contract")
+		} else {
+			p.GovParamContract = val
+		}
 	case "istanbul.epoch":
-		p.Epoch = value.(uint64)
+		if val, ok := value.(uint64); !ok {
+			return errors.New("invalid epoch")
+		} else {
+			p.Epoch = val
+		}
 	case "istanbul.policy":
-		p.ProposerPolicy = value.(uint64)
+		if val, ok := value.(uint64); !ok {
+			return errors.New("invalid proposer policy")
+		} else {
+			p.ProposerPolicy = val
+		}
 	case "istanbul.committeesize":
-		p.CommitteeSize = value.(uint64)
+		if val, ok := value.(uint64); !ok {
+			return errors.New("invalid committee size")
+		} else {
+			p.CommitteeSize = val
+		}
 	case "governance.unitprice":
-		p.UnitPrice = value.(uint64)
+		if val, ok := value.(uint64); !ok {
+			return errors.New("invalid unit price")
+		} else {
+			p.UnitPrice = val
+		}
 	case "governance.deriveshaimpl":
-		p.DeriveShaImpl = value.(uint64)
+		if val, ok := value.(uint64); !ok {
+			return errors.New("invalid derive sha impl")
+		} else {
+			p.DeriveShaImpl = val
+		}
 	case "kip71.lowerboundbasefee":
-		p.LowerBoundBaseFee = value.(uint64)
+		if val, ok := value.(uint64); !ok {
+			return errors.New("invalid lower bound base fee")
+		} else {
+			p.LowerBoundBaseFee = val
+		}
 	case "kip71.gastarget":
-		p.GasTarget = value.(uint64)
+		if val, ok := value.(uint64); !ok {
+			return errors.New("invalid gas target")
+		} else {
+			p.GasTarget = val
+		}
 	case "kip71.maxblockgasusedforbasefee":
-		p.MaxBlockGasUsedForBaseFee = value.(uint64)
+		if val, ok := value.(uint64); !ok {
+			return errors.New("invalid max block gas used for base fee")
+		} else {
+			p.MaxBlockGasUsedForBaseFee = val
+		}
 	case "kip71.basefeedenominator":
-		p.BaseFeeDenominator = value.(uint64)
+		if val, ok := value.(uint64); !ok {
+			return errors.New("invalid base fee denominator")
+		} else {
+			p.BaseFeeDenominator = val
+		}
 	case "kip71.upperboundbasefee":
-		p.UpperBoundBaseFee = value.(uint64)
+		if val, ok := value.(uint64); !ok {
+			return errors.New("invalid upper bound base fee")
+		} else {
+			p.UpperBoundBaseFee = val
+		}
 	case "reward.mintingamount":
-		p.MintingAmount = value.(*big.Int)
+		if val, ok := value.(*big.Int); !ok {
+			return errors.New("invalid minting amount")
+		} else {
+			p.MintingAmount = val
+		}
 	case "reward.ratio":
-		p.Ratio = value.(string)
+		if val, ok := value.(string); !ok {
+			return errors.New("invalid ratio")
+		} else {
+			p.Ratio = val
+		}
 	case "reward.kip82ratio":
-		p.Kip82Ratio = value.(string)
+		if val, ok := value.(string); !ok {
+			return errors.New("invalid kip82 ratio")
+		} else {
+			p.Kip82Ratio = val
+		}
 	case "reward.useginicoeff":
-		p.UseGiniCoeff = value.(bool)
+		if val, ok := value.(bool); !ok {
+			return errors.New("invalid use gini coeff")
+		} else {
+			p.UseGiniCoeff = val
+		}
 	case "reward.deferredtxfee":
-		p.DeferredTxFee = value.(bool)
+		if val, ok := value.(bool); !ok {
+			return errors.New("invalid deferred tx fee")
+		} else {
+			p.DeferredTxFee = val
+		}
 	case "reward.minimumstake":
-		p.MinimumStake = value.(*big.Int)
+		if val, ok := value.(*big.Int); !ok {
+			return errors.New("invalid minimum stake")
+		} else {
+			p.MinimumStake = val
+		}
 	case "reward.stakingupdateinterval":
-		p.StakeUpdateInterval = value.(uint64)
+		if val, ok := value.(uint64); !ok {
+			return errors.New("invalid stake update interval")
+		} else {
+			p.StakeUpdateInterval = val
+		}
 	case "reward.proposerupdateinterval":
-		p.ProposerRefreshInterval = value.(uint64)
+		if val, ok := value.(uint64); !ok {
+			return errors.New("invalid proposer refresh interval")
+		} else {
+			p.ProposerRefreshInterval = val
+		}
 	default:
 		return errors.New("unknown parameter name")
 	}

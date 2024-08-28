@@ -96,6 +96,7 @@ func GetDefaultGovernanceParam() *GovernanceParam {
 	}
 }
 
+// TODO: add tests, compare from gov/default
 func (p *GovernanceParam) Set(key string, value interface{}) error {
 	switch key {
 	case "governance.governancemode":
@@ -294,7 +295,6 @@ func (p *GovernanceParam) SetFromGovernanceData(g *GovernanceData) error {
 	for name, value := range g.Params {
 		err := p.Set(name, value)
 		if err != nil {
-			logger.Warn("kaiax.SetFromGovernanceData error", "name", name, "value", value, "err", err)
 			continue
 		}
 	}

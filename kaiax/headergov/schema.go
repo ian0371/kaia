@@ -10,7 +10,6 @@ import (
 var (
 	voteDataBlockNumsKey = []byte("voteDataBlockNums")
 	govDataBlockNumsKey  = []byte("governanceDataBlockNums")
-	govParamKey          = []byte("governanceParam-")
 )
 
 type StoredVoteBlockNums []uint64
@@ -70,31 +69,5 @@ func WriteGovDataBlockNums(db database.Database, govData *StoredGovBlockNums) {
 
 	if err := db.Put(govDataBlockNumsKey, b); err != nil {
 		logger.Crit("Failed to write voteDataBlocks", "err", err)
-	}
-}
-
-func ReadGovernanceParam(db database.Database, num uint64) *GovernanceParam {
-	b, err := db.Get(makeKey(govParamKey, num))
-	if err != nil || len(b) == 0 {
-		return nil
-	}
-
-	ps := new(GovernanceParam)
-	if err := json.Unmarshal(b, ps); err != nil {
-		logger.Error("Invalid GovParamSet JSON", "num", num, "err", err)
-		return nil
-	}
-	return ps
-}
-
-func WriteGovernanceParam(db database.Database, num uint64, ps *GovernanceParam) {
-	b, err := json.Marshal(ps)
-	if err != nil {
-		logger.Error("Failed to marshal govParams", "err", err)
-		return
-	}
-
-	if err := db.Put(makeKey(govParamKey, num), b); err != nil {
-		logger.Crit("Failed to write GovParamSet", "num", num, "err", err)
 	}
 }

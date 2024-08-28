@@ -609,7 +609,7 @@ func (sb *backend) Finalize(chain consensus.ChainReader, header *types.Header, s
 	}
 
 	// Assemble and return the final block for sealing
-	return types.NewBlock(header, txs, receipts), nil
+	return block, nil
 }
 
 // Seal generates a new block for the given input block with the local miner's

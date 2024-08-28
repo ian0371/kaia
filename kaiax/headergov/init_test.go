@@ -49,8 +49,6 @@ func TestReadGovDataFromDB(t *testing.T) {
 		UnitPrice: uint64(200),
 	}
 
-	WriteGovernanceParam(db, 1, ps1)
-	WriteGovernanceParam(db, 2, ps2)
 	WriteGovDataBlockNums(db, &StoredGovBlockNums{1, 2})
 
 	govs := map[uint64]GovernanceData{
@@ -63,7 +61,5 @@ func TestReadGovDataFromDB(t *testing.T) {
 		chain.EXPECT().GetHeaderByNumber(num).Return(&types.Header{Governance: headerGovData})
 	}
 
-	assert.Equal(t, ps1, ReadGovernanceParam(db, 1))
-	assert.Equal(t, ps2, ReadGovernanceParam(db, 2))
 	assert.Equal(t, govs, readGovDataFromDB(chain, db))
 }

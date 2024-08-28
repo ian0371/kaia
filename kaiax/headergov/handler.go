@@ -29,15 +29,20 @@ func (h *HeaderGovModule) VerifyHeader(header *types.Header) error {
 	}
 
 	// 2. Check Governance
+	// TODO-kaiax: fail fast
 	if header.Number.Uint64()%h.epoch != 0 {
-		if len(header.Governance) == 0 {
-			return nil
-		} else {
+		if len(header.Governance) > 0 {
 			logger.Error("governance is not allowed in non-epoch block", "num", header.Number.Uint64())
 			return errors.New("governance is not allowed in non-epoch block")
+		} else {
+			return nil
 		}
 	} else {
 		expected := h.getExpectedGovernance(header.Number.Uint64())
+		if len(expected.Params) == 0 && len(header.Governance) == 0 {
+			return nil
+		}
+
 		actual, err := headergov_types.DeserializeHeaderGov(header.Governance, header.Number.Uint64())
 		if err != nil {
 			logger.Error("Failed to parse governance", "num", header.Number.Uint64(), "err", err)
@@ -61,7 +66,9 @@ func (h *HeaderGovModule) PrepareHeader(header *types.Header) (*types.Header, er
 
 	if header.Number.Uint64()%h.epoch == 0 {
 		gov := h.getExpectedGovernance(header.Number.Uint64())
-		header.Governance, _ = gov.Serialize()
+		if len(gov.Params) > 0 {
+			header.Governance, _ = gov.Serialize()
+		}
 	}
 
 	return header, nil
@@ -77,14 +84,16 @@ func (h *HeaderGovModule) PostInsertBlock(b *types.Block) error {
 	if len(b.Header().Vote) > 0 {
 		vote, err := headergov_types.DeserializeHeaderVote(b.Header().Vote, b.Number().Uint64())
 		if err != nil {
+			logger.Error("kaiax.PostInsertBlock error", "vote", b.Header().Vote, "err", err)
 			return err
 		}
 		h.HandleVote(b.NumberU64(), vote)
 	}
 
 	if len(b.Header().Governance) > 0 {
-		gov, err := headergov_types.DeserializeHeaderGov(b.Header().Vote, b.NumberU64())
+		gov, err := headergov_types.DeserializeHeaderGov(b.Header().Governance, b.NumberU64())
 		if err != nil {
+			logger.Error("kaiax.PostInsertBlock error", "governance", b.Header().Governance, "err", err)
 			return err
 		}
 		h.HandleGov(b.NumberU64(), gov)
@@ -107,27 +116,26 @@ func (h *HeaderGovModule) HandleGov(blockNum uint64, gov *GovernanceData) error 
 	// merge gov based on latest effective params.
 	gp, err := h.EffectiveParams(blockNum)
 	if err != nil {
+		logger.Error("kaiax.HandleGov error", "blockNum", blockNum, "gov", *gov, "err", err)
 		return err
 	}
 
 	gp.SetFromGovernanceData(gov)
-	WriteGovernanceParam(h.ChainKv, blockNum, &gp)
 	var data StoredGovBlockNums = h.cache.GovBlockNums()
 	WriteGovDataBlockNums(h.ChainKv, &data)
 	return nil
 }
 
 func (h *HeaderGovModule) getExpectedGovernance(blockNum uint64) GovernanceData {
-	votes := h.getVotesInEpoch(calcEpochIdx(blockNum, h.epoch) - 1)
+	prevEpochVotes := h.getVotesInEpoch(calcEpochIdx(blockNum, h.epoch) - 1)
 	govs := GovernanceData{
 		Params: make(map[string]interface{}),
 	}
 
 	// TODO: add tally
-	for _, vote := range votes {
+	for _, vote := range prevEpochVotes {
 		govs.Params[vote.Name] = vote.Value
 	}
-	logger.Warn("getExpectedGovernance", "blockNum", blockNum, "votes", votes, "govs", govs)
 
 	return govs
 }
@@ -145,7 +153,6 @@ func (h *HeaderGovModule) getVotesInEpoch(epochIdx uint64) []VoteData {
 
 func (h *HeaderGovModule) VerifyVote(vote *VoteData) error {
 	gp := GovernanceParam{}
-	logger.Warn("VerifyVote", "vote", *vote)
 	err := gp.SetFromVoteData(vote)
 	if err != nil {
 		return err

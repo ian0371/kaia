@@ -7,6 +7,7 @@ import (
 type GovernanceCache struct {
 	Votes       map[uint64]VoteData
 	Governances map[uint64]GovernanceData
+	GovHistory  GovernanceHistory
 }
 
 func (h *GovernanceCache) VoteBlockNums() []uint64 {
@@ -37,8 +38,10 @@ func (h *GovernanceCache) AddVote(num uint64, vote VoteData) {
 
 func (h *GovernanceCache) AddGovernance(num uint64, gov GovernanceData) {
 	h.Governances[num] = gov
+
+	h.GovHistory = GetGovernanceHistory(h.Governances)
 }
 
 func (h *GovernanceCache) GetGovernanceHistory() GovernanceHistory {
-	return GetGovernanceHistory(h.Governances)
+	return h.GovHistory
 }

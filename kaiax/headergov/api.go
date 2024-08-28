@@ -31,7 +31,7 @@ func (s *HeaderGovModule) APIs() []rpc.API {
 }
 
 type headerGovAPI struct {
-	s *HeaderGovModule
+	h *HeaderGovModule
 }
 
 func newHeaderGovAPI(s *HeaderGovModule) *headerGovAPI {
@@ -39,14 +39,14 @@ func newHeaderGovAPI(s *HeaderGovModule) *headerGovAPI {
 }
 
 func (api *headerGovAPI) Vote(key string, val interface{}) (string, error) {
-	blockNumber := api.s.Chain.CurrentBlock().NumberU64()
-	gp, err := api.s.EffectiveParams(blockNumber + 1)
+	blockNumber := api.h.Chain.CurrentBlock().NumberU64()
+	gp, err := api.h.EffectiveParams(blockNumber + 1)
 	if err != nil {
 		return "", err
 	}
 
 	gMode := gp.GovernanceMode
-	if gMode == params.GovernanceMode_Single && api.s.NodeAddress != gp.GoverningNode {
+	if gMode == params.GovernanceMode_Single && api.h.NodeAddress != gp.GoverningNode {
 		return "", errPermissionDenied
 	}
 
@@ -55,8 +55,8 @@ func (api *headerGovAPI) Vote(key string, val interface{}) (string, error) {
 		val = uint64(val.(float64))
 	}
 
-	err = api.s.VerifyVote(&VoteData{
-		Voter: api.s.NodeAddress,
+	err = api.h.VerifyVote(&VoteData{
+		Voter: api.h.NodeAddress,
 		Name:  key,
 		Value: val,
 	})
@@ -66,7 +66,7 @@ func (api *headerGovAPI) Vote(key string, val interface{}) (string, error) {
 
 	// TODO: check if val is in the validator set for addval, removeval
 	if key == "governance.removevalidator" {
-		if val.(common.Address) == api.s.NodeAddress {
+		if val.(common.Address) == api.h.NodeAddress {
 			return "", errRemoveSelf
 		}
 	}
@@ -82,18 +82,37 @@ func (api *headerGovAPI) Vote(key string, val interface{}) (string, error) {
 		}
 	}
 
-	api.s.MyVotes = append(api.s.MyVotes, VoteData{Voter: api.s.NodeAddress, Name: key, Value: val})
+	api.h.MyVotes = append(api.h.MyVotes, VoteData{Voter: api.h.NodeAddress, Name: key, Value: val})
 	return "(kaiax) Your vote is prepared. It will be put into the block header or applied when your node generates a block as a proposer. Note that your vote may be duplicate.", nil
 }
 
 func (api *headerGovAPI) IdxCache() []uint64 {
-	return api.s.cache.GovBlockNums()
+	return api.h.cache.GovBlockNums()
 }
 
 func (api *headerGovAPI) MyVotes() []VoteData {
-	return api.s.MyVotes
+	return api.h.MyVotes
 }
 
 func (api *headerGovAPI) NodeAddress() common.Address {
-	return api.s.NodeAddress
+	return api.h.NodeAddress
+}
+
+func (api *headerGovAPI) GetParams(num *rpc.BlockNumber) (map[string]interface{}, error) {
+	return api.getParams(num)
+}
+
+func (api *headerGovAPI) getParams(num *rpc.BlockNumber) (map[string]interface{}, error) {
+	blockNumber := uint64(0)
+	if num == nil || *num == rpc.LatestBlockNumber || *num == rpc.PendingBlockNumber {
+		blockNumber = api.h.Chain.CurrentBlock().NumberU64()
+	} else {
+		blockNumber = uint64(num.Int64())
+	}
+
+	gp, err := api.h.EffectiveParams(blockNumber)
+	if err != nil {
+		return nil, err
+	}
+	return gp.ToStrMap()
 }

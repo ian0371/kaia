@@ -193,13 +193,6 @@ func (sb *backend) VerifyHeader(chain consensus.ChainReader, header *types.Heade
 		parent = append(parent, chain.GetHeader(header.ParentHash, header.Number.Uint64()-1))
 	}
 
-	for _, module := range sb.modules {
-		err := module.VerifyHeader(header)
-		if err != nil {
-			return err
-		}
-	}
-
 	return sb.verifyHeader(chain, header, parent)
 }
 
@@ -294,6 +287,14 @@ func (sb *backend) verifyCascadingFields(chain consensus.ChainReader, header *ty
 			return err
 		}
 	}
+
+	for _, module := range sb.modules {
+		err := module.VerifyHeader(header)
+		if err != nil {
+			return err
+		}
+	}
+
 	return sb.verifyCommittedSeals(chain, header, parents)
 }
 

@@ -67,22 +67,22 @@ var (
 	errInvalidUpperBound      = errors.New("upperboundbasefee cannot be set lower than lowerboundbasefee")
 )
 
-func (api *GovernanceKaiaAPI) GetChainConfig(num *rpc.BlockNumber) *params.ChainConfig {
-	return getChainConfig(api.governance, num)
-}
+// func (api *GovernanceKaiaAPI) GetChainConfig(num *rpc.BlockNumber) *params.ChainConfig {
+// 	return getChainConfig(api.governance, num)
+// }
 
 // TODO-kaiax: temporarily disabled in favor of kaiax/staking
 // func (api *GovernanceKaiaAPI) GetStakingInfo(num *rpc.BlockNumber) (*reward.StakingInfo, error) {
 // 	return getStakingInfo(api.governance, num)
 // }
 
-func (api *GovernanceKaiaAPI) GetParams(num *rpc.BlockNumber) (map[string]interface{}, error) {
-	return getParams(api.governance, num)
-}
+// func (api *GovernanceKaiaAPI) GetParams(num *rpc.BlockNumber) (map[string]interface{}, error) {
+// 	return getParams(api.governance, num)
+// }
 
-func (api *GovernanceKaiaAPI) NodeAddress() common.Address {
-	return api.governance.NodeAddress()
-}
+// func (api *GovernanceKaiaAPI) NodeAddress() common.Address {
+// 	return api.governance.NodeAddress()
+// }
 
 // GetRewards returns detailed information of the block reward at a given block number.
 func (api *GovernanceKaiaAPI) GetRewards(num *rpc.BlockNumber) (*reward.RewardSpec, error) {
@@ -317,24 +317,24 @@ func (api *GovernanceAPI) TotalVotingPower() (float64, error) {
 	return float64(api.governance.TotalVotingPower()) / 1000.0, nil
 }
 
-func (api *GovernanceAPI) GetParams(num *rpc.BlockNumber) (map[string]interface{}, error) {
-	return getParams(api.governance, num)
-}
+// func (api *GovernanceAPI) GetParams(num *rpc.BlockNumber) (map[string]interface{}, error) {
+// 	return getParams(api.governance, num)
+// }
 
-func getParams(governance Engine, num *rpc.BlockNumber) (map[string]interface{}, error) {
-	blockNumber := uint64(0)
-	if num == nil || *num == rpc.LatestBlockNumber || *num == rpc.PendingBlockNumber {
-		blockNumber = governance.BlockChain().CurrentBlock().NumberU64()
-	} else {
-		blockNumber = uint64(num.Int64())
-	}
-
-	pset, err := governance.EffectiveParams(blockNumber)
-	if err != nil {
-		return nil, err
-	}
-	return pset.StrMap(), nil
-}
+// func getParams(governance Engine, num *rpc.BlockNumber) (map[string]interface{}, error) {
+// 	blockNumber := uint64(0)
+// 	if num == nil || *num == rpc.LatestBlockNumber || *num == rpc.PendingBlockNumber {
+// 		blockNumber = governance.BlockChain().CurrentBlock().NumberU64()
+// 	} else {
+// 		blockNumber = uint64(num.Int64())
+// 	}
+//
+// 	pset, err := governance.EffectiveParams(blockNumber)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	return pset.StrMap(), nil
+// }
 
 func (api *GovernanceAPI) GetStakingInfo(num *rpc.BlockNumber) (*reward.StakingInfo, error) {
 	return getStakingInfo(api.governance, num)

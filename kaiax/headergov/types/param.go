@@ -1,6 +1,7 @@
 package types
 
 import (
+	"encoding/json"
 	"errors"
 	"math/big"
 
@@ -98,133 +99,185 @@ func GetDefaultGovernanceParam() *GovernanceParam {
 func (p *GovernanceParam) Set(key string, value interface{}) error {
 	switch key {
 	case "governance.governancemode":
-		if val, ok := value.(int); !ok {
-			return errors.New("invalid governance mode")
-		} else {
-			if val < 0 || val >= GovernanceMode_End {
+		switch v := value.(type) {
+		case int:
+			if v < 0 || v >= GovernanceMode_End {
 				return errors.New("invalid governance mode")
 			}
-			p.GovernanceMode = val
+			p.GovernanceMode = v
+		case string:
+			switch v {
+			case "none":
+				p.GovernanceMode = GovernanceMode_None
+			case "single":
+				p.GovernanceMode = GovernanceMode_Single
+			case "ballot":
+				p.GovernanceMode = GovernanceMode_Ballot
+			default:
+				return errors.New("invalid governance mode")
+			}
+		default:
+			return errors.New("invalid governance mode")
 		}
 	case "governance.governingnode":
-		if val, ok := value.(common.Address); !ok {
+		switch v := value.(type) {
+		case common.Address:
+			p.GoverningNode = v
+		default:
 			return errors.New("invalid governing node")
-		} else {
-			p.GoverningNode = val
 		}
 	case "governance.govparamcontract":
-		if val, ok := value.(common.Address); !ok {
+		switch v := value.(type) {
+		case common.Address:
+			p.GovParamContract = v
+		default:
 			return errors.New("invalid governance param contract")
-		} else {
-			p.GovParamContract = val
 		}
 	case "istanbul.epoch":
-		if val, ok := value.(uint64); !ok {
+		switch v := value.(type) {
+		case uint64:
+			p.Epoch = v
+		default:
 			return errors.New("invalid epoch")
-		} else {
-			p.Epoch = val
 		}
 	case "istanbul.policy":
-		if val, ok := value.(uint64); !ok {
+		switch v := value.(type) {
+		case uint64:
+			p.ProposerPolicy = v
+		default:
 			return errors.New("invalid proposer policy")
-		} else {
-			p.ProposerPolicy = val
 		}
 	case "istanbul.committeesize":
-		if val, ok := value.(uint64); !ok {
+		switch v := value.(type) {
+		case uint64:
+			p.CommitteeSize = v
+		default:
 			return errors.New("invalid committee size")
-		} else {
-			p.CommitteeSize = val
 		}
 	case "governance.unitprice":
-		if val, ok := value.(uint64); !ok {
+		switch v := value.(type) {
+		case uint64:
+			p.UnitPrice = v
+		default:
 			return errors.New("invalid unit price")
-		} else {
-			p.UnitPrice = val
 		}
 	case "governance.deriveshaimpl":
-		if val, ok := value.(uint64); !ok {
+		switch v := value.(type) {
+		case uint64:
+			p.DeriveShaImpl = v
+		default:
 			return errors.New("invalid derive sha impl")
-		} else {
-			p.DeriveShaImpl = val
 		}
 	case "kip71.lowerboundbasefee":
-		if val, ok := value.(uint64); !ok {
+		switch v := value.(type) {
+		case uint64:
+			p.LowerBoundBaseFee = v
+		default:
 			return errors.New("invalid lower bound base fee")
-		} else {
-			p.LowerBoundBaseFee = val
 		}
 	case "kip71.gastarget":
-		if val, ok := value.(uint64); !ok {
+		switch v := value.(type) {
+		case uint64:
+			p.GasTarget = v
+		default:
 			return errors.New("invalid gas target")
-		} else {
-			p.GasTarget = val
 		}
 	case "kip71.maxblockgasusedforbasefee":
-		if val, ok := value.(uint64); !ok {
+		switch v := value.(type) {
+		case uint64:
+			p.MaxBlockGasUsedForBaseFee = v
+		default:
 			return errors.New("invalid max block gas used for base fee")
-		} else {
-			p.MaxBlockGasUsedForBaseFee = val
 		}
 	case "kip71.basefeedenominator":
-		if val, ok := value.(uint64); !ok {
+		switch v := value.(type) {
+		case uint64:
+			p.BaseFeeDenominator = v
+		default:
 			return errors.New("invalid base fee denominator")
-		} else {
-			p.BaseFeeDenominator = val
 		}
 	case "kip71.upperboundbasefee":
-		if val, ok := value.(uint64); !ok {
+		switch v := value.(type) {
+		case uint64:
+			p.UpperBoundBaseFee = v
+		default:
 			return errors.New("invalid upper bound base fee")
-		} else {
-			p.UpperBoundBaseFee = val
 		}
 	case "reward.mintingamount":
-		if val, ok := value.(*big.Int); !ok {
+		switch v := value.(type) {
+		case *big.Int:
+			p.MintingAmount = v
+		case uint64:
+			p.MintingAmount = big.NewInt(int64(v))
+		case float64:
+			p.MintingAmount = big.NewInt(int64(v))
+		case string:
+			var ok bool
+			p.MintingAmount, ok = new(big.Int).SetString(v, 10)
+			if !ok {
+				return errors.New("invalid minting amount")
+			}
+		default:
 			return errors.New("invalid minting amount")
-		} else {
-			p.MintingAmount = val
 		}
 	case "reward.ratio":
-		if val, ok := value.(string); !ok {
+		switch v := value.(type) {
+		case string:
+			p.Ratio = v
+		default:
 			return errors.New("invalid ratio")
-		} else {
-			p.Ratio = val
 		}
 	case "reward.kip82ratio":
-		if val, ok := value.(string); !ok {
+		switch v := value.(type) {
+		case string:
+			p.Kip82Ratio = v
+		default:
 			return errors.New("invalid kip82 ratio")
-		} else {
-			p.Kip82Ratio = val
 		}
 	case "reward.useginicoeff":
-		if val, ok := value.(bool); !ok {
+		switch v := value.(type) {
+		case bool:
+			p.UseGiniCoeff = v
+		default:
 			return errors.New("invalid use gini coeff")
-		} else {
-			p.UseGiniCoeff = val
 		}
 	case "reward.deferredtxfee":
-		if val, ok := value.(bool); !ok {
+		switch v := value.(type) {
+		case bool:
+			p.DeferredTxFee = v
+		default:
 			return errors.New("invalid deferred tx fee")
-		} else {
-			p.DeferredTxFee = val
 		}
 	case "reward.minimumstake":
-		if val, ok := value.(*big.Int); !ok {
+		switch v := value.(type) {
+		case *big.Int:
+			p.MinimumStake = v
+		case uint64:
+			p.MinimumStake = big.NewInt(int64(v))
+		case float64:
+			p.MinimumStake = big.NewInt(int64(v))
+		case string:
+			var ok bool
+			p.MinimumStake, ok = new(big.Int).SetString(v, 10)
+			if !ok {
+				return errors.New("invalid minimum stake")
+			}
+		default:
 			return errors.New("invalid minimum stake")
-		} else {
-			p.MinimumStake = val
 		}
 	case "reward.stakingupdateinterval":
-		if val, ok := value.(uint64); !ok {
+		switch v := value.(type) {
+		case uint64:
+			p.StakeUpdateInterval = v
+		default:
 			return errors.New("invalid stake update interval")
-		} else {
-			p.StakeUpdateInterval = val
 		}
 	case "reward.proposerupdateinterval":
-		if val, ok := value.(uint64); !ok {
+		switch v := value.(type) {
+		case uint64:
+			p.ProposerRefreshInterval = v
+		default:
 			return errors.New("invalid proposer refresh interval")
-		} else {
-			p.ProposerRefreshInterval = val
 		}
 	default:
 		return errors.New("unknown parameter name")
@@ -241,8 +294,32 @@ func (p *GovernanceParam) SetFromGovernanceData(g *GovernanceData) error {
 	for name, value := range g.Params {
 		err := p.Set(name, value)
 		if err != nil {
-			return err
+			logger.Warn("kaiax.SetFromGovernanceData error", "name", name, "value", value, "err", err)
+			continue
 		}
 	}
 	return nil
+}
+
+func (p *GovernanceParam) ToJSON() (string, error) {
+	j, err := json.Marshal(p)
+	if err != nil {
+		return "", err
+	}
+	return string(j), nil
+}
+
+func (p *GovernanceParam) ToStrMap() (map[string]interface{}, error) {
+	jsonStr, err := p.ToJSON()
+	if err != nil {
+		return nil, err
+	}
+
+	var result map[string]interface{}
+	err = json.Unmarshal([]byte(jsonStr), &result)
+	if err != nil {
+		return nil, err
+	}
+
+	return result, nil
 }

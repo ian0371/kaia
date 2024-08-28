@@ -64,19 +64,18 @@ func (h *HeaderGovModule) PrepareHeader(header *types.Header) (*types.Header, er
 		header.Governance, _ = gov.Serialize()
 	}
 
-	// TODO-kaiax: must be removed later. only for testing.
-	h.PostInsertBlock(types.NewBlock(header, nil, nil))
-
 	return header, nil
 }
 
 func (h *HeaderGovModule) FinalizeBlock(b *types.Block) (*types.Block, error) {
+	// TODO-kaiax: must be removed later. only for testing.
+	h.PostInsertBlock(b)
 	return b, nil
 }
 
 func (h *HeaderGovModule) PostInsertBlock(b *types.Block) error {
 	if len(b.Header().Vote) > 0 {
-		vote, err := headergov_types.DeserializeHeaderVote(b.Header().Vote, b.NumberU64())
+		vote, err := headergov_types.DeserializeHeaderVote(b.Header().Vote, b.Number().Uint64())
 		if err != nil {
 			return err
 		}

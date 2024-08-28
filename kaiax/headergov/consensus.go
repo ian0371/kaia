@@ -80,77 +80,6 @@ func (h *HeaderGovModule) FinalizeBlock(b *types.Block) (*types.Block, error) {
 	return b, nil
 }
 
-func (h *HeaderGovModule) PostInsertBlock(b *types.Block) error {
-	if len(b.Header().Vote) > 0 {
-		vote, err := headergov_types.DeserializeHeaderVote(b.Header().Vote, b.Number().Uint64())
-		if err != nil {
-			logger.Error("kaiax.PostInsertBlock error", "vote", b.Header().Vote, "err", err)
-			return err
-		}
-		h.HandleVote(b.NumberU64(), vote)
-	}
-
-	if len(b.Header().Governance) > 0 {
-		gov, err := headergov_types.DeserializeHeaderGov(b.Header().Governance, b.NumberU64())
-		if err != nil {
-			logger.Error("kaiax.PostInsertBlock error", "governance", b.Header().Governance, "err", err)
-			return err
-		}
-		h.HandleGov(b.NumberU64(), gov)
-	}
-
-	return nil
-}
-
-func (h *HeaderGovModule) HandleVote(blockNum uint64, vote *VoteData) error {
-	h.cache.AddVote(blockNum, *vote)
-
-	var data StoredVoteBlockNums = h.cache.VoteBlockNums()
-	WriteVoteDataBlockNums(h.ChainKv, &data)
-	return nil
-}
-
-func (h *HeaderGovModule) HandleGov(blockNum uint64, gov *GovernanceData) error {
-	h.cache.AddGovernance(blockNum, *gov)
-
-	// merge gov based on latest effective params.
-	gp, err := h.EffectiveParams(blockNum)
-	if err != nil {
-		logger.Error("kaiax.HandleGov error", "blockNum", blockNum, "gov", *gov, "err", err)
-		return err
-	}
-
-	gp.SetFromGovernanceData(gov)
-	var data StoredGovBlockNums = h.cache.GovBlockNums()
-	WriteGovDataBlockNums(h.ChainKv, &data)
-	return nil
-}
-
-func (h *HeaderGovModule) getExpectedGovernance(blockNum uint64) GovernanceData {
-	prevEpochVotes := h.getVotesInEpoch(calcEpochIdx(blockNum, h.epoch) - 1)
-	govs := GovernanceData{
-		Params: make(map[string]interface{}),
-	}
-
-	// TODO: add tally
-	for _, vote := range prevEpochVotes {
-		govs.Params[vote.Name] = vote.Value
-	}
-
-	return govs
-}
-
-func (h *HeaderGovModule) getVotesInEpoch(epochIdx uint64) []VoteData {
-	ret := make([]VoteData, 0)
-	for num, vote := range h.cache.Votes {
-		if calcEpochIdx(num, h.epoch) == epochIdx {
-			ret = append(ret, vote)
-		}
-	}
-
-	return ret
-}
-
 func (h *HeaderGovModule) VerifyVote(vote *VoteData) error {
 	gp := GovernanceParam{}
 	err := gp.SetFromVoteData(vote)
@@ -183,6 +112,27 @@ func (h *HeaderGovModule) VerifyGov(gov *GovernanceData) error {
 	return nil
 }
 
-func calcEpochIdx(blockNum uint64, epoch uint64) uint64 {
-	return blockNum / epoch
+func (h *HeaderGovModule) getExpectedGovernance(blockNum uint64) GovernanceData {
+	prevEpochVotes := h.getVotesInEpoch(calcEpochIdx(blockNum, h.epoch) - 1)
+	govs := GovernanceData{
+		Params: make(map[string]interface{}),
+	}
+
+	// TODO: add tally
+	for _, vote := range prevEpochVotes {
+		govs.Params[vote.Name] = vote.Value
+	}
+
+	return govs
+}
+
+func (h *HeaderGovModule) getVotesInEpoch(epochIdx uint64) []VoteData {
+	ret := make([]VoteData, 0)
+	for num, vote := range h.cache.Votes {
+		if calcEpochIdx(num, h.epoch) == epochIdx {
+			ret = append(ret, vote)
+		}
+	}
+
+	return ret
 }

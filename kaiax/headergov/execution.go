@@ -30,7 +30,7 @@ func (h *HeaderGovModule) PostInsertBlock(b *types.Block) error {
 }
 
 func (h *HeaderGovModule) HandleVote(blockNum uint64, vote *VoteData) error {
-	h.cache.AddVote(blockNum, *vote)
+	h.cache.AddVote(calcEpochIdx(blockNum, h.epoch), blockNum, *vote)
 
 	var data StoredVoteBlockNums = h.cache.VoteBlockNums()
 	WriteVoteDataBlockNums(h.ChainKv, &data)

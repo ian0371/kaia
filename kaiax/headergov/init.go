@@ -21,6 +21,7 @@ var (
 )
 
 type VoteData = headergov_types.VoteData
+type VotesInEpoch = headergov_types.VotesInEpoch
 type GovernanceData = headergov_types.GovernanceData
 type GovernanceHistory = headergov_types.GovernanceHistory
 type GovernanceParam = headergov_types.GovernanceParam
@@ -68,9 +69,10 @@ func (h *HeaderGovModule) Init(opts *InitOpts) error {
 		return errZeroEpoch
 	}
 
+	votes := readVoteDataFromDB(h.Chain, h.ChainKv)
 	h.cache = GovernanceCache{
-		Votes:       readVoteDataFromDB(h.Chain, h.ChainKv),
-		Governances: readGovDataFromDB(h.Chain, h.ChainKv),
+		GroupedVotes: groupVotesByEpoch(votes, h.epoch),
+		Governances:  readGovDataFromDB(h.Chain, h.ChainKv),
 	}
 
 	return nil
@@ -105,6 +107,18 @@ func readVoteDataFromDB(chain chain, db database.Database) map[uint64]VoteData {
 	}
 
 	return votes
+}
+
+func groupVotesByEpoch(votes map[uint64]VoteData, epoch uint64) map[uint64]VotesInEpoch {
+	groupedVotes := make(map[uint64]VotesInEpoch)
+	for blockNum, vote := range votes {
+		epochIdx := calcEpochIdx(blockNum, epoch)
+		if _, ok := groupedVotes[epochIdx]; !ok {
+			groupedVotes[epochIdx] = make(VotesInEpoch)
+		}
+		groupedVotes[epochIdx][blockNum] = vote
+	}
+	return groupedVotes
 }
 
 func readGovDataFromDB(chain chain, db database.Database) map[uint64]GovernanceData {

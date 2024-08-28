@@ -61,7 +61,6 @@ func (h *HeaderGovModule) PrepareHeader(header *types.Header) (*types.Header, er
 	// if epoch block & vote exists in the last epoch, put Governance to header.
 	if len(h.MyVotes) > 0 {
 		header.Vote, _ = h.MyVotes[0].Serialize()
-		h.MyVotes = h.MyVotes[1:]
 	}
 
 	if header.Number.Uint64()%h.epoch == 0 {
@@ -127,12 +126,9 @@ func (h *HeaderGovModule) getExpectedGovernance(blockNum uint64) GovernanceData 
 }
 
 func (h *HeaderGovModule) getVotesInEpoch(epochIdx uint64) []VoteData {
-	ret := make([]VoteData, 0)
-	for num, vote := range h.cache.Votes {
-		if calcEpochIdx(num, h.epoch) == epochIdx {
-			ret = append(ret, vote)
-		}
+	votes := make([]VoteData, 0)
+	for _, vote := range h.cache.GroupedVotes[epochIdx] {
+		votes = append(votes, vote)
 	}
-
-	return ret
+	return votes
 }

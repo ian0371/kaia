@@ -1,6 +1,8 @@
 package headergov
 
 import (
+	"reflect"
+
 	"github.com/kaiachain/kaia/blockchain/types"
 	headergov_types "github.com/kaiachain/kaia/kaiax/headergov/types"
 )
@@ -32,6 +34,13 @@ func (h *HeaderGovModule) HandleVote(blockNum uint64, vote *VoteData) error {
 
 	var data StoredVoteBlockNums = h.cache.VoteBlockNums()
 	WriteVoteDataBlockNums(h.ChainKv, &data)
+
+	for i, myvote := range h.MyVotes {
+		if reflect.DeepEqual(myvote, vote) {
+			h.MyVotes = append(h.MyVotes[:i], h.MyVotes[i+1:]...)
+		}
+	}
+
 	return nil
 }
 

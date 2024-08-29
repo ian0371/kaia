@@ -12,6 +12,14 @@ type GovernanceCache struct {
 	GovHistory   GovernanceHistory
 }
 
+func NewGovernanceCache() *GovernanceCache {
+	return &GovernanceCache{
+		GroupedVotes: make(map[uint64]VotesInEpoch),
+		Governances:  make(map[uint64]GovernanceData),
+		GovHistory:   GovernanceHistory{},
+	}
+}
+
 func (h *GovernanceCache) VoteBlockNums() []uint64 {
 	blockNums := make([]uint64, 0)
 	for num := range h.GroupedVotes {

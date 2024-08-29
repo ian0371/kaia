@@ -1,6 +1,7 @@
 package headergov
 
 import (
+	"encoding/json"
 	"errors"
 
 	"github.com/kaiachain/kaia/common"
@@ -160,4 +161,25 @@ func (api *headerGovAPI) getParams(num *rpc.BlockNumber) (map[string]interface{}
 		return nil, err
 	}
 	return gp.ToStrMap()
+}
+
+func (api *headerGovAPI) Status() (string, error) {
+	type PublicCache struct {
+		GroupedVotes map[uint64]VotesInEpoch   `json:"groupedVotes"`
+		Governances  map[uint64]GovernanceData `json:"governances"`
+		GovHistory   GovernanceHistory         `json:"govHistory"`
+	}
+	publicCache := PublicCache{
+		GroupedVotes: api.h.cache.GroupedVotes(),
+		Governances:  api.h.cache.Govs(),
+		GovHistory:   api.h.cache.GetGovernanceHistory(),
+	}
+
+	cacheJson, err := json.Marshal(publicCache)
+	if err != nil {
+		logger.Error("kaiax: Failed to marshal cache", "err", err)
+		return "", err
+	}
+
+	return string(cacheJson), nil
 }

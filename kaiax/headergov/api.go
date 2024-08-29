@@ -83,7 +83,7 @@ func (api *headerGovAPI) Vote(key string, val interface{}) (string, error) {
 		}
 	}
 
-	api.h.MyVotes = append(api.h.MyVotes, VoteData{Voter: api.h.NodeAddress, Name: key, Value: val})
+	api.h.PushMyVotes(VoteData{Voter: api.h.NodeAddress, Name: key, Value: val})
 	return "(kaiax) Your vote is prepared. It will be put into the block header or applied when your node generates a block as a proposer. Note that your vote may be duplicate.", nil
 }
 
@@ -114,7 +114,7 @@ func (api *headerGovAPI) MyVotes() []MyVotesAPI {
 		}
 	}
 
-	for _, vote := range api.h.MyVotes {
+	for _, vote := range api.h.myVotes {
 		ret = append(ret, MyVotesAPI{
 			BlockNum: 0,
 			Casted:   false,

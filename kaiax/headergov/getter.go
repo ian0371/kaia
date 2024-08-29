@@ -10,7 +10,6 @@ func (h *HeaderGovModule) EffectiveParams(blockNum uint64) (GovernanceParam, err
 			"govHistory", gh, "govs", h.cache.Govs())
 		return GovernanceParam{}, err
 	} else {
-		logger.Warn("kaiax.EffectiveParams", "prevEpochStart", prevEpochStart, "blockNum", blockNum, "gp", gp)
 		return gp, nil
 	}
 }

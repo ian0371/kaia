@@ -35,9 +35,10 @@ func (h *HeaderGovModule) HandleVote(blockNum uint64, vote *VoteData) error {
 	var data StoredVoteBlockNums = h.cache.VoteBlockNums()
 	WriteVoteDataBlockNums(h.ChainKv, &data)
 
-	for i, myvote := range h.MyVotes {
-		if reflect.DeepEqual(myvote, vote) {
-			h.MyVotes = append(h.MyVotes[:i], h.MyVotes[i+1:]...)
+	for i, myvote := range h.myVotes {
+		if reflect.DeepEqual(&myvote, vote) {
+			h.PopMyVotes(i)
+			break
 		}
 	}
 

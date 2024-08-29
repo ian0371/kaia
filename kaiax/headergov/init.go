@@ -44,7 +44,7 @@ type HeaderGovModule struct {
 	ChainConfig *params.ChainConfig
 	Chain       chain
 	NodeAddress common.Address
-	MyVotes     []VoteData // queue
+	myVotes     []VoteData // queue
 
 	epoch uint64
 	cache GovernanceCache
@@ -59,7 +59,7 @@ func (h *HeaderGovModule) Init(opts *InitOpts) error {
 	h.ChainConfig = opts.ChainConfig
 	h.Chain = opts.Chain
 	h.NodeAddress = opts.NodeAddress
-	h.MyVotes = make([]VoteData, 0)
+	h.myVotes = make([]VoteData, 0)
 	if h.ChainConfig == nil || h.ChainConfig.Istanbul == nil {
 		return errNoChainConfig
 	}
@@ -94,6 +94,14 @@ func (s *HeaderGovModule) Stop() {
 
 func (s *HeaderGovModule) isKoreHF(num uint64) bool {
 	return s.ChainConfig.IsKoreForkEnabled(new(big.Int).SetUint64(num))
+}
+
+func (s *HeaderGovModule) PushMyVotes(vote VoteData) {
+	s.myVotes = append(s.myVotes, vote)
+}
+
+func (s *HeaderGovModule) PopMyVotes(idx int) {
+	s.myVotes = append(s.myVotes[:idx], s.myVotes[idx+1:]...)
 }
 
 func readVoteDataFromDB(chain chain, db database.Database) map[uint64]VoteData {

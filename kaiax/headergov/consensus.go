@@ -59,8 +59,8 @@ func (h *HeaderGovModule) VerifyHeader(header *types.Header) error {
 
 func (h *HeaderGovModule) PrepareHeader(header *types.Header) (*types.Header, error) {
 	// if epoch block & vote exists in the last epoch, put Governance to header.
-	if len(h.MyVotes) > 0 {
-		header.Vote, _ = h.MyVotes[0].Serialize()
+	if len(h.myVotes) > 0 {
+		header.Vote, _ = h.myVotes[0].Serialize()
 	}
 
 	if header.Number.Uint64()%h.epoch == 0 {

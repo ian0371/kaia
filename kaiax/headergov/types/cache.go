@@ -74,6 +74,7 @@ func (h *GovernanceCache) AddGovernance(blockNum uint64, gov GovernanceData) {
 	h.govHistory = GetGovernanceHistory(h.governances)
 }
 
+// TODO-kaiax: rename
 func (h *GovernanceCache) GetGovernanceHistory() GovernanceHistory {
 	return h.govHistory
 }

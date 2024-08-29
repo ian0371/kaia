@@ -6,7 +6,8 @@ func (h *HeaderGovModule) EffectiveParams(blockNum uint64) (GovernanceParam, err
 	gh := h.GetGovernanceHistory()
 	gp, err := gh.Search(prevEpochStart)
 	if err != nil {
-		logger.Warn("kaiax.EffectiveParams error", "prevEpochStart", prevEpochStart, "blockNum", blockNum, "err", err)
+		logger.Error("kaiax.EffectiveParams error", "prevEpochStart", prevEpochStart, "blockNum", blockNum, "err", err,
+			"govHistory", gh, "govs", h.cache.Govs())
 		return GovernanceParam{}, err
 	} else {
 		logger.Warn("kaiax.EffectiveParams", "prevEpochStart", prevEpochStart, "blockNum", blockNum, "gp", gp)

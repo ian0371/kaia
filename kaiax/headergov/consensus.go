@@ -125,10 +125,10 @@ func (h *HeaderGovModule) getExpectedGovernance(blockNum uint64) GovernanceData 
 	return govs
 }
 
-func (h *HeaderGovModule) getVotesInEpoch(epochIdx uint64) []VoteData {
-	votes := make([]VoteData, 0)
-	for _, vote := range h.cache.GroupedVotes[epochIdx] {
-		votes = append(votes, vote)
+func (h *HeaderGovModule) getVotesInEpoch(epochIdx uint64) map[uint64]VoteData {
+	votes := make(map[uint64]VoteData)
+	for blockNum, vote := range h.cache.GroupedVotes()[epochIdx] {
+		votes[blockNum] = vote
 	}
 	return votes
 }

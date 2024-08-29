@@ -90,8 +90,53 @@ func (api *headerGovAPI) IdxCache() []uint64 {
 	return api.h.cache.GovBlockNums()
 }
 
-func (api *headerGovAPI) MyVotes() []VoteData {
-	return api.h.MyVotes
+type MyVotesAPI struct {
+	BlockNum uint64
+	Casted   bool
+	Key      string
+	Value    interface{}
+}
+
+func (api *headerGovAPI) MyVotes() []MyVotesAPI {
+	epochIdx := calcEpochIdx(api.h.Chain.CurrentBlock().NumberU64(), api.h.epoch)
+	votesInEpoch := api.h.getVotesInEpoch(epochIdx)
+
+	ret := make([]MyVotesAPI, 0)
+	for blockNum, vote := range votesInEpoch {
+		if vote.Voter == api.h.NodeAddress {
+			ret = append(ret, MyVotesAPI{
+				BlockNum: blockNum,
+				Casted:   true,
+				Key:      vote.Name,
+				Value:    vote.Value,
+			})
+		}
+	}
+
+	for _, vote := range api.h.MyVotes {
+		ret = append(ret, MyVotesAPI{
+			BlockNum: 0,
+			Casted:   false,
+			Key:      vote.Name,
+			Value:    vote.Value,
+		})
+	}
+
+	return ret
+}
+
+func (api *headerGovAPI) PendingVotes() []VoteData {
+	epochIdx := calcEpochIdx(api.h.Chain.CurrentBlock().NumberU64(), api.h.epoch)
+	votesInEpoch := api.h.getVotesInEpoch(epochIdx)
+
+	ret := make([]VoteData, 0)
+	for _, vote := range votesInEpoch {
+		if vote.Voter == api.h.NodeAddress {
+			ret = append(ret, vote)
+		}
+	}
+
+	return ret
 }
 
 func (api *headerGovAPI) NodeAddress() common.Address {

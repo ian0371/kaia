@@ -72,12 +72,12 @@ func (h *HeaderGovModule) Init(opts *InitOpts) error {
 	votes := readVoteDataFromDB(h.Chain, h.ChainKv)
 	govs := readGovDataFromDB(h.Chain, h.ChainKv)
 
-	h.cache = *headergov_types.NewGovernanceCache()
+	h.cache = *headergov_types.NewHeaderGovCache()
 	for blockNum, vote := range votes {
-		h.cache.AddVote(calcEpochIdx(blockNum, h.epoch), blockNum, vote)
+		h.cache.AddGovVote(calcEpochIdx(blockNum, h.epoch), blockNum, vote)
 	}
 	for blockNum, gov := range govs {
-		h.cache.AddGovernance(blockNum, gov)
+		h.cache.AddGov(blockNum, gov)
 	}
 
 	return nil

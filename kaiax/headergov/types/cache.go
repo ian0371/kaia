@@ -7,22 +7,22 @@ import (
 type VotesInEpoch map[uint64]VoteData
 
 type GovHeaderCache struct {
-	groupedVotes map[uint64]VotesInEpoch
-	governances  map[uint64]GovData
-	govHistory   GovHistory
+	groupedGovVotes map[uint64]VotesInEpoch
+	governances     map[uint64]GovData
+	govHistory      GovHistory
 }
 
-func NewGovernanceCache() *GovHeaderCache {
+func NewHeaderGovCache() *GovHeaderCache {
 	return &GovHeaderCache{
-		groupedVotes: make(map[uint64]VotesInEpoch),
-		governances:  make(map[uint64]GovData),
-		govHistory:   GovHistory{},
+		groupedGovVotes: make(map[uint64]VotesInEpoch),
+		governances:     make(map[uint64]GovData),
+		govHistory:      GovHistory{},
 	}
 }
 
-func (h *GovHeaderCache) GroupedVotes() map[uint64]VotesInEpoch {
+func (h *GovHeaderCache) GroupedGovVotes() map[uint64]VotesInEpoch {
 	votes := make(map[uint64]VotesInEpoch)
-	for epochIdx, votesInEpoch := range h.groupedVotes {
+	for epochIdx, votesInEpoch := range h.groupedGovVotes {
 		votes[epochIdx] = make(VotesInEpoch)
 		for blockNum, vote := range votesInEpoch {
 			votes[epochIdx][blockNum] = vote
@@ -39,9 +39,13 @@ func (h *GovHeaderCache) Govs() map[uint64]GovData {
 	return govs
 }
 
-func (h *GovHeaderCache) VoteBlockNums() []uint64 {
+func (h *GovHeaderCache) GovHistory() GovHistory {
+	return h.govHistory
+}
+
+func (h *GovHeaderCache) GovVoteBlockNums() []uint64 {
 	blockNums := make([]uint64, 0)
-	for num := range h.groupedVotes {
+	for num := range h.groupedGovVotes {
 		blockNums = append(blockNums, num)
 	}
 	sort.Slice(blockNums, func(i, j int) bool {

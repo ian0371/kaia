@@ -30,9 +30,9 @@ func (h *HeaderGovModule) PostInsertBlock(b *types.Block) error {
 }
 
 func (h *HeaderGovModule) HandleVote(blockNum uint64, vote *VoteData) error {
-	h.cache.AddVote(calcEpochIdx(blockNum, h.epoch), blockNum, *vote)
+	h.cache.AddGovVote(calcEpochIdx(blockNum, h.epoch), blockNum, *vote)
 
-	var data StoredVoteBlockNums = h.cache.VoteBlockNums()
+	var data StoredVoteBlockNums = h.cache.GovVoteBlockNums()
 	WriteVoteDataBlockNums(h.ChainKv, &data)
 
 	for i, myvote := range h.myVotes {
@@ -46,7 +46,7 @@ func (h *HeaderGovModule) HandleVote(blockNum uint64, vote *VoteData) error {
 }
 
 func (h *HeaderGovModule) HandleGov(blockNum uint64, gov *GovData) error {
-	h.cache.AddGovernance(blockNum, *gov)
+	h.cache.AddGov(blockNum, *gov)
 
 	// merge gov based on latest effective params.
 	gp, err := h.EffectiveParams(blockNum)

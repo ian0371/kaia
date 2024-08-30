@@ -169,9 +169,9 @@ func (api *headerGovAPI) Status() (string, error) {
 		GovHistory   GovHistory              `json:"govHistory"`
 	}
 	publicCache := PublicCache{
-		GroupedVotes: api.h.cache.GroupedVotes(),
+		GroupedVotes: api.h.cache.GroupedGovVotes(),
 		Governances:  api.h.cache.Govs(),
-		GovHistory:   api.h.cache.GetGovernanceHistory(),
+		GovHistory:   api.h.cache.GovHistory(),
 	}
 
 	cacheJson, err := json.Marshal(publicCache)

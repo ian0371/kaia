@@ -15,7 +15,7 @@ func (h *HeaderGovModule) EffectiveParams(blockNum uint64) (GovParam, error) {
 }
 
 func (h *HeaderGovModule) GetGovernanceHistory() GovHistory {
-	return h.cache.GetGovernanceHistory()
+	return h.cache.GovHistory()
 }
 
 func PrevEpochStart(blockNum, epoch uint64, isKore bool) uint64 {

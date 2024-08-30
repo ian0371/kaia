@@ -9,7 +9,7 @@ import (
 )
 
 func TestGetGovHistory(t *testing.T) {
-	govs := map[uint64]GovernanceData{
+	govs := map[uint64]GovData{
 		0: {
 			Params: map[string]interface{}{
 				governance.GovernanceKeyMapReverse[params.UnitPrice]: uint64(100),
@@ -22,14 +22,14 @@ func TestGetGovHistory(t *testing.T) {
 		},
 	}
 
-	gh := GetGovernanceHistory(govs)
+	gh := GetGovHistory(govs)
 
-	assert.Equal(t, GovernanceParam{UnitPrice: uint64(100)}, gh[0])
-	assert.Equal(t, GovernanceParam{UnitPrice: uint64(200)}, gh[4])
+	assert.Equal(t, GovParamSet{UnitPrice: uint64(100)}, gh[0])
+	assert.Equal(t, GovParamSet{UnitPrice: uint64(200)}, gh[4])
 }
 
 func TestSearch(t *testing.T) {
-	govs := map[uint64]GovernanceData{
+	govs := map[uint64]GovData{
 		0: {
 			Params: map[string]interface{}{
 				governance.GovernanceKeyMapReverse[params.UnitPrice]: uint64(100),
@@ -42,16 +42,16 @@ func TestSearch(t *testing.T) {
 		},
 	}
 
-	gh := GetGovernanceHistory(govs)
+	gh := GetGovHistory(govs)
 	gp, err := gh.Search(0)
 	assert.Nil(t, err)
-	assert.Equal(t, GovernanceParam{UnitPrice: uint64(100)}, gp)
+	assert.Equal(t, GovParamSet{UnitPrice: uint64(100)}, gp)
 
 	gp, err = gh.Search(3)
 	assert.Nil(t, err)
-	assert.Equal(t, GovernanceParam{UnitPrice: uint64(100)}, gp)
+	assert.Equal(t, GovParamSet{UnitPrice: uint64(100)}, gp)
 
 	gp, err = gh.Search(4)
 	assert.Nil(t, err)
-	assert.Equal(t, GovernanceParam{UnitPrice: uint64(200)}, gp)
+	assert.Equal(t, GovParamSet{UnitPrice: uint64(200)}, gp)
 }

@@ -18,7 +18,7 @@ import (
 func TestEffectiveParams(t *testing.T) {
 	log.EnableLogForTest(log.LvlCrit, log.LvlDebug)
 	gasPrice := governance.GovernanceKeyMapReverse[params.UnitPrice]
-	gov := map[uint64]GovernanceData{
+	gov := map[uint64]GovData{
 		0: {
 			Params: map[string]interface{}{
 				gasPrice: uint64(25),

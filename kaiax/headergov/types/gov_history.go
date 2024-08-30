@@ -5,10 +5,10 @@ import (
 	"sort"
 )
 
-type GovernanceHistory map[uint64]GovernanceParam
+type GovHistory map[uint64]GovParamSet
 
-func GetGovernanceHistory(govs map[uint64]GovernanceData) GovernanceHistory {
-	gh := make(map[uint64]GovernanceParam)
+func GetGovHistory(govs map[uint64]GovData) GovHistory {
+	gh := make(map[uint64]GovParamSet)
 
 	var sortedNums []uint64
 	for num := range govs {
@@ -18,7 +18,7 @@ func GetGovernanceHistory(govs map[uint64]GovernanceData) GovernanceHistory {
 		return sortedNums[i] < sortedNums[j]
 	})
 
-	gp := GovernanceParam{}
+	gp := GovParamSet{}
 	for _, num := range sortedNums {
 		govData := govs[num]
 		gp.SetFromGovernanceData(&govData)
@@ -27,7 +27,7 @@ func GetGovernanceHistory(govs map[uint64]GovernanceData) GovernanceHistory {
 	return gh
 }
 
-func (g *GovernanceHistory) Search(blockNum uint64) (GovernanceParam, error) {
+func (g *GovHistory) Search(blockNum uint64) (GovParamSet, error) {
 	idx := uint64(0)
 	for num := range *g {
 		if num > idx && num <= blockNum {
@@ -37,6 +37,6 @@ func (g *GovernanceHistory) Search(blockNum uint64) (GovernanceParam, error) {
 	if ret, ok := (*g)[idx]; ok {
 		return ret, nil
 	} else {
-		return GovernanceParam{}, errors.New("blockNum not found from governance history")
+		return GovParamSet{}, errors.New("blockNum not found from governance history")
 	}
 }

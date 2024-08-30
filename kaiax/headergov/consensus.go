@@ -80,7 +80,7 @@ func (h *HeaderGovModule) FinalizeBlock(b *types.Block) (*types.Block, error) {
 }
 
 func (h *HeaderGovModule) VerifyVote(vote *VoteData) error {
-	gp := GovernanceParam{}
+	gp := GovParam{}
 	err := gp.SetFromVoteData(vote)
 	if err != nil {
 		return err
@@ -101,8 +101,8 @@ func (h *HeaderGovModule) VerifyVote(vote *VoteData) error {
 	return nil
 }
 
-func (h *HeaderGovModule) VerifyGov(gov *GovernanceData) error {
-	gp := GovernanceParam{}
+func (h *HeaderGovModule) VerifyGov(gov *GovData) error {
+	gp := GovParam{}
 	err := gp.SetFromGovernanceData(gov)
 	if err != nil {
 		return err
@@ -111,9 +111,9 @@ func (h *HeaderGovModule) VerifyGov(gov *GovernanceData) error {
 	return nil
 }
 
-func (h *HeaderGovModule) getExpectedGovernance(blockNum uint64) GovernanceData {
+func (h *HeaderGovModule) getExpectedGovernance(blockNum uint64) GovData {
 	prevEpochVotes := h.getVotesInEpoch(calcEpochIdx(blockNum, h.epoch) - 1)
-	govs := GovernanceData{
+	govs := GovData{
 		Params: make(map[string]interface{}),
 	}
 

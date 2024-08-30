@@ -6,7 +6,6 @@ import (
 
 	"github.com/kaiachain/kaia/common"
 	"github.com/kaiachain/kaia/networks/rpc"
-	"github.com/kaiachain/kaia/params"
 )
 
 var (
@@ -47,7 +46,7 @@ func (api *headerGovAPI) Vote(key string, val interface{}) (string, error) {
 	}
 
 	gMode := gp.GovernanceMode
-	if gMode == params.GovernanceMode_Single && api.h.NodeAddress != gp.GoverningNode {
+	if gMode == "single" && api.h.NodeAddress != gp.GoverningNode {
 		return "", errPermissionDenied
 	}
 
@@ -165,9 +164,9 @@ func (api *headerGovAPI) getParams(num *rpc.BlockNumber) (map[string]interface{}
 
 func (api *headerGovAPI) Status() (string, error) {
 	type PublicCache struct {
-		GroupedVotes map[uint64]VotesInEpoch   `json:"groupedVotes"`
-		Governances  map[uint64]GovernanceData `json:"governances"`
-		GovHistory   GovernanceHistory         `json:"govHistory"`
+		GroupedVotes map[uint64]VotesInEpoch `json:"groupedVotes"`
+		Governances  map[uint64]GovData      `json:"governances"`
+		GovHistory   GovHistory              `json:"govHistory"`
 	}
 	publicCache := PublicCache{
 		GroupedVotes: api.h.cache.GroupedVotes(),

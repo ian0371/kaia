@@ -9,11 +9,11 @@ import (
 	"github.com/kaiachain/kaia/rlp"
 )
 
-type GovernanceData struct {
+type GovData struct {
 	Params map[string]interface{} // canonicalized value
 }
 
-func (g *GovernanceData) MarshalJSON() ([]byte, error) {
+func (g *GovData) MarshalJSON() ([]byte, error) {
 	tmp := make(map[string]interface{})
 	for name, value := range g.Params {
 		tmp[name] = value
@@ -22,7 +22,7 @@ func (g *GovernanceData) MarshalJSON() ([]byte, error) {
 	return json.Marshal(tmp)
 }
 
-func (g *GovernanceData) Serialize() ([]byte, error) {
+func (g *GovData) Serialize() ([]byte, error) {
 	j, err := g.MarshalJSON()
 	if err != nil {
 		return nil, err
@@ -30,7 +30,7 @@ func (g *GovernanceData) Serialize() ([]byte, error) {
 	return rlp.EncodeToBytes(j)
 }
 
-func DeserializeHeaderGov(b []byte, blockNum uint64) (*GovernanceData, error) {
+func DeserializeHeaderGov(b []byte, blockNum uint64) (*GovData, error) {
 	rlpDecoded := []byte("")
 	err := rlp.DecodeBytes(b, &rlpDecoded)
 	if err != nil {
@@ -54,7 +54,7 @@ func DeserializeHeaderGov(b []byte, blockNum uint64) (*GovernanceData, error) {
 		params[k] = value
 	}
 
-	return &GovernanceData{
+	return &GovData{
 		Params: params,
 	}, nil
 }

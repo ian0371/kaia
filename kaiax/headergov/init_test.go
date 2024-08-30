@@ -42,16 +42,16 @@ func TestReadGovDataFromDB(t *testing.T) {
 	chain := mocks.NewMockBlockChain(mockCtrl)
 	db := database.NewMemDB()
 
-	ps1 := &GovernanceParam{
+	ps1 := &GovParam{
 		UnitPrice: uint64(100),
 	}
-	ps2 := &GovernanceParam{
+	ps2 := &GovParam{
 		UnitPrice: uint64(200),
 	}
 
 	WriteGovDataBlockNums(db, &StoredGovBlockNums{1, 2})
 
-	govs := map[uint64]GovernanceData{
+	govs := map[uint64]GovData{
 		1: {Params: map[string]interface{}{governance.GovernanceKeyMapReverse[params.UnitPrice]: ps1.UnitPrice}},
 		2: {Params: map[string]interface{}{governance.GovernanceKeyMapReverse[params.UnitPrice]: ps2.UnitPrice}},
 	}

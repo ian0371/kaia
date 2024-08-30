@@ -22,10 +22,10 @@ var (
 
 type VoteData = headergov_types.VoteData
 type VotesInEpoch = headergov_types.VotesInEpoch
-type GovernanceData = headergov_types.GovernanceData
-type GovernanceHistory = headergov_types.GovernanceHistory
-type GovernanceParam = headergov_types.GovernanceParam
-type GovernanceCache = headergov_types.GovernanceCache
+type GovData = headergov_types.GovData
+type GovHistory = headergov_types.GovHistory
+type GovParam = headergov_types.GovParamSet
+type GovHeaderCache = headergov_types.GovHeaderCache
 
 type chain interface {
 	GetHeaderByNumber(number uint64) *types.Header
@@ -47,7 +47,7 @@ type HeaderGovModule struct {
 	myVotes     []VoteData // queue
 
 	epoch uint64
-	cache GovernanceCache
+	cache GovHeaderCache
 }
 
 func NewHeaderGovModule() *HeaderGovModule {
@@ -134,9 +134,9 @@ func groupVotesByEpoch(votes map[uint64]VoteData, epoch uint64) map[uint64]Votes
 	return groupedVotes
 }
 
-func readGovDataFromDB(chain chain, db database.Database) map[uint64]GovernanceData {
+func readGovDataFromDB(chain chain, db database.Database) map[uint64]GovData {
 	govBlocks := ReadGovDataBlockNums(db)
-	govs := make(map[uint64]GovernanceData)
+	govs := make(map[uint64]GovData)
 
 	// TODO: remove this.
 	if govBlocks == nil {

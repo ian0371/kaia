@@ -37,7 +37,7 @@ func TestVerifyHeader(t *testing.T) {
 		Value: uint64(100),
 	})
 
-	gov := GovernanceData{
+	gov := GovData{
 		Params: map[string]interface{}{
 			governance.GovernanceKeyMapReverse[params.UnitPrice]: uint64(100),
 		},
@@ -134,13 +134,13 @@ func TestGetExpectedGovernance(t *testing.T) {
 	}
 	h.HandleVote(1500, v2)
 
-	g1 := &GovernanceData{
+	g1 := &GovData{
 		Params: map[string]interface{}{
 			governance.GovernanceKeyMapReverse[params.UnitPrice]: uint64(100),
 		},
 	}
 	h.HandleGov(1000, g1)
-	g2 := &GovernanceData{
+	g2 := &GovData{
 		Params: map[string]interface{}{
 			governance.GovernanceKeyMapReverse[params.UnitPrice]: uint64(200),
 		},

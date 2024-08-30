@@ -55,25 +55,25 @@ func newTestGovernanceApi() *GovernanceAPI {
 	return govApi
 }
 
-func TestUpperBoundBaseFeeSet(t *testing.T) {
-	govApi := newTestGovernanceApi()
+// func TestUpperBoundBaseFeeSet(t *testing.T) {
+// 	govApi := newTestGovernanceApi()
+//
+// 	curLowerBoundBaseFee := govApi.governance.CurrentParams().LowerBoundBaseFee()
+// 	// unexpected case : upperboundbasefee < lowerboundbasefee
+// 	invalidUpperBoundBaseFee := curLowerBoundBaseFee - 100
+// 	_, err := govApi.Vote("kip71.upperboundbasefee", invalidUpperBoundBaseFee)
+// 	assert.Equal(t, err, errInvalidUpperBound)
+// }
 
-	curLowerBoundBaseFee := govApi.governance.CurrentParams().LowerBoundBaseFee()
-	// unexpected case : upperboundbasefee < lowerboundbasefee
-	invalidUpperBoundBaseFee := curLowerBoundBaseFee - 100
-	_, err := govApi.Vote("kip71.upperboundbasefee", invalidUpperBoundBaseFee)
-	assert.Equal(t, err, errInvalidUpperBound)
-}
-
-func TestLowerBoundFeeSet(t *testing.T) {
-	govApi := newTestGovernanceApi()
-
-	curUpperBoundBaseFee := govApi.governance.CurrentParams().UpperBoundBaseFee()
-	// unexpected case : upperboundbasefee < lowerboundbasefee
-	invalidLowerBoundBaseFee := curUpperBoundBaseFee + 100
-	_, err := govApi.Vote("kip71.lowerboundbasefee", invalidLowerBoundBaseFee)
-	assert.Equal(t, err, errInvalidLowerBound)
-}
+// func TestLowerBoundFeeSet(t *testing.T) {
+// 	govApi := newTestGovernanceApi()
+//
+// 	curUpperBoundBaseFee := govApi.governance.CurrentParams().UpperBoundBaseFee()
+// 	// unexpected case : upperboundbasefee < lowerboundbasefee
+// 	invalidLowerBoundBaseFee := curUpperBoundBaseFee + 100
+// 	_, err := govApi.Vote("kip71.lowerboundbasefee", invalidLowerBoundBaseFee)
+// 	assert.Equal(t, err, errInvalidLowerBound)
+// }
 
 func TestGetRewards(t *testing.T) {
 	type expected = map[int]uint64

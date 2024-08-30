@@ -8,9 +8,9 @@ import (
 	"github.com/kaiachain/kaia/common"
 )
 
-type GovernanceParam struct {
+type GovParamSet struct {
 	// governance
-	GovernanceMode                  int
+	GovernanceMode                  string
 	GoverningNode, GovParamContract common.Address
 
 	// istanbul
@@ -31,13 +31,6 @@ type GovernanceParam struct {
 }
 
 const (
-	GovernanceMode_None = iota
-	GovernanceMode_Single
-	GovernanceMode_Ballot
-	GovernanceMode_End
-)
-
-const (
 	// Proposer policy
 	RoundRobin = iota
 	Sticky
@@ -47,7 +40,7 @@ const (
 
 var (
 	// Default Values: Constants used for getting default values for configuration
-	defaultGovernanceMode            = GovernanceMode_None
+	defaultGovernanceMode            = "none"
 	defaultGoverningNode             = common.HexToAddress("0x0000000000000000000000000000000000000000")
 	defaultGovParamContract          = common.HexToAddress("0x0000000000000000000000000000000000000000")
 	defaultEpoch                     = uint64(604800)
@@ -70,8 +63,8 @@ var (
 	defaultDeriveShaImpl             = uint64(0)     // Orig
 )
 
-func GetDefaultGovernanceParam() *GovernanceParam {
-	return &GovernanceParam{
+func GetDefaultGovernanceParam() *GovParamSet {
+	return &GovParamSet{
 		GovernanceMode:            defaultGovernanceMode,
 		GoverningNode:             defaultGoverningNode,
 		GovParamContract:          defaultGovParamContract,
@@ -97,24 +90,14 @@ func GetDefaultGovernanceParam() *GovernanceParam {
 }
 
 // TODO: add tests, compare from gov/default
-func (p *GovernanceParam) Set(key string, value interface{}) error {
+func (p *GovParamSet) Set(key string, value interface{}) error {
 	switch key {
 	case "governance.governancemode":
 		switch v := value.(type) {
-		case int:
-			if v < 0 || v >= GovernanceMode_End {
-				return errors.New("invalid governance mode")
-			}
-			p.GovernanceMode = v
 		case string:
-			switch v {
-			case "none":
-				p.GovernanceMode = GovernanceMode_None
-			case "single":
-				p.GovernanceMode = GovernanceMode_Single
-			case "ballot":
-				p.GovernanceMode = GovernanceMode_Ballot
-			default:
+			if v == "none" || v == "single" || v == "ballot" {
+				p.GovernanceMode = v
+			} else {
 				return errors.New("invalid governance mode")
 			}
 		default:
@@ -287,11 +270,11 @@ func (p *GovernanceParam) Set(key string, value interface{}) error {
 	return nil
 }
 
-func (p *GovernanceParam) SetFromVoteData(v *VoteData) error {
+func (p *GovParamSet) SetFromVoteData(v *VoteData) error {
 	return p.Set(v.Name, v.Value)
 }
 
-func (p *GovernanceParam) SetFromGovernanceData(g *GovernanceData) error {
+func (p *GovParamSet) SetFromGovernanceData(g *GovData) error {
 	for name, value := range g.Params {
 		err := p.Set(name, value)
 		if err != nil {
@@ -301,7 +284,7 @@ func (p *GovernanceParam) SetFromGovernanceData(g *GovernanceData) error {
 	return nil
 }
 
-func (p *GovernanceParam) ToJSON() (string, error) {
+func (p *GovParamSet) ToJSON() (string, error) {
 	j, err := json.Marshal(p)
 	if err != nil {
 		return "", err
@@ -309,7 +292,7 @@ func (p *GovernanceParam) ToJSON() (string, error) {
 	return string(j), nil
 }
 
-func (p *GovernanceParam) ToStrMap() (map[string]interface{}, error) {
+func (p *GovParamSet) ToStrMap() (map[string]interface{}, error) {
 	jsonStr, err := p.ToJSON()
 	if err != nil {
 		return nil, err

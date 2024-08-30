@@ -45,7 +45,7 @@ func (h *HeaderGovModule) HandleVote(blockNum uint64, vote *VoteData) error {
 	return nil
 }
 
-func (h *HeaderGovModule) HandleGov(blockNum uint64, gov *GovernanceData) error {
+func (h *HeaderGovModule) HandleGov(blockNum uint64, gov *GovData) error {
 	h.cache.AddGovernance(blockNum, *gov)
 
 	// merge gov based on latest effective params.

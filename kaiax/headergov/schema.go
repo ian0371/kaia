@@ -3,30 +3,24 @@ package headergov
 import (
 	"encoding/json"
 
-	"github.com/kaiachain/kaia/common"
 	"github.com/kaiachain/kaia/storage/database"
 )
 
 var (
-	voteDataBlockNumsKey = []byte("voteDataBlockNums")
-	govDataBlockNumsKey  = []byte("governanceDataBlockNums")
+	govVoteDataBlockNumsKey = []byte("governanceVoteDataBlockNums")
+	valVoteDataBlockNumsKey = []byte("validatorVoteDataBlockNums")
+	govDataBlockNumsKey     = []byte("governanceDataBlockNums")
 )
 
-type StoredVoteBlockNums []uint64
-type StoredGovBlockNums []uint64
+type StoredUint64Array []uint64
 
-func makeKey(prefix []byte, num uint64) []byte {
-	byteKey := common.Int64ToByteLittleEndian(num)
-	return append(prefix, byteKey...)
-}
-
-func ReadVoteDataBlockNums(db database.Database) *StoredVoteBlockNums {
-	b, err := db.Get(voteDataBlockNumsKey)
+func readStoredUint64Array(db database.Database, key []byte) *StoredUint64Array {
+	b, err := db.Get(key)
 	if err != nil || len(b) == 0 {
 		return nil
 	}
 
-	ret := new(StoredVoteBlockNums)
+	ret := new(StoredUint64Array)
 	if err := json.Unmarshal(b, ret); err != nil {
 		logger.Error("Invalid voteDataBlocks JSON", "err", err)
 		return nil
@@ -34,40 +28,38 @@ func ReadVoteDataBlockNums(db database.Database) *StoredVoteBlockNums {
 	return ret
 }
 
-func WriteVoteDataBlockNums(db database.Database, voteDataBlockNums *StoredVoteBlockNums) {
-	b, err := json.Marshal(voteDataBlockNums)
+func writeStoredUint64Array(db database.Database, key []byte, data *StoredUint64Array) {
+	b, err := json.Marshal(data)
 	if err != nil {
 		logger.Error("Failed to marshal voteDataBlocks", "err", err)
 		return
 	}
 
-	if err := db.Put(voteDataBlockNumsKey, b); err != nil {
+	if err := db.Put(key, b); err != nil {
 		logger.Crit("Failed to write voteDataBlocks", "err", err)
 	}
 }
 
-func ReadGovDataBlockNums(db database.Database) *StoredGovBlockNums {
-	b, err := db.Get(govDataBlockNumsKey)
-	if err != nil || len(b) == 0 {
-		return nil
-	}
-
-	ret := new(StoredGovBlockNums)
-	if err := json.Unmarshal(b, ret); err != nil {
-		logger.Error("Invalid govDataBlocks JSON", "err", err)
-		return nil
-	}
-	return ret
+func ReadGovVoteDataBlockNums(db database.Database) *StoredUint64Array {
+	return readStoredUint64Array(db, govVoteDataBlockNumsKey)
 }
 
-func WriteGovDataBlockNums(db database.Database, govData *StoredGovBlockNums) {
-	b, err := json.Marshal(govData)
-	if err != nil {
-		logger.Error("Failed to marshal govDataBlocks", "err", err)
-		return
-	}
+func WriteGovVoteDataBlockNums(db database.Database, voteDataBlockNums *StoredUint64Array) {
+	writeStoredUint64Array(db, govVoteDataBlockNumsKey, voteDataBlockNums)
+}
 
-	if err := db.Put(govDataBlockNumsKey, b); err != nil {
-		logger.Crit("Failed to write voteDataBlocks", "err", err)
-	}
+func ReadValVoteDataBlockNums(db database.Database) *StoredUint64Array {
+	return readStoredUint64Array(db, valVoteDataBlockNumsKey)
+}
+
+func WriteValVoteDataBlockNums(db database.Database, voteDataBlockNums *StoredUint64Array) {
+	writeStoredUint64Array(db, valVoteDataBlockNumsKey, voteDataBlockNums)
+}
+
+func ReadGovDataBlockNums(db database.Database) *StoredUint64Array {
+	return readStoredUint64Array(db, govDataBlockNumsKey)
+}
+
+func WriteGovDataBlockNums(db database.Database, govDataBlockNums *StoredUint64Array) {
+	writeStoredUint64Array(db, govDataBlockNumsKey, govDataBlockNums)
 }

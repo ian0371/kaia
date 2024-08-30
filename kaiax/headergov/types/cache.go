@@ -8,6 +8,7 @@ type VotesInEpoch map[uint64]VoteData
 
 type GovHeaderCache struct {
 	groupedGovVotes map[uint64]VotesInEpoch
+	valVotes        VotesInEpoch
 	governances     map[uint64]GovData
 	govHistory      GovHistory
 }

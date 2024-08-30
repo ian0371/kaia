@@ -6,10 +6,10 @@ func (h *HeaderGovModule) Unwind(num uint64) error {
 	h.cache.RemoveGovernanceAfter(num)
 
 	// Update stored block numbers for votes and governance
-	var voteBlockNums StoredVoteBlockNums = h.cache.GovVoteBlockNums()
-	WriteVoteDataBlockNums(h.ChainKv, &voteBlockNums)
+	var voteBlockNums StoredUint64Array = h.cache.GovVoteBlockNums()
+	WriteGovVoteDataBlockNums(h.ChainKv, &voteBlockNums)
 
-	var govBlockNums StoredGovBlockNums = h.cache.GovBlockNums()
+	var govBlockNums StoredUint64Array = h.cache.GovBlockNums()
 	WriteGovDataBlockNums(h.ChainKv, &govBlockNums)
 
 	return nil

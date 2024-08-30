@@ -32,8 +32,8 @@ func (h *HeaderGovModule) PostInsertBlock(b *types.Block) error {
 func (h *HeaderGovModule) HandleVote(blockNum uint64, vote *VoteData) error {
 	h.cache.AddGovVote(calcEpochIdx(blockNum, h.epoch), blockNum, *vote)
 
-	var data StoredVoteBlockNums = h.cache.GovVoteBlockNums()
-	WriteVoteDataBlockNums(h.ChainKv, &data)
+	var data StoredUint64Array = h.cache.GovVoteBlockNums()
+	WriteGovVoteDataBlockNums(h.ChainKv, &data)
 
 	for i, myvote := range h.myVotes {
 		if reflect.DeepEqual(&myvote, vote) {
@@ -56,7 +56,7 @@ func (h *HeaderGovModule) HandleGov(blockNum uint64, gov *GovData) error {
 	}
 
 	gp.SetFromGovernanceData(gov)
-	var data StoredGovBlockNums = h.cache.GovBlockNums()
+	var data StoredUint64Array = h.cache.GovBlockNums()
 	WriteGovDataBlockNums(h.ChainKv, &data)
 	return nil
 }

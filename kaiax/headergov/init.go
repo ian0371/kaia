@@ -69,11 +69,11 @@ func (h *HeaderGovModule) Init(opts *InitOpts) error {
 		return errZeroEpoch
 	}
 
-	votes := readVoteDataFromDB(h.Chain, h.ChainKv)
+	govVotes := readGovVoteDataFromDB(h.Chain, h.ChainKv)
 	govs := readGovDataFromDB(h.Chain, h.ChainKv)
 
 	h.cache = *headergov_types.NewHeaderGovCache()
-	for blockNum, vote := range votes {
+	for blockNum, vote := range govVotes {
 		h.cache.AddGovVote(calcEpochIdx(blockNum, h.epoch), blockNum, vote)
 	}
 	for blockNum, gov := range govs {
@@ -104,8 +104,8 @@ func (s *HeaderGovModule) PopMyVotes(idx int) {
 	s.myVotes = append(s.myVotes[:idx], s.myVotes[idx+1:]...)
 }
 
-func readVoteDataFromDB(chain chain, db database.Database) map[uint64]VoteData {
-	voteBlocks := ReadVoteDataBlockNums(db)
+func readGovVoteDataFromDB(chain chain, db database.Database) map[uint64]VoteData {
+	voteBlocks := ReadGovVoteDataBlockNums(db)
 	votes := make(map[uint64]VoteData)
 	if voteBlocks != nil {
 		for _, blockNum := range *voteBlocks {
@@ -151,7 +151,7 @@ func readGovDataFromDB(chain chain, db database.Database) map[uint64]GovData {
 			logger.Error("Failed to unmarshal governance history", "err", err)
 			return govs
 		}
-		govBlocks = (*StoredGovBlockNums)(&idxHistory)
+		govBlocks = (*StoredUint64Array)(&idxHistory)
 	}
 
 	if govBlocks != nil {

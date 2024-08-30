@@ -14,7 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestReadVoteBlockNumsFromDB(t *testing.T) {
+func TestReadGovVoteBlockNumsFromDB(t *testing.T) {
 	votes := map[uint64]VoteData{
 		1:   {Voter: common.Address{1}, Name: governance.GovernanceKeyMapReverse[params.UnitPrice], Value: uint64(100)},
 		50:  {Voter: common.Address{2}, Name: governance.GovernanceKeyMapReverse[params.UnitPrice], Value: uint64(200)},
@@ -25,16 +25,16 @@ func TestReadVoteBlockNumsFromDB(t *testing.T) {
 	chain := mocks.NewMockBlockChain(mockCtrl)
 
 	db := database.NewMemDB()
-	voteDataBlockNums := make(StoredVoteBlockNums, 0, len(votes))
+	voteDataBlockNums := make(StoredUint64Array, 0, len(votes))
 	for num, voteData := range votes {
 		headerVoteData, err := voteData.Serialize()
 		require.NoError(t, err)
 		chain.EXPECT().GetHeaderByNumber(num).Return(&types.Header{Vote: headerVoteData})
 		voteDataBlockNums = append(voteDataBlockNums, num)
 	}
-	WriteVoteDataBlockNums(db, &voteDataBlockNums)
+	WriteGovVoteDataBlockNums(db, &voteDataBlockNums)
 
-	assert.Equal(t, votes, readVoteDataFromDB(chain, db))
+	assert.Equal(t, votes, readGovVoteDataFromDB(chain, db))
 }
 
 func TestReadGovDataFromDB(t *testing.T) {
@@ -49,7 +49,7 @@ func TestReadGovDataFromDB(t *testing.T) {
 		UnitPrice: uint64(200),
 	}
 
-	WriteGovDataBlockNums(db, &StoredGovBlockNums{1, 2})
+	WriteGovDataBlockNums(db, &StoredUint64Array{1, 2})
 
 	govs := map[uint64]GovData{
 		1: {Params: map[string]interface{}{governance.GovernanceKeyMapReverse[params.UnitPrice]: ps1.UnitPrice}},

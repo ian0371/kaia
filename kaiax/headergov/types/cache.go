@@ -65,20 +65,40 @@ func (h *GovHeaderCache) GovBlockNums() []uint64 {
 	return blockNums
 }
 
-func (h *GovHeaderCache) AddVote(epochIdx, blockNum uint64, vote VoteData) {
-	if _, ok := h.groupedVotes[epochIdx]; !ok {
-		h.groupedVotes[epochIdx] = make(map[uint64]VoteData)
+func (h *GovHeaderCache) AddGovVote(epochIdx, blockNum uint64, vote VoteData) {
+	if _, ok := h.groupedGovVotes[epochIdx]; !ok {
+		h.groupedGovVotes[epochIdx] = make(map[uint64]VoteData)
 	}
-	h.groupedVotes[epochIdx][blockNum] = vote
+	h.groupedGovVotes[epochIdx][blockNum] = vote
 }
 
-func (h *GovHeaderCache) AddGovernance(blockNum uint64, gov GovData) {
+func (h *GovHeaderCache) AddGov(blockNum uint64, gov GovData) {
 	h.governances[blockNum] = gov
 
 	h.govHistory = GetGovHistory(h.governances)
 }
 
-// TODO-kaiax: rename
-func (h *GovHeaderCache) GetGovernanceHistory() GovHistory {
-	return h.govHistory
+func (h *GovHeaderCache) RemoveVotesAfter(blockNum uint64) {
+	for epochIdxIter, votes := range h.groupedGovVotes {
+		for blockNumIter := range votes {
+			if blockNumIter > blockNum {
+				delete(h.groupedGovVotes[epochIdxIter], blockNumIter)
+			}
+		}
+		// If all votes for this epoch have been removed, delete the epoch entry
+		if len(h.groupedGovVotes[epochIdxIter]) == 0 {
+			delete(h.groupedGovVotes, epochIdxIter)
+		}
+	}
+}
+
+func (h *GovHeaderCache) RemoveGovernanceAfter(blockNum uint64) {
+	for blockNumIter := range h.governances {
+		if blockNumIter > blockNum {
+			delete(h.governances, blockNumIter)
+		}
+	}
+
+	// Regenerate the governance history after removing entries
+	h.govHistory = GetGovHistory(h.governances)
 }

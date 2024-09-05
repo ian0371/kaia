@@ -23,9 +23,9 @@ var (
 type VoteData = headergov_types.VoteData
 type VotesInEpoch = headergov_types.VotesInEpoch
 type GovData = headergov_types.GovData
-type GovHistory = headergov_types.GovHistory
-type GovParam = headergov_types.GovParamSet
-type GovHeaderCache = headergov_types.GovHeaderCache
+type History = headergov_types.History
+type ParamSet = headergov_types.ParamSet
+type HeaderCache = headergov_types.HeaderCache
 
 type chain interface {
 	GetHeaderByNumber(number uint64) *types.Header
@@ -47,7 +47,7 @@ type HeaderGovModule struct {
 	myVotes     []VoteData // queue
 
 	epoch uint64
-	cache GovHeaderCache
+	cache HeaderCache
 }
 
 func NewHeaderGovModule() *HeaderGovModule {
@@ -74,7 +74,7 @@ func (h *HeaderGovModule) Init(opts *InitOpts) error {
 
 	h.cache = *headergov_types.NewHeaderGovCache()
 	for blockNum, vote := range govVotes {
-		h.cache.AddGovVote(calcEpochIdx(blockNum, h.epoch), blockNum, vote)
+		h.cache.AddVote(calcEpochIdx(blockNum, h.epoch), blockNum, vote)
 	}
 	for blockNum, gov := range govs {
 		h.cache.AddGov(blockNum, gov)

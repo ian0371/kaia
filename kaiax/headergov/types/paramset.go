@@ -9,7 +9,7 @@ import (
 	"github.com/kaiachain/kaia/common"
 )
 
-type GovParamSet struct {
+type ParamSet struct {
 	// governance
 	GovernanceMode                  string
 	GoverningNode, GovParamContract common.Address
@@ -18,10 +18,10 @@ type GovParamSet struct {
 	CommitteeSize, ProposerPolicy, Epoch uint64
 
 	// reward
-	Ratio, Kip82Ratio                            string
-	StakeUpdateInterval, ProposerRefreshInterval uint64
-	MintingAmount, MinimumStake                  *big.Int
-	UseGiniCoeff, DeferredTxFee                  bool
+	Ratio, Kip82Ratio                           string
+	StakeUpdateInterval, ProposerUpdateInterval uint64
+	MintingAmount, MinimumStake                 *big.Int
+	UseGiniCoeff, DeferredTxFee                 bool
 
 	// KIP-71
 	LowerBoundBaseFee, UpperBoundBaseFee, GasTarget, MaxBlockGasUsedForBaseFee, BaseFeeDenominator uint64
@@ -32,8 +32,8 @@ type GovParamSet struct {
 }
 
 // TODO: add tests, compare from gov/default
-func (p *GovParamSet) Set(key string, value interface{}) error {
-	param, ok := govParams[key]
+func (p *ParamSet) Set(key string, value interface{}) error {
+	param, ok := Params[key]
 	if !ok {
 		return errors.New("invalid param key")
 	}
@@ -43,15 +43,14 @@ func (p *GovParamSet) Set(key string, value interface{}) error {
 		return err
 	}
 
-	if param.Validator != nil {
-		valid, err := param.Validator(cv)
-		if !valid || err != nil {
+	if param.FormatChecker != nil {
+		if valid := param.FormatChecker(cv); !valid {
 			return err
 		}
 	}
 
 	v := reflect.ValueOf(p).Elem()
-	field := v.FieldByName(param.GovParamSetFieldName)
+	field := v.FieldByName(param.ParamSetFieldName)
 
 	if !field.IsValid() || !field.CanSet() {
 		return errors.New("invalid field or cannot set value")
@@ -66,11 +65,11 @@ func (p *GovParamSet) Set(key string, value interface{}) error {
 	return nil
 }
 
-func (p *GovParamSet) SetFromVoteData(v *VoteData) error {
+func (p *ParamSet) SetFromVoteData(v *VoteData) error {
 	return p.Set(v.Name, v.Value)
 }
 
-func (p *GovParamSet) SetFromGovernanceData(g *GovData) error {
+func (p *ParamSet) SetFromGovernanceData(g *GovData) error {
 	for name, value := range g.Params {
 		err := p.Set(name, value)
 		if err != nil {
@@ -80,7 +79,7 @@ func (p *GovParamSet) SetFromGovernanceData(g *GovData) error {
 	return nil
 }
 
-func (p *GovParamSet) ToJSON() (string, error) {
+func (p *ParamSet) ToJSON() (string, error) {
 	j, err := json.Marshal(p)
 	if err != nil {
 		return "", err
@@ -88,7 +87,7 @@ func (p *GovParamSet) ToJSON() (string, error) {
 	return string(j), nil
 }
 
-func (p *GovParamSet) ToStrMap() (map[string]interface{}, error) {
+func (p *ParamSet) ToStrMap() (map[string]interface{}, error) {
 	jsonStr, err := p.ToJSON()
 	if err != nil {
 		return nil, err
@@ -103,8 +102,8 @@ func (p *GovParamSet) ToStrMap() (map[string]interface{}, error) {
 	return result, nil
 }
 
-func (p *GovParamSet) Copy() *GovParamSet {
-	return &GovParamSet{
+func (p *ParamSet) Copy() *ParamSet {
+	return &ParamSet{
 		GovernanceMode:            p.GovernanceMode,
 		GoverningNode:             p.GoverningNode,
 		GovParamContract:          p.GovParamContract,
@@ -114,7 +113,7 @@ func (p *GovParamSet) Copy() *GovParamSet {
 		Ratio:                     p.Ratio,
 		Kip82Ratio:                p.Kip82Ratio,
 		StakeUpdateInterval:       p.StakeUpdateInterval,
-		ProposerRefreshInterval:   p.ProposerRefreshInterval,
+		ProposerUpdateInterval:    p.ProposerUpdateInterval,
 		MintingAmount:             new(big.Int).Set(p.MintingAmount),
 		MinimumStake:              new(big.Int).Set(p.MinimumStake),
 		UseGiniCoeff:              p.UseGiniCoeff,

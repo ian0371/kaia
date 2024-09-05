@@ -166,12 +166,12 @@ func (api *headerGovAPI) Status() (string, error) {
 	type PublicCache struct {
 		GroupedVotes map[uint64]VotesInEpoch `json:"groupedVotes"`
 		Governances  map[uint64]GovData      `json:"governances"`
-		GovHistory   GovHistory              `json:"govHistory"`
+		GovHistory   History                 `json:"govHistory"`
 	}
 	publicCache := PublicCache{
-		GroupedVotes: api.h.cache.GroupedGovVotes(),
+		GroupedVotes: api.h.cache.GroupedVotes(),
 		Governances:  api.h.cache.Govs(),
-		GovHistory:   api.h.cache.GovHistory(),
+		GovHistory:   api.h.cache.History(),
 	}
 
 	cacheJson, err := json.Marshal(publicCache)

@@ -42,10 +42,10 @@ func TestReadGovDataFromDB(t *testing.T) {
 	chain := mocks.NewMockBlockChain(mockCtrl)
 	db := database.NewMemDB()
 
-	ps1 := &GovParam{
+	ps1 := &ParamSet{
 		UnitPrice: uint64(100),
 	}
-	ps2 := &GovParam{
+	ps2 := &ParamSet{
 		UnitPrice: uint64(200),
 	}
 

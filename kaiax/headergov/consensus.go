@@ -80,29 +80,36 @@ func (h *HeaderGovModule) FinalizeBlock(b *types.Block) (*types.Block, error) {
 }
 
 func (h *HeaderGovModule) VerifyVote(vote *VoteData) error {
-	gp := GovParam{}
-	err := gp.SetFromVoteData(vote)
+	// handled by valset module.
+	if vote.Name == "governance.addvalidator" || vote.Name == "governance.removevalidator" {
+		return nil
+	}
+
+	param, ok := headergov_types.Params[vote.Name]
+	if !ok {
+		return errors.New("invalid param key")
+	}
+
+	if param.VoteForbidden {
+		return errors.New("parameter is forbidden to be changed")
+	}
+
+	cv, err := param.Canonicalizer(vote.Value)
 	if err != nil {
 		return err
 	}
 
-	/*
-		if key == "kip71.lowerboundbasefee" {
-			if val.(uint64) > pset.UpperBoundBaseFee() {
-				return errInvalidLowerBound
-			}
+	if param.FormatChecker != nil {
+		if valid := param.FormatChecker(cv); !valid {
+			return err
 		}
-		if key == "kip71.upperboundbasefee" {
-			if val.(uint64) < pset.LowerBoundBaseFee() {
-				return errInvalidUpperBound
-			}
-		}
-	*/
+	}
+
 	return nil
 }
 
 func (h *HeaderGovModule) VerifyGov(gov *GovData) error {
-	gp := GovParam{}
+	gp := ParamSet{}
 	err := gp.SetFromGovernanceData(gov)
 	if err != nil {
 		return err
@@ -127,7 +134,7 @@ func (h *HeaderGovModule) getExpectedGovernance(blockNum uint64) GovData {
 
 func (h *HeaderGovModule) getVotesInEpoch(epochIdx uint64) map[uint64]VoteData {
 	votes := make(map[uint64]VoteData)
-	for blockNum, vote := range h.cache.GroupedGovVotes()[epochIdx] {
+	for blockNum, vote := range h.cache.GroupedVotes()[epochIdx] {
 		votes[blockNum] = vote
 	}
 	return votes

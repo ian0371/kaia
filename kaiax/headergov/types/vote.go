@@ -2,9 +2,9 @@ package types
 
 import (
 	"errors"
+	"math/big"
 
 	"github.com/kaiachain/kaia/common"
-	"github.com/kaiachain/kaia/governance"
 	"github.com/kaiachain/kaia/params"
 	"github.com/kaiachain/kaia/rlp"
 )
@@ -34,6 +34,10 @@ func (vote *VoteData) Serialize() ([]byte, error) {
 		Value:     vote.Value,
 	}
 
+	if cv, ok := vote.Value.(*big.Int); ok {
+		v.Value = cv.String()
+	}
+
 	return rlp.EncodeToBytes(v)
 }
 
@@ -49,22 +53,19 @@ func DeserializeHeaderVote(b []byte, blockNum uint64) (*VoteData, error) {
 		return nil, err
 	}
 
-	// canonicalize. e.g., [0x1, 0xc9, 0xc3, 0x80] -> 0x1c9c380
-	ps, err := params.NewGovParamSetBytesMap(map[string][]byte{
-		v.Key: v.Value,
-	})
-	if err != nil {
-		return nil, err
+	param, ok := Params[v.Key]
+	if !ok {
+		return nil, errors.New("invalid param")
 	}
 
-	value, ok := ps.Get(governance.GovernanceKeyMap[v.Key])
-	if !ok {
-		return nil, errors.New("key not found")
+	cv, err := param.Canonicalizer(v.Value)
+	if err != nil {
+		return nil, err
 	}
 
 	return &VoteData{
 		Voter: v.Validator,
 		Name:  v.Key,
-		Value: value,
+		Value: cv,
 	}, nil
 }

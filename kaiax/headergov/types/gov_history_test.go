@@ -1,57 +1,61 @@
 package types
 
 import (
+	"fmt"
 	"testing"
 
-	"github.com/kaiachain/kaia/governance"
-	"github.com/kaiachain/kaia/params"
 	"github.com/stretchr/testify/assert"
 )
 
-func TestGetGovHistory(t *testing.T) {
+func TestGetHistory(t *testing.T) {
 	govs := map[uint64]GovData{
 		0: {
 			Params: map[string]interface{}{
-				governance.GovernanceKeyMapReverse[params.UnitPrice]: uint64(100),
+				"governance.unitprice": uint64(100),
 			},
 		},
 		4: {
 			Params: map[string]interface{}{
-				governance.GovernanceKeyMapReverse[params.UnitPrice]: uint64(200),
+				"governance.unitprice": uint64(200),
 			},
 		},
 	}
 
-	gh := GetGovHistory(govs)
-
-	assert.Equal(t, GovParamSet{UnitPrice: uint64(100)}, gh[0])
-	assert.Equal(t, GovParamSet{UnitPrice: uint64(200)}, gh[4])
+	history := GetHistory(govs)
+	assert.Equal(t, uint64(100), history[0].UnitPrice)
+	assert.Equal(t, uint64(200), history[4].UnitPrice)
 }
 
 func TestSearch(t *testing.T) {
+	testCases := []struct {
+		blockNumber       uint64
+		expectedUnitPrice uint64
+	}{
+		{0, 100},
+		{3, 100},
+		{4, 200},
+		{5, 200},
+	}
+
 	govs := map[uint64]GovData{
 		0: {
 			Params: map[string]interface{}{
-				governance.GovernanceKeyMapReverse[params.UnitPrice]: uint64(100),
+				"governance.unitprice": uint64(100),
 			},
 		},
 		4: {
 			Params: map[string]interface{}{
-				governance.GovernanceKeyMapReverse[params.UnitPrice]: uint64(200),
+				"governance.unitprice": uint64(200),
 			},
 		},
 	}
 
-	gh := GetGovHistory(govs)
-	gp, err := gh.Search(0)
-	assert.Nil(t, err)
-	assert.Equal(t, GovParamSet{UnitPrice: uint64(100)}, gp)
-
-	gp, err = gh.Search(3)
-	assert.Nil(t, err)
-	assert.Equal(t, GovParamSet{UnitPrice: uint64(100)}, gp)
-
-	gp, err = gh.Search(4)
-	assert.Nil(t, err)
-	assert.Equal(t, GovParamSet{UnitPrice: uint64(200)}, gp)
+	gh := GetHistory(govs)
+	for _, tc := range testCases {
+		t.Run(fmt.Sprintf("Block %d", tc.blockNumber), func(t *testing.T) {
+			gp, err := gh.Search(tc.blockNumber)
+			assert.Nil(t, err)
+			assert.Equal(t, tc.expectedUnitPrice, gp.UnitPrice)
+		})
+	}
 }

@@ -3,9 +3,8 @@ package types
 import (
 	"encoding/json"
 	"errors"
+	"math/big"
 
-	"github.com/kaiachain/kaia/governance"
-	"github.com/kaiachain/kaia/params"
 	"github.com/kaiachain/kaia/rlp"
 )
 
@@ -16,7 +15,11 @@ type GovData struct {
 func (g *GovData) MarshalJSON() ([]byte, error) {
 	tmp := make(map[string]interface{})
 	for name, value := range g.Params {
-		tmp[name] = value
+		if bigInt, ok := value.(*big.Int); ok {
+			tmp[name] = bigInt.String()
+		} else {
+			tmp[name] = value
+		}
 	}
 
 	return json.Marshal(tmp)
@@ -37,24 +40,26 @@ func DeserializeHeaderGov(b []byte, blockNum uint64) (*GovData, error) {
 		return nil, err
 	}
 
-	j := make(map[string]interface{})
-	json.Unmarshal(rlpDecoded, &j)
-
-	ps, err := params.NewGovParamSetStrMap(j)
+	ret := make(map[string]interface{})
+	err = json.Unmarshal(rlpDecoded, &ret)
 	if err != nil {
 		return nil, err
 	}
 
-	params := make(map[string]interface{}, len(j))
-	for k := range j {
-		value, ok := ps.Get(governance.GovernanceKeyMap[k])
+	for name, value := range ret {
+		param, ok := Params[name]
 		if !ok {
-			return nil, errors.New("key not found")
+			return nil, errors.New("invalid param")
 		}
-		params[k] = value
+
+		cv, err := param.Canonicalizer(value)
+		if err != nil {
+			return nil, err
+		}
+		ret[name] = cv
 	}
 
 	return &GovData{
-		Params: params,
+		Params: ret,
 	}, nil
 }

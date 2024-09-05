@@ -6,24 +6,23 @@ import (
 
 type VotesInEpoch map[uint64]VoteData
 
-type GovHeaderCache struct {
-	groupedGovVotes map[uint64]VotesInEpoch
-	valVotes        VotesInEpoch
-	governances     map[uint64]GovData
-	govHistory      GovHistory
+type HeaderCache struct {
+	groupedVotes map[uint64]VotesInEpoch
+	governances  map[uint64]GovData
+	history      History
 }
 
-func NewHeaderGovCache() *GovHeaderCache {
-	return &GovHeaderCache{
-		groupedGovVotes: make(map[uint64]VotesInEpoch),
-		governances:     make(map[uint64]GovData),
-		govHistory:      GovHistory{},
+func NewHeaderGovCache() *HeaderCache {
+	return &HeaderCache{
+		groupedVotes: make(map[uint64]VotesInEpoch),
+		governances:  make(map[uint64]GovData),
+		history:      History{},
 	}
 }
 
-func (h *GovHeaderCache) GroupedGovVotes() map[uint64]VotesInEpoch {
+func (h *HeaderCache) GroupedVotes() map[uint64]VotesInEpoch {
 	votes := make(map[uint64]VotesInEpoch)
-	for epochIdx, votesInEpoch := range h.groupedGovVotes {
+	for epochIdx, votesInEpoch := range h.groupedVotes {
 		votes[epochIdx] = make(VotesInEpoch)
 		for blockNum, vote := range votesInEpoch {
 			votes[epochIdx][blockNum] = vote
@@ -32,7 +31,7 @@ func (h *GovHeaderCache) GroupedGovVotes() map[uint64]VotesInEpoch {
 	return votes
 }
 
-func (h *GovHeaderCache) Govs() map[uint64]GovData {
+func (h *HeaderCache) Govs() map[uint64]GovData {
 	govs := make(map[uint64]GovData)
 	for blockNum, gov := range h.governances {
 		govs[blockNum] = gov
@@ -40,13 +39,13 @@ func (h *GovHeaderCache) Govs() map[uint64]GovData {
 	return govs
 }
 
-func (h *GovHeaderCache) GovHistory() GovHistory {
-	return h.govHistory
+func (h *HeaderCache) History() History {
+	return h.history
 }
 
-func (h *GovHeaderCache) GovVoteBlockNums() []uint64 {
+func (h *HeaderCache) VoteBlockNums() []uint64 {
 	blockNums := make([]uint64, 0)
-	for num := range h.groupedGovVotes {
+	for num := range h.groupedVotes {
 		blockNums = append(blockNums, num)
 	}
 	sort.Slice(blockNums, func(i, j int) bool {
@@ -55,7 +54,7 @@ func (h *GovHeaderCache) GovVoteBlockNums() []uint64 {
 	return blockNums
 }
 
-func (h *GovHeaderCache) GovBlockNums() []uint64 {
+func (h *HeaderCache) GovBlockNums() []uint64 {
 	blockNums := make([]uint64, 0)
 	for num := range h.governances {
 		blockNums = append(blockNums, num)
@@ -66,34 +65,34 @@ func (h *GovHeaderCache) GovBlockNums() []uint64 {
 	return blockNums
 }
 
-func (h *GovHeaderCache) AddGovVote(epochIdx, blockNum uint64, vote VoteData) {
-	if _, ok := h.groupedGovVotes[epochIdx]; !ok {
-		h.groupedGovVotes[epochIdx] = make(map[uint64]VoteData)
+func (h *HeaderCache) AddVote(epochIdx, blockNum uint64, vote VoteData) {
+	if _, ok := h.groupedVotes[epochIdx]; !ok {
+		h.groupedVotes[epochIdx] = make(map[uint64]VoteData)
 	}
-	h.groupedGovVotes[epochIdx][blockNum] = vote
+	h.groupedVotes[epochIdx][blockNum] = vote
 }
 
-func (h *GovHeaderCache) AddGov(blockNum uint64, gov GovData) {
+func (h *HeaderCache) AddGov(blockNum uint64, gov GovData) {
 	h.governances[blockNum] = gov
 
-	h.govHistory = GetGovHistory(h.governances)
+	h.history = GetHistory(h.governances)
 }
 
-func (h *GovHeaderCache) RemoveVotesAfter(blockNum uint64) {
-	for epochIdxIter, votes := range h.groupedGovVotes {
+func (h *HeaderCache) RemoveVotesAfter(blockNum uint64) {
+	for epochIdxIter, votes := range h.groupedVotes {
 		for blockNumIter := range votes {
 			if blockNumIter > blockNum {
-				delete(h.groupedGovVotes[epochIdxIter], blockNumIter)
+				delete(h.groupedVotes[epochIdxIter], blockNumIter)
 			}
 		}
 		// If all votes for this epoch have been removed, delete the epoch entry
-		if len(h.groupedGovVotes[epochIdxIter]) == 0 {
-			delete(h.groupedGovVotes, epochIdxIter)
+		if len(h.groupedVotes[epochIdxIter]) == 0 {
+			delete(h.groupedVotes, epochIdxIter)
 		}
 	}
 }
 
-func (h *GovHeaderCache) RemoveGovernanceAfter(blockNum uint64) {
+func (h *HeaderCache) RemoveGovernanceAfter(blockNum uint64) {
 	for blockNumIter := range h.governances {
 		if blockNumIter > blockNum {
 			delete(h.governances, blockNumIter)
@@ -101,5 +100,5 @@ func (h *GovHeaderCache) RemoveGovernanceAfter(blockNum uint64) {
 	}
 
 	// Regenerate the governance history after removing entries
-	h.govHistory = GetGovHistory(h.governances)
+	h.history = GetHistory(h.governances)
 }

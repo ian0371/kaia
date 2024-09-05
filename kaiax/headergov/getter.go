@@ -1,6 +1,6 @@
 package headergov
 
-func (h *HeaderGovModule) EffectiveParams(blockNum uint64) (GovParam, error) {
+func (h *HeaderGovModule) EffectiveParams(blockNum uint64) (ParamSet, error) {
 	// TODO: only return when num <= head + 1
 	prevEpochStart := PrevEpochStart(blockNum, h.epoch, h.isKoreHF(blockNum))
 	gh := h.GetGovernanceHistory()
@@ -8,14 +8,14 @@ func (h *HeaderGovModule) EffectiveParams(blockNum uint64) (GovParam, error) {
 	if err != nil {
 		logger.Error("kaiax.EffectiveParams error", "prevEpochStart", prevEpochStart, "blockNum", blockNum, "err", err,
 			"govHistory", gh, "govs", h.cache.Govs())
-		return GovParam{}, err
+		return ParamSet{}, err
 	} else {
 		return gp, nil
 	}
 }
 
-func (h *HeaderGovModule) GetGovernanceHistory() GovHistory {
-	return h.cache.GovHistory()
+func (h *HeaderGovModule) GetGovernanceHistory() History {
+	return h.cache.History()
 }
 
 func PrevEpochStart(blockNum, epoch uint64, isKore bool) uint64 {

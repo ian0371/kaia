@@ -7,7 +7,7 @@ import (
 )
 
 func TestGovParamSet(t *testing.T) {
-	p := GovParamSet{}
+	p := ParamSet{}
 	err := p.Set("governance.governancemode", "none")
 	assert.NoError(t, err)
 	assert.Equal(t, p.GovernanceMode, "none")

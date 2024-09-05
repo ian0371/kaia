@@ -10,13 +10,14 @@ import (
 	"github.com/kaiachain/kaia/common"
 )
 
-type GovParam struct {
-	GovParamSetFieldName string
-	Canonicalizer        func(v interface{}) (interface{}, error)
-	Validator            func(cv interface{}) (bool, error) // validation on canonical value.
+type Param struct {
+	ParamSetFieldName  string
+	Canonicalizer      func(v interface{}) (interface{}, error)
+	FormatChecker      func(cv interface{}) bool // validation on canonical value.
+	ConsistencyChecker func(cv interface{}) bool // validation on canonical value.
 
-	DefaultValue interface{}
-	Forbidden    bool
+	DefaultValue  interface{}
+	VoteForbidden bool
 }
 
 func stringCanonicalizer(v interface{}) (interface{}, error) {
@@ -32,7 +33,7 @@ func stringCanonicalizer(v interface{}) (interface{}, error) {
 func addressCanonicalizer(v interface{}) (interface{}, error) {
 	switch v := v.(type) {
 	case []byte:
-		return common.HexToAddress(string(v)), nil
+		return common.BytesToAddress(v), nil
 	case string:
 		return common.HexToAddress(v), nil
 	case common.Address:
@@ -46,6 +47,10 @@ func uint64Canonicalizer(v interface{}) (interface{}, error) {
 	case []byte:
 		return new(big.Int).SetBytes(v).Uint64(), nil
 	case float64:
+		if float64(uint64(v)) != v {
+			return nil, errors.New("value is not an integer")
+		}
+
 		return uint64(v), nil
 	case uint64:
 		return v, nil
@@ -56,11 +61,19 @@ func uint64Canonicalizer(v interface{}) (interface{}, error) {
 func bigIntCanonicalizer(v interface{}) (interface{}, error) {
 	switch v := v.(type) {
 	case []byte:
-		return new(big.Int).SetBytes(v), nil
+		cv, ok := new(big.Int).SetString(string(v), 10)
+		if !ok {
+			return nil, errors.New("could not canonicalize []byte to big.Int")
+		}
+		return cv, nil
 	case string:
-		return new(big.Int).SetBytes([]byte(v)), nil
+		cv, ok := new(big.Int).SetString(v, 10)
+		if !ok {
+			return nil, errors.New("could not canonicalize string to big.Int")
+		}
+		return cv, nil
 	}
-	return nil, errors.New("invalid type")
+	return nil, errors.New("could not canonicalize value to big.Int")
 }
 
 func boolCanonicalizer(v interface{}) (interface{}, error) {
@@ -97,233 +110,217 @@ func addressArrayCanonicalizer(v interface{}) (interface{}, error) {
 	return nil, errors.New("invalid type")
 }
 
-var govParams = map[string]GovParam{
+var Params = map[string]Param{
 	"governance.governancemode": {
-		GovParamSetFieldName: "GovernanceMode",
-		Canonicalizer:        stringCanonicalizer,
-		Validator: func(cv interface{}) (bool, error) {
+		ParamSetFieldName: "GovernanceMode",
+		Canonicalizer:     stringCanonicalizer,
+		FormatChecker: func(cv interface{}) bool {
 			switch v := cv.(type) {
 			case string:
 				if v == "none" || v == "single" || v == "ballot" {
-					return true, nil
+					return true
 				}
 			}
-			return false, errors.New("invalid governance mode")
+			return false
 		},
-		DefaultValue: defaultGovernanceMode,
-		Forbidden:    false,
+		DefaultValue:  defaultGovernanceMode,
+		VoteForbidden: true,
 	},
 	"governance.governingnode": {
-		GovParamSetFieldName: "GoverningNode",
-		Canonicalizer:        addressCanonicalizer,
-		Validator:            nil,
-		DefaultValue:         defaultGoverningNode,
-		Forbidden:            false,
+		ParamSetFieldName: "GoverningNode",
+		Canonicalizer:     addressCanonicalizer,
+		FormatChecker:     nil,
+		DefaultValue:      defaultGoverningNode,
+		VoteForbidden:     false,
 	},
 	"governance.govparamcontract": {
-		GovParamSetFieldName: "GovParamContract",
-		Canonicalizer:        addressCanonicalizer,
-		Validator:            nil,
-		DefaultValue:         defaultGovParamContract,
-		Forbidden:            false,
+		ParamSetFieldName: "GovParamContract",
+		Canonicalizer:     addressCanonicalizer,
+		FormatChecker:     nil,
+		DefaultValue:      defaultGovParamContract,
+		VoteForbidden:     false,
 	},
 	"istanbul.committeesize": {
-		GovParamSetFieldName: "CommitteeSize",
-		Canonicalizer:        uint64Canonicalizer,
-		Validator:            nil,
-		DefaultValue:         defaultCommitteeSize,
-		Forbidden:            false,
+		ParamSetFieldName: "CommitteeSize",
+		Canonicalizer:     uint64Canonicalizer,
+		FormatChecker:     nil,
+		DefaultValue:      defaultCommitteeSize,
+		VoteForbidden:     false,
 	},
 	"istanbul.policy": {
-		GovParamSetFieldName: "ProposerPolicy",
-		Canonicalizer:        uint64Canonicalizer,
-		Validator: func(cv interface{}) (bool, error) {
+		ParamSetFieldName: "ProposerPolicy",
+		Canonicalizer:     uint64Canonicalizer,
+		FormatChecker: func(cv interface{}) bool {
 			v, ok := cv.(uint64)
 			if !ok {
-				return false, errors.New("invalid type")
+				return false
 			}
-			return v < ProposerPolicy_End, nil
+			return v <= 2
 		},
-		DefaultValue: defaultProposerPolicy,
-		Forbidden:    false,
+		DefaultValue:  defaultProposerPolicy,
+		VoteForbidden: true,
 	},
 	"istanbul.epoch": {
-		GovParamSetFieldName: "Epoch",
-		Canonicalizer:        uint64Canonicalizer,
-		Validator:            nil,
-		DefaultValue:         defaultEpoch,
-		Forbidden:            false,
+		ParamSetFieldName: "Epoch",
+		Canonicalizer:     uint64Canonicalizer,
+		FormatChecker:     nil,
+		DefaultValue:      defaultEpoch,
+		VoteForbidden:     true,
 	},
 	"reward.ratio": {
-		GovParamSetFieldName: "Ratio",
-		Canonicalizer:        stringCanonicalizer,
-		Validator: func(cv interface{}) (bool, error) {
+		ParamSetFieldName: "Ratio",
+		Canonicalizer:     stringCanonicalizer,
+		FormatChecker: func(cv interface{}) bool {
 			v, ok := cv.(string)
 			if !ok {
-				return false, errors.New("invalid type")
+				return false
 			}
 			parts := strings.Split(v, "/")
 			if len(parts) != 3 {
-				return false, errors.New("invalid format: must be a/b/c")
+				return false
 			}
 			sum := 0
 			for _, part := range parts {
 				num, err := strconv.Atoi(part)
 				if err != nil {
-					return false, errors.New("invalid number in ratio")
+					return false
 				}
 				if num < 0 {
-					return false, errors.New("negative numbers not allowed in ratio")
+					return false
 				}
 				sum += num
 			}
-			if sum != 100 {
-				return false, errors.New("sum of ratio parts must equal 100")
-			}
-			return true, nil
+
+			return sum == 100
 		},
-		DefaultValue: defaultRatio,
-		Forbidden:    false,
+		DefaultValue:  defaultRatio,
+		VoteForbidden: false,
 	},
 	"reward.kip82ratio": {
-		GovParamSetFieldName: "Kip82Ratio",
-		Canonicalizer:        stringCanonicalizer,
-		Validator: func(cv interface{}) (bool, error) {
+		ParamSetFieldName: "Kip82Ratio",
+		Canonicalizer:     stringCanonicalizer,
+		FormatChecker: func(cv interface{}) bool {
 			v, ok := cv.(string)
 			if !ok {
-				return false, errors.New("invalid type")
+				return false
 			}
 			parts := strings.Split(v, "/")
 			if len(parts) != 2 {
-				return false, errors.New("invalid format: must be a/b")
+				return false
 			}
 			sum := 0
 			for _, part := range parts {
 				num, err := strconv.Atoi(part)
 				if err != nil {
-					return false, errors.New("invalid number in ratio")
+					return false
 				}
 				if num < 0 {
-					return false, errors.New("negative numbers not allowed in ratio")
+					return false
 				}
 				sum += num
 			}
-			if sum != 100 {
-				return false, errors.New("sum of ratio parts must equal 100")
-			}
-			return true, nil
+
+			return sum == 100
 		},
-		DefaultValue: defaultKip82Ratio,
-		Forbidden:    false,
+		DefaultValue:  defaultKip82Ratio,
+		VoteForbidden: false,
 	},
 	"reward.stakingupdateinterval": {
-		GovParamSetFieldName: "StakeUpdateInterval",
-		Canonicalizer:        uint64Canonicalizer,
-		Validator:            nil,
-		DefaultValue:         defaultStakeUpdateInterval,
-		Forbidden:            false,
+		ParamSetFieldName: "StakeUpdateInterval",
+		Canonicalizer:     uint64Canonicalizer,
+		FormatChecker:     nil,
+		DefaultValue:      defaultStakeUpdateInterval,
+		VoteForbidden:     true,
 	},
 	"reward.proposerupdateinterval": {
-		GovParamSetFieldName: "ProposerRefreshInterval",
-		Canonicalizer:        uint64Canonicalizer,
-		Validator:            nil,
-		DefaultValue:         defaultProposerRefreshInterval,
-		Forbidden:            false,
+		ParamSetFieldName: "ProposerUpdateInterval",
+		Canonicalizer:     uint64Canonicalizer,
+		FormatChecker:     nil,
+		DefaultValue:      defaultProposerUpdateInterval,
+		VoteForbidden:     true,
 	},
 	"reward.mintingamount": {
-		GovParamSetFieldName: "MintingAmount",
-		Canonicalizer:        bigIntCanonicalizer,
-		Validator:            nil,
-		DefaultValue:         defaultMintingAmount,
-		Forbidden:            false,
+		ParamSetFieldName: "MintingAmount",
+		Canonicalizer:     bigIntCanonicalizer,
+		FormatChecker:     nil,
+		DefaultValue:      defaultMintingAmount,
+		VoteForbidden:     false,
 	},
 	"reward.minimumstake": {
-		GovParamSetFieldName: "MinimumStake",
-		Canonicalizer:        bigIntCanonicalizer,
-		Validator:            nil,
-		DefaultValue:         defaultMinimumStake,
-		Forbidden:            false,
+		ParamSetFieldName: "MinimumStake",
+		Canonicalizer:     bigIntCanonicalizer,
+		FormatChecker:     nil,
+		DefaultValue:      defaultMinimumStake,
+		VoteForbidden:     true,
 	},
 	"reward.useginicoeff": {
-		GovParamSetFieldName: "UseGiniCoeff",
-		Canonicalizer:        boolCanonicalizer,
-		Validator:            nil,
-		DefaultValue:         defaultUseGiniCoeff,
-		Forbidden:            false,
+		ParamSetFieldName: "UseGiniCoeff",
+		Canonicalizer:     boolCanonicalizer,
+		FormatChecker:     nil,
+		DefaultValue:      defaultUseGiniCoeff,
+		VoteForbidden:     true,
 	},
 	"reward.deferredtxfee": {
-		GovParamSetFieldName: "DeferredTxFee",
-		Canonicalizer:        boolCanonicalizer,
-		Validator:            nil,
-		DefaultValue:         defaultDeferredTxFee,
-		Forbidden:            false,
+		ParamSetFieldName: "DeferredTxFee",
+		Canonicalizer:     boolCanonicalizer,
+		FormatChecker:     nil,
+		DefaultValue:      defaultDeferredTxFee,
+		VoteForbidden:     true,
 	},
 	"kip71.lowerboundbasefee": {
-		GovParamSetFieldName: "LowerBoundBaseFee",
-		Canonicalizer:        uint64Canonicalizer,
-		Validator:            nil, // TODO: validate if lower bound is less than upper bound. or validate in vote API.
-		DefaultValue:         defaultLowerBoundBaseFee,
-		Forbidden:            false,
+		ParamSetFieldName: "LowerBoundBaseFee",
+		Canonicalizer:     uint64Canonicalizer,
+		FormatChecker:     nil, // TODO: validate if lower bound is less than upper bound. or validate in vote API.
+		DefaultValue:      defaultLowerBoundBaseFee,
+		VoteForbidden:     false,
 	},
 	"kip71.upperboundbasefee": {
-		GovParamSetFieldName: "UpperBoundBaseFee",
-		Canonicalizer:        uint64Canonicalizer,
-		Validator:            nil, // TODO: validate if upper bound is greater than lower bound. or validate in vote API.
-		DefaultValue:         defaultUpperBoundBaseFee,
-		Forbidden:            false,
+		ParamSetFieldName: "UpperBoundBaseFee",
+		Canonicalizer:     uint64Canonicalizer,
+		FormatChecker:     nil, // TODO: validate if upper bound is greater than lower bound. or validate in vote API.
+		DefaultValue:      defaultUpperBoundBaseFee,
+		VoteForbidden:     false,
 	},
 	"kip71.gastarget": {
-		GovParamSetFieldName: "GasTarget",
-		Canonicalizer:        uint64Canonicalizer,
-		Validator:            nil,
-		DefaultValue:         defaultGasTarget,
-		Forbidden:            false,
+		ParamSetFieldName: "GasTarget",
+		Canonicalizer:     uint64Canonicalizer,
+		FormatChecker:     nil,
+		DefaultValue:      defaultGasTarget,
+		VoteForbidden:     false,
 	},
 	"kip71.maxblockgasusedforbasefee": {
-		GovParamSetFieldName: "MaxBlockGasUsedForBaseFee",
-		Canonicalizer:        uint64Canonicalizer,
-		Validator:            nil,
-		DefaultValue:         defaultMaxBlockGasUsedForBaseFee,
-		Forbidden:            false,
+		ParamSetFieldName: "MaxBlockGasUsedForBaseFee",
+		Canonicalizer:     uint64Canonicalizer,
+		FormatChecker:     nil,
+		DefaultValue:      defaultMaxBlockGasUsedForBaseFee,
+		VoteForbidden:     false,
 	},
 	"kip71.basefeedenominator": {
-		GovParamSetFieldName: "BaseFeeDenominator",
-		Canonicalizer:        uint64Canonicalizer,
-		Validator:            nil,
-		DefaultValue:         defaultBaseFeeDenominator,
-		Forbidden:            false,
+		ParamSetFieldName: "BaseFeeDenominator",
+		Canonicalizer:     uint64Canonicalizer,
+		FormatChecker:     nil,
+		DefaultValue:      defaultBaseFeeDenominator,
+		VoteForbidden:     false,
 	},
 	"governance.deriveshaimpl": {
-		GovParamSetFieldName: "DeriveShaImpl",
-		Canonicalizer:        uint64Canonicalizer,
-		Validator: func(cv interface{}) (bool, error) {
+		ParamSetFieldName: "DeriveShaImpl",
+		Canonicalizer:     uint64Canonicalizer,
+		FormatChecker: func(cv interface{}) bool {
 			v, ok := cv.(uint64)
 			if !ok {
-				return false, errors.New("invalid type")
+				return false
 			}
-			return v <= 2, nil
+			return v <= 2
 		},
-		DefaultValue: defaultDeriveShaImpl,
-		Forbidden:    false,
+		DefaultValue:  defaultDeriveShaImpl,
+		VoteForbidden: false,
 	},
 	"governance.unitprice": {
-		GovParamSetFieldName: "UnitPrice",
-		Canonicalizer:        uint64Canonicalizer,
-		Validator:            nil,
-		DefaultValue:         defaultUnitPrice,
-		Forbidden:            false,
-	},
-	"governance.addvalidator": {
-		Canonicalizer: addressArrayCanonicalizer,
-		Validator:     nil,
-		DefaultValue:  defaultUnitPrice,
-		Forbidden:     false,
-	},
-	"governance.removevalidator": {
-		Canonicalizer: addressArrayCanonicalizer,
-		Validator:     nil, // TODO: validate if addresses are validators. or validate in vote API.
-		DefaultValue:  defaultUnitPrice,
-		Forbidden:     false,
+		ParamSetFieldName: "UnitPrice",
+		Canonicalizer:     uint64Canonicalizer,
+		FormatChecker:     nil,
+		DefaultValue:      defaultUnitPrice,
+		VoteForbidden:     false,
 	},
 }
 
@@ -356,12 +353,12 @@ var (
 	defaultDeferredTxFee             = false
 	defaultMinimumStake              = big.NewInt(2000000)
 	defaultStakeUpdateInterval       = uint64(86400) // 1 day
-	defaultProposerRefreshInterval   = uint64(3600)  // 1 hour
+	defaultProposerUpdateInterval    = uint64(3600)  // 1 hour
 	defaultDeriveShaImpl             = uint64(0)     // Orig
 )
 
-func GetDefaultGovernanceParam() *GovParamSet {
-	return &GovParamSet{
+func GetDefaultGovernanceParam() *ParamSet {
+	return &ParamSet{
 		GovernanceMode:            defaultGovernanceMode,
 		GoverningNode:             defaultGoverningNode,
 		GovParamContract:          defaultGovParamContract,
@@ -371,7 +368,7 @@ func GetDefaultGovernanceParam() *GovParamSet {
 		Ratio:                     defaultRatio,
 		Kip82Ratio:                defaultKip82Ratio,
 		StakeUpdateInterval:       defaultStakeUpdateInterval,
-		ProposerRefreshInterval:   defaultProposerRefreshInterval,
+		ProposerUpdateInterval:    defaultProposerUpdateInterval,
 		MintingAmount:             defaultMintingAmount,
 		MinimumStake:              defaultMinimumStake,
 		UseGiniCoeff:              defaultUseGiniCoeff,

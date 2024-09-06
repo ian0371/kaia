@@ -51,11 +51,16 @@ func (h *HeaderGovModule) HandleGov(blockNum uint64, gov *GovData) error {
 	// merge gov based on latest effective params.
 	gp, err := h.EffectiveParams(blockNum)
 	if err != nil {
-		logger.Error("kaiax.HandleGov error", "blockNum", blockNum, "gov", *gov, "err", err)
+		logger.Error("kaiax.HandleGov error fetching EffectiveParams", "blockNum", blockNum, "gov", *gov, "err", err)
 		return err
 	}
 
-	gp.SetFromGovernanceData(gov)
+	err = gp.SetFromGovernanceData(gov)
+	if err != nil {
+		logger.Error("kaiax.HandleGov error setting paramset", "blockNum", blockNum, "gov", *gov, "err", err, "gp", gp)
+		return err
+	}
+
 	var data StoredUint64Array = h.cache.GovBlockNums()
 	WriteGovDataBlockNums(h.ChainKv, &data)
 	return nil

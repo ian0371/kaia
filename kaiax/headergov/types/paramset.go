@@ -52,10 +52,6 @@ func (p *ParamSet) Set(key string, cv interface{}) error {
 	return nil
 }
 
-func (p *ParamSet) SetFromVoteData(v *voteData) error {
-	return p.Set(v.name, v.value)
-}
-
 func (p *ParamSet) SetFromGovernanceData(g *GovData) error {
 	for name, value := range g.Params {
 		err := p.Set(name, value)

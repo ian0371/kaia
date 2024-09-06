@@ -38,7 +38,7 @@ func newHeaderGovAPI(s *HeaderGovModule) *headerGovAPI {
 	return &headerGovAPI{s}
 }
 
-func (api *headerGovAPI) Vote(key string, val interface{}) (string, error) {
+func (api *headerGovAPI) Vote(name string, value interface{}) (string, error) {
 	blockNumber := api.h.Chain.CurrentBlock().NumberU64()
 	gp, err := api.h.EffectiveParams(blockNumber + 1)
 	if err != nil {
@@ -50,39 +50,19 @@ func (api *headerGovAPI) Vote(key string, val interface{}) (string, error) {
 		return "", errPermissionDenied
 	}
 
-	// TODO: add string handler
-	if _, ok := val.(float64); ok {
-		val = uint64(val.(float64))
+	vote := NewVoteData(api.h.NodeAddress, name, value)
+	if vote == nil {
+		return "", errInvalidKeyValue
 	}
 
-	err = api.h.VerifyVote(&VoteData{
-		Voter: api.h.NodeAddress,
-		Name:  key,
-		Value: val,
-	})
+	err = api.h.VerifyVote(vote)
 	if err != nil {
 		return "", err
 	}
 
-	// TODO: check if val is in the validator set for addval, removeval
-	if key == "governance.removevalidator" {
-		if val.(common.Address) == api.h.NodeAddress {
-			return "", errRemoveSelf
-		}
-	}
+	// TODO-kaiax: add removevalidator vote check
 
-	if key == "kip71.lowerboundbasefee" {
-		if val.(uint64) > gp.UpperBoundBaseFee {
-			return "", errInvalidLowerBound
-		}
-	}
-	if key == "kip71.upperboundbasefee" {
-		if val.(uint64) < gp.LowerBoundBaseFee {
-			return "", errInvalidUpperBound
-		}
-	}
-
-	api.h.PushMyVotes(VoteData{Voter: api.h.NodeAddress, Name: key, Value: val})
+	api.h.PushMyVotes(*vote)
 	return "(kaiax) Your vote is prepared. It will be put into the block header or applied when your node generates a block as a proposer. Note that your vote may be duplicate.", nil
 }
 

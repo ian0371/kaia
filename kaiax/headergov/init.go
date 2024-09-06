@@ -27,6 +27,9 @@ type History = headergov_types.History
 type ParamSet = headergov_types.ParamSet
 type HeaderCache = headergov_types.HeaderCache
 
+var NewVoteData = headergov_types.NewVoteData
+var Params = headergov_types.Params
+
 type chain interface {
 	GetHeaderByNumber(number uint64) *types.Header
 	CurrentBlock() *types.Block

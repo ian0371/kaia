@@ -72,6 +72,8 @@ func bigIntCanonicalizer(v interface{}) (interface{}, error) {
 			return nil, errors.New("could not canonicalize string to big.Int")
 		}
 		return cv, nil
+	case *big.Int:
+		return v, nil
 	}
 	return nil, errors.New("could not canonicalize value to big.Int")
 }
@@ -79,33 +81,15 @@ func bigIntCanonicalizer(v interface{}) (interface{}, error) {
 func boolCanonicalizer(v interface{}) (interface{}, error) {
 	switch v := v.(type) {
 	case []byte:
-		if bytes.Compare(v, []byte{0x01}) == 0 {
+		if bytes.Equal(v, []byte{0x01}) {
 			return true, nil
-		} else if bytes.Compare(v, []byte{0x00}) == 0 {
+		} else if bytes.Equal(v, []byte{0x00}) {
 			return false, nil
 		} else {
 			return nil, errors.New("invalid type")
 		}
 	case bool:
 		return v, nil
-	}
-	return nil, errors.New("invalid type")
-}
-
-func addressArrayCanonicalizer(v interface{}) (interface{}, error) {
-	switch v := v.(type) {
-	case []byte:
-		// Handle single address or multiple addresses joined by comma
-		addresses := strings.Split(string(v), ",")
-		var result []common.Address
-		for _, addr := range addresses {
-			trimmedAddr := strings.TrimSpace(addr)
-			if !common.IsHexAddress(trimmedAddr) {
-				return nil, errors.New("invalid address format")
-			}
-			result = append(result, common.HexToAddress(trimmedAddr))
-		}
-		return result, nil
 	}
 	return nil, errors.New("invalid type")
 }
@@ -123,28 +107,36 @@ var Params = map[string]Param{
 			}
 			return false
 		},
-		DefaultValue:  defaultGovernanceMode,
+		DefaultValue:  "none",
 		VoteForbidden: true,
 	},
 	"governance.governingnode": {
 		ParamSetFieldName: "GoverningNode",
 		Canonicalizer:     addressCanonicalizer,
-		FormatChecker:     nil,
-		DefaultValue:      defaultGoverningNode,
-		VoteForbidden:     false,
+		FormatChecker: func(cv interface{}) bool {
+			addr, ok := cv.(common.Address)
+			return ok && addr != common.Address{}
+		},
+		DefaultValue:  common.HexToAddress("0x0000000000000000000000000000000000000000"),
+		VoteForbidden: false,
 	},
 	"governance.govparamcontract": {
 		ParamSetFieldName: "GovParamContract",
 		Canonicalizer:     addressCanonicalizer,
-		FormatChecker:     nil,
-		DefaultValue:      defaultGovParamContract,
-		VoteForbidden:     false,
+		FormatChecker: func(cv interface{}) bool {
+			if addr, ok := cv.(common.Address); ok {
+				return addr != common.Address{}
+			}
+			return false
+		},
+		DefaultValue:  common.HexToAddress("0x0000000000000000000000000000000000000000"),
+		VoteForbidden: false,
 	},
 	"istanbul.committeesize": {
 		ParamSetFieldName: "CommitteeSize",
 		Canonicalizer:     uint64Canonicalizer,
 		FormatChecker:     nil,
-		DefaultValue:      defaultCommitteeSize,
+		DefaultValue:      uint64(21),
 		VoteForbidden:     false,
 	},
 	"istanbul.policy": {
@@ -157,14 +149,14 @@ var Params = map[string]Param{
 			}
 			return v <= 2
 		},
-		DefaultValue:  defaultProposerPolicy,
+		DefaultValue:  uint64(RoundRobin),
 		VoteForbidden: true,
 	},
 	"istanbul.epoch": {
 		ParamSetFieldName: "Epoch",
 		Canonicalizer:     uint64Canonicalizer,
 		FormatChecker:     nil,
-		DefaultValue:      defaultEpoch,
+		DefaultValue:      uint64(604800),
 		VoteForbidden:     true,
 	},
 	"reward.ratio": {
@@ -193,7 +185,7 @@ var Params = map[string]Param{
 
 			return sum == 100
 		},
-		DefaultValue:  defaultRatio,
+		DefaultValue:  "100/0/0",
 		VoteForbidden: false,
 	},
 	"reward.kip82ratio": {
@@ -222,85 +214,88 @@ var Params = map[string]Param{
 
 			return sum == 100
 		},
-		DefaultValue:  defaultKip82Ratio,
+		DefaultValue:  "20/80",
 		VoteForbidden: false,
 	},
 	"reward.stakingupdateinterval": {
-		ParamSetFieldName: "StakeUpdateInterval",
+		ParamSetFieldName: "StakingUpdateInterval",
 		Canonicalizer:     uint64Canonicalizer,
 		FormatChecker:     nil,
-		DefaultValue:      defaultStakeUpdateInterval,
+		DefaultValue:      uint64(86400),
 		VoteForbidden:     true,
 	},
 	"reward.proposerupdateinterval": {
 		ParamSetFieldName: "ProposerUpdateInterval",
 		Canonicalizer:     uint64Canonicalizer,
 		FormatChecker:     nil,
-		DefaultValue:      defaultProposerUpdateInterval,
+		DefaultValue:      uint64(3600),
 		VoteForbidden:     true,
 	},
 	"reward.mintingamount": {
 		ParamSetFieldName: "MintingAmount",
 		Canonicalizer:     bigIntCanonicalizer,
 		FormatChecker:     nil,
-		DefaultValue:      defaultMintingAmount,
+		DefaultValue:      big.NewInt(0),
 		VoteForbidden:     false,
 	},
 	"reward.minimumstake": {
 		ParamSetFieldName: "MinimumStake",
 		Canonicalizer:     bigIntCanonicalizer,
 		FormatChecker:     nil,
-		DefaultValue:      defaultMinimumStake,
+		DefaultValue:      big.NewInt(2000000),
 		VoteForbidden:     true,
 	},
 	"reward.useginicoeff": {
 		ParamSetFieldName: "UseGiniCoeff",
 		Canonicalizer:     boolCanonicalizer,
 		FormatChecker:     nil,
-		DefaultValue:      defaultUseGiniCoeff,
+		DefaultValue:      false,
 		VoteForbidden:     true,
 	},
 	"reward.deferredtxfee": {
 		ParamSetFieldName: "DeferredTxFee",
 		Canonicalizer:     boolCanonicalizer,
 		FormatChecker:     nil,
-		DefaultValue:      defaultDeferredTxFee,
+		DefaultValue:      false,
 		VoteForbidden:     true,
 	},
 	"kip71.lowerboundbasefee": {
 		ParamSetFieldName: "LowerBoundBaseFee",
 		Canonicalizer:     uint64Canonicalizer,
-		FormatChecker:     nil, // TODO: validate if lower bound is less than upper bound. or validate in vote API.
-		DefaultValue:      defaultLowerBoundBaseFee,
+		FormatChecker:     nil,
+		DefaultValue:      uint64(25000000000),
 		VoteForbidden:     false,
 	},
 	"kip71.upperboundbasefee": {
 		ParamSetFieldName: "UpperBoundBaseFee",
 		Canonicalizer:     uint64Canonicalizer,
-		FormatChecker:     nil, // TODO: validate if upper bound is greater than lower bound. or validate in vote API.
-		DefaultValue:      defaultUpperBoundBaseFee,
+		FormatChecker:     nil,
+		DefaultValue:      uint64(750000000000),
 		VoteForbidden:     false,
 	},
 	"kip71.gastarget": {
 		ParamSetFieldName: "GasTarget",
 		Canonicalizer:     uint64Canonicalizer,
 		FormatChecker:     nil,
-		DefaultValue:      defaultGasTarget,
+		DefaultValue:      uint64(30000000),
 		VoteForbidden:     false,
 	},
 	"kip71.maxblockgasusedforbasefee": {
 		ParamSetFieldName: "MaxBlockGasUsedForBaseFee",
 		Canonicalizer:     uint64Canonicalizer,
 		FormatChecker:     nil,
-		DefaultValue:      defaultMaxBlockGasUsedForBaseFee,
+		DefaultValue:      uint64(60000000),
 		VoteForbidden:     false,
 	},
 	"kip71.basefeedenominator": {
 		ParamSetFieldName: "BaseFeeDenominator",
 		Canonicalizer:     uint64Canonicalizer,
-		FormatChecker:     nil,
-		DefaultValue:      defaultBaseFeeDenominator,
-		VoteForbidden:     false,
+		FormatChecker: func(cv interface{}) bool {
+			v, ok := cv.(uint64)
+			return ok && v != 0
+		},
+		DefaultValue:  uint64(20),
+		VoteForbidden: false,
 	},
 	"governance.deriveshaimpl": {
 		ParamSetFieldName: "DeriveShaImpl",
@@ -312,14 +307,14 @@ var Params = map[string]Param{
 			}
 			return v <= 2
 		},
-		DefaultValue:  defaultDeriveShaImpl,
+		DefaultValue:  uint64(0),
 		VoteForbidden: false,
 	},
 	"governance.unitprice": {
 		ParamSetFieldName: "UnitPrice",
 		Canonicalizer:     uint64Canonicalizer,
 		FormatChecker:     nil,
-		DefaultValue:      defaultUnitPrice,
+		DefaultValue:      uint64(250000000000),
 		VoteForbidden:     false,
 	},
 }
@@ -332,53 +327,11 @@ const (
 	ProposerPolicy_End
 )
 
-var (
-	// Default Values: Constants used for getting default values for configuration
-	defaultGovernanceMode            = "none"
-	defaultGoverningNode             = common.HexToAddress("0x0000000000000000000000000000000000000000")
-	defaultGovParamContract          = common.HexToAddress("0x0000000000000000000000000000000000000000")
-	defaultEpoch                     = uint64(604800)
-	defaultProposerPolicy            = uint64(RoundRobin)
-	defaultCommitteeSize             = uint64(21)
-	defaultUnitPrice                 = uint64(250000000000)
-	defaultLowerBoundBaseFee         = uint64(25000000000)
-	defaultUpperBoundBaseFee         = uint64(750000000000)
-	defaultGasTarget                 = uint64(30000000)
-	defaultMaxBlockGasUsedForBaseFee = uint64(60000000)
-	defaultBaseFeeDenominator        = uint64(20)
-	defaultMintingAmount             = big.NewInt(0)
-	defaultRatio                     = "100/0/0"
-	defaultKip82Ratio                = "20/80"
-	defaultUseGiniCoeff              = false
-	defaultDeferredTxFee             = false
-	defaultMinimumStake              = big.NewInt(2000000)
-	defaultStakeUpdateInterval       = uint64(86400) // 1 day
-	defaultProposerUpdateInterval    = uint64(3600)  // 1 hour
-	defaultDeriveShaImpl             = uint64(0)     // Orig
-)
-
 func GetDefaultGovernanceParam() *ParamSet {
-	return &ParamSet{
-		GovernanceMode:            defaultGovernanceMode,
-		GoverningNode:             defaultGoverningNode,
-		GovParamContract:          defaultGovParamContract,
-		CommitteeSize:             defaultCommitteeSize,
-		ProposerPolicy:            defaultProposerPolicy,
-		Epoch:                     defaultEpoch,
-		Ratio:                     defaultRatio,
-		Kip82Ratio:                defaultKip82Ratio,
-		StakeUpdateInterval:       defaultStakeUpdateInterval,
-		ProposerUpdateInterval:    defaultProposerUpdateInterval,
-		MintingAmount:             defaultMintingAmount,
-		MinimumStake:              defaultMinimumStake,
-		UseGiniCoeff:              defaultUseGiniCoeff,
-		DeferredTxFee:             defaultDeferredTxFee,
-		LowerBoundBaseFee:         defaultLowerBoundBaseFee,
-		UpperBoundBaseFee:         defaultUpperBoundBaseFee,
-		GasTarget:                 defaultGasTarget,
-		MaxBlockGasUsedForBaseFee: defaultMaxBlockGasUsedForBaseFee,
-		BaseFeeDenominator:        defaultBaseFeeDenominator,
-		DeriveShaImpl:             defaultDeriveShaImpl,
-		UnitPrice:                 defaultUnitPrice,
+	p := &ParamSet{}
+	for _, param := range Params {
+		p.Set(param.ParamSetFieldName, param.DefaultValue)
 	}
+
+	return p
 }

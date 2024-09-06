@@ -18,10 +18,10 @@ type ParamSet struct {
 	CommitteeSize, ProposerPolicy, Epoch uint64
 
 	// reward
-	Ratio, Kip82Ratio                           string
-	StakeUpdateInterval, ProposerUpdateInterval uint64
-	MintingAmount, MinimumStake                 *big.Int
-	UseGiniCoeff, DeferredTxFee                 bool
+	Ratio, Kip82Ratio                             string
+	StakingUpdateInterval, ProposerUpdateInterval uint64
+	MintingAmount, MinimumStake                   *big.Int
+	UseGiniCoeff, DeferredTxFee                   bool
 
 	// KIP-71
 	LowerBoundBaseFee, UpperBoundBaseFee, GasTarget, MaxBlockGasUsedForBaseFee, BaseFeeDenominator uint64
@@ -32,26 +32,13 @@ type ParamSet struct {
 }
 
 // TODO: add tests, compare from gov/default
-func (p *ParamSet) Set(key string, value interface{}) error {
+func (p *ParamSet) Set(key string, cv interface{}) error {
 	param, ok := Params[key]
 	if !ok {
 		return errors.New("invalid param key")
 	}
 
-	cv, err := param.Canonicalizer(value)
-	if err != nil {
-		return err
-	}
-
-	if param.FormatChecker != nil {
-		if valid := param.FormatChecker(cv); !valid {
-			return err
-		}
-	}
-
-	v := reflect.ValueOf(p).Elem()
-	field := v.FieldByName(param.ParamSetFieldName)
-
+	field := reflect.ValueOf(p).Elem().FieldByName(param.ParamSetFieldName)
 	if !field.IsValid() || !field.CanSet() {
 		return errors.New("invalid field or cannot set value")
 	}
@@ -112,7 +99,7 @@ func (p *ParamSet) Copy() *ParamSet {
 		Epoch:                     p.Epoch,
 		Ratio:                     p.Ratio,
 		Kip82Ratio:                p.Kip82Ratio,
-		StakeUpdateInterval:       p.StakeUpdateInterval,
+		StakingUpdateInterval:     p.StakingUpdateInterval,
 		ProposerUpdateInterval:    p.ProposerUpdateInterval,
 		MintingAmount:             new(big.Int).Set(p.MintingAmount),
 		MinimumStake:              new(big.Int).Set(p.MinimumStake),

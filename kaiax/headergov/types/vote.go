@@ -9,10 +9,20 @@ import (
 	"github.com/kaiachain/kaia/rlp"
 )
 
+// Always use NewVoteData (constructor) to create a new VoteData.
 type VoteData struct {
 	Voter common.Address
 	Name  string
 	Value interface{} // canonicalized value
+}
+
+func NewVoteData(voter common.Address, name string, value interface{}) *VoteData {
+	v := &VoteData{Voter: voter, Name: name, Value: value}
+	err := v.Canonicalize()
+	if err != nil {
+		return nil
+	}
+	return v
 }
 
 func (vote *VoteData) ToParamSet() (*params.GovParamSet, error) {
@@ -21,6 +31,21 @@ func (vote *VoteData) ToParamSet() (*params.GovParamSet, error) {
 	}
 
 	return params.NewGovParamSetStrMap(tmp)
+}
+
+func (vote *VoteData) Canonicalize() error {
+	param, ok := Params[vote.Name]
+	if !ok {
+		return errors.New("invalid param key")
+	}
+
+	cv, err := param.Canonicalizer(vote.Value)
+	if err != nil {
+		return err
+	}
+
+	vote.Value = cv
+	return nil
 }
 
 func (vote *VoteData) Serialize() ([]byte, error) {
@@ -53,19 +78,10 @@ func DeserializeHeaderVote(b []byte, blockNum uint64) (*VoteData, error) {
 		return nil, err
 	}
 
-	param, ok := Params[v.Key]
-	if !ok {
-		return nil, errors.New("invalid param")
+	vote := NewVoteData(v.Validator, v.Key, v.Value)
+	if vote == nil {
+		return nil, errors.New("failed to create vote data")
 	}
 
-	cv, err := param.Canonicalizer(v.Value)
-	if err != nil {
-		return nil, err
-	}
-
-	return &VoteData{
-		Voter: v.Validator,
-		Name:  v.Key,
-		Value: cv,
-	}, nil
+	return vote, nil
 }

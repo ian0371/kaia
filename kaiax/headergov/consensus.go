@@ -79,13 +79,14 @@ func (h *HeaderGovModule) FinalizeBlock(b *types.Block) (*types.Block, error) {
 	return b, nil
 }
 
-func (h *HeaderGovModule) VerifyVote(vote *VoteData) error {
+// VerifyVote takes canonical VoteData.
+func (h *HeaderGovModule) VerifyVote(canonicalVote *VoteData) error {
 	// handled by valset module.
-	if vote.Name == "governance.addvalidator" || vote.Name == "governance.removevalidator" {
+	if canonicalVote.Name == "governance.addvalidator" || canonicalVote.Name == "governance.removevalidator" {
 		return nil
 	}
 
-	param, ok := headergov_types.Params[vote.Name]
+	param, ok := headergov_types.Params[canonicalVote.Name]
 	if !ok {
 		return errors.New("invalid param key")
 	}
@@ -94,14 +95,9 @@ func (h *HeaderGovModule) VerifyVote(vote *VoteData) error {
 		return errors.New("parameter is forbidden to be changed")
 	}
 
-	cv, err := param.Canonicalizer(vote.Value)
-	if err != nil {
-		return err
-	}
-
 	if param.FormatChecker != nil {
-		if valid := param.FormatChecker(cv); !valid {
-			return err
+		if valid := param.FormatChecker(canonicalVote.Value); !valid {
+			return errors.New("invalid format")
 		}
 	}
 

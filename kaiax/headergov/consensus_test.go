@@ -7,6 +7,7 @@ import (
 
 	gomock "github.com/golang/mock/gomock"
 	"github.com/kaiachain/kaia/blockchain/types"
+	"github.com/kaiachain/kaia/common"
 	"github.com/kaiachain/kaia/governance"
 	"github.com/kaiachain/kaia/params"
 	"github.com/kaiachain/kaia/storage/database"
@@ -32,10 +33,7 @@ func TestVerifyHeader(t *testing.T) {
 		ChainConfig: config,
 	})
 	require.NoError(t, err)
-	h.HandleVote(500, &VoteData{
-		Name:  governance.GovernanceKeyMapReverse[params.UnitPrice],
-		Value: uint64(100),
-	})
+	h.HandleVote(500, NewVoteData(common.Address{1}, governance.GovernanceKeyMapReverse[params.UnitPrice], uint64(100)))
 
 	gov := GovData{
 		Params: map[string]interface{}{
@@ -91,16 +89,11 @@ func TestGetVotesInEpoch(t *testing.T) {
 		ChainConfig: config,
 	})
 	require.NoError(t, err)
-	v1 := &VoteData{
-		Name:  governance.GovernanceKeyMapReverse[params.UnitPrice],
-		Value: uint64(100),
-	}
+	v1 := NewVoteData(common.Address{1}, governance.GovernanceKeyMapReverse[params.UnitPrice], uint64(100))
 	h.HandleVote(500, v1)
-	v2 := &VoteData{
-		Name:  governance.GovernanceKeyMapReverse[params.UnitPrice],
-		Value: uint64(200),
-	}
+	v2 := NewVoteData(common.Address{2}, governance.GovernanceKeyMapReverse[params.UnitPrice], uint64(200))
 	h.HandleVote(1500, v2)
+
 	assert.Equal(t, []VoteData{*v1}, h.getVotesInEpoch(0))
 	assert.Equal(t, []VoteData{*v2}, h.getVotesInEpoch(1))
 }
@@ -123,15 +116,9 @@ func TestGetExpectedGovernance(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	v1 := &VoteData{
-		Name:  governance.GovernanceKeyMapReverse[params.UnitPrice],
-		Value: uint64(100),
-	}
+	v1 := NewVoteData(common.Address{1}, governance.GovernanceKeyMapReverse[params.UnitPrice], uint64(100))
 	h.HandleVote(500, v1)
-	v2 := &VoteData{
-		Name:  governance.GovernanceKeyMapReverse[params.UnitPrice],
-		Value: uint64(200),
-	}
+	v2 := NewVoteData(common.Address{2}, governance.GovernanceKeyMapReverse[params.UnitPrice], uint64(200))
 	h.HandleVote(1500, v2)
 
 	g1 := &GovData{

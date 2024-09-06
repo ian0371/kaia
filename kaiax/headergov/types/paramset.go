@@ -79,6 +79,7 @@ func (p *ParamSet) ToJSON() (string, error) {
 	return string(j), nil
 }
 
+// ToStrMap is used for test and getParams API.
 func (p *ParamSet) ToStrMap() (map[string]interface{}, error) {
 	ret := make(map[string]interface{})
 

@@ -12,6 +12,29 @@ import (
 
 var _ VoteData = (*voteData)(nil)
 
+func TestNewVote(t *testing.T) {
+	tcs := []struct {
+		name  string
+		value interface{}
+	}{
+		{name: "governance.governingnode", value: "0xc0cbe1c770fbce1eb7786bfba1ac2115d5c0a456"},
+		{name: "governance.governingnode", value: common.HexToAddress("0xc0cbe1c770fbce1eb7786bfba1ac2115d5c0a456")},
+		{name: "reward.mintingamount", value: "9600000000000000000"},
+		{name: "reward.mintingamount", value: new(big.Int).SetUint64(9.6e18)},
+		{name: "governance.unitprice", value: float64(25e9)},
+		{name: "governance.unitprice", value: uint64(25e9)},
+		{name: "reward.ratio", value: "50/25/25"},
+		{name: "kip71.gastarget", value: uint64(15000000)},
+	}
+
+	for _, tc := range tcs {
+		t.Run(tc.name, func(t *testing.T) {
+			vote := NewVoteData(common.Address{}, tc.name, tc.value)
+			assert.NotNil(t, vote)
+		})
+	}
+}
+
 func TestHeaderVoteSerialization(t *testing.T) {
 	v1 := common.HexToAddress("0x52d41ca72af615a1ac3301b0a93efa222ecc7541")
 	v2 := common.HexToAddress("0xc0cbe1c770fbce1eb7786bfba1ac2115d5c0a456")

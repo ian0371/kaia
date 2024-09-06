@@ -64,7 +64,7 @@ func TestReadGovVoteBlockNumsFromDB(t *testing.T) {
 	}
 	WriteVoteDataBlockNums(db, &voteDataBlockNums)
 
-	assert.Equal(t, votes, readGovVoteDataFromDB(chain, db))
+	assert.Equal(t, votes, readVoteDataFromDB(chain, db))
 }
 
 func TestReadGovDataFromDB(t *testing.T) {

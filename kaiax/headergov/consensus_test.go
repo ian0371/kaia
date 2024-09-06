@@ -5,14 +5,11 @@ import (
 	"math/big"
 	"testing"
 
-	gomock "github.com/golang/mock/gomock"
 	"github.com/kaiachain/kaia/blockchain/types"
 	"github.com/kaiachain/kaia/common"
 	"github.com/kaiachain/kaia/governance"
 	"github.com/kaiachain/kaia/log"
 	"github.com/kaiachain/kaia/params"
-	"github.com/kaiachain/kaia/storage/database"
-	"github.com/kaiachain/kaia/work/mocks"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -68,21 +65,11 @@ func TestVerifyHeader(t *testing.T) {
 }
 
 func TestGetVotesInEpoch(t *testing.T) {
-	mockCtrl := gomock.NewController(t)
-	chain := mocks.NewMockBlockChain(mockCtrl)
-	db := database.NewMemDB()
-	config := &params.ChainConfig{
+	h := newHeaderGovModule(t, &params.ChainConfig{
 		Istanbul: &params.IstanbulConfig{
 			Epoch: 1000,
 		},
-	}
-	h := &HeaderGovModule{}
-	err := h.Init(&InitOpts{
-		Chain:       chain,
-		ChainKv:     db,
-		ChainConfig: config,
 	})
-	require.NoError(t, err)
 
 	v1 := NewVoteData(common.Address{1}, "governance.unitprice", uint64(100))
 	h.HandleVote(500, v1)

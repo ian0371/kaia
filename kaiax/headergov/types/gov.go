@@ -8,13 +8,39 @@ import (
 	"github.com/kaiachain/kaia/rlp"
 )
 
-type GovData struct {
-	Params map[string]interface{} // canonicalized value
+type GovData interface {
+	Items() map[string]interface{}
+	Serialize() ([]byte, error)
 }
 
-func (g *GovData) MarshalJSON() ([]byte, error) {
+var _ GovData = (*govData)(nil)
+
+type govData struct {
+	items map[string]interface{}
+}
+
+func NewGovData(m map[string]interface{}) GovData {
+	items := make(map[string]interface{})
+	for name, value := range m {
+		param, ok := Params[name]
+		if !ok {
+			return nil
+		}
+
+		cv, err := param.Canonicalizer(value)
+		if err != nil {
+			return nil
+		}
+		items[name] = cv
+	}
+	return &govData{
+		items: items,
+	}
+}
+
+func (g *govData) MarshalJSON() ([]byte, error) {
 	tmp := make(map[string]interface{})
-	for name, value := range g.Params {
+	for name, value := range g.items {
 		if bigInt, ok := value.(*big.Int); ok {
 			tmp[name] = bigInt.String()
 		} else {
@@ -25,7 +51,11 @@ func (g *GovData) MarshalJSON() ([]byte, error) {
 	return json.Marshal(tmp)
 }
 
-func (g *GovData) Serialize() ([]byte, error) {
+func (g *govData) Items() map[string]interface{} {
+	return g.items
+}
+
+func (g *govData) Serialize() ([]byte, error) {
 	j, err := g.MarshalJSON()
 	if err != nil {
 		return nil, err
@@ -33,7 +63,7 @@ func (g *GovData) Serialize() ([]byte, error) {
 	return rlp.EncodeToBytes(j)
 }
 
-func DeserializeHeaderGov(b []byte, blockNum uint64) (*GovData, error) {
+func DeserializeHeaderGov(b []byte, blockNum uint64) (GovData, error) {
 	rlpDecoded := []byte("")
 	err := rlp.DecodeBytes(b, &rlpDecoded)
 	if err != nil {
@@ -59,7 +89,7 @@ func DeserializeHeaderGov(b []byte, blockNum uint64) (*GovData, error) {
 		ret[name] = cv
 	}
 
-	return &GovData{
-		Params: ret,
+	return &govData{
+		items: ret,
 	}, nil
 }

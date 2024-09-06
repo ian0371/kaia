@@ -6,7 +6,6 @@ import (
 	"reflect"
 
 	"github.com/kaiachain/kaia/blockchain/types"
-	headergov_types "github.com/kaiachain/kaia/kaiax/headergov/types"
 )
 
 func (h *HeaderGovModule) VerifyHeader(header *types.Header) error {
@@ -16,7 +15,7 @@ func (h *HeaderGovModule) VerifyHeader(header *types.Header) error {
 
 	// 1. Check Vote
 	if len(header.Vote) > 0 {
-		vote, err := headergov_types.DeserializeHeaderVote(header.Vote, header.Number.Uint64())
+		vote, err := DeserializeHeaderVote(header.Vote, header.Number.Uint64())
 		if err != nil {
 			logger.Error("Failed to parse vote", "num", header.Number.Uint64(), "err", err)
 			return err
@@ -39,17 +38,17 @@ func (h *HeaderGovModule) VerifyHeader(header *types.Header) error {
 		}
 	} else {
 		expected := h.getExpectedGovernance(header.Number.Uint64())
-		if len(expected.Params) == 0 && len(header.Governance) == 0 {
+		if len(expected.Items()) == 0 && len(header.Governance) == 0 {
 			return nil
 		}
 
-		actual, err := headergov_types.DeserializeHeaderGov(header.Governance, header.Number.Uint64())
+		actual, err := DeserializeHeaderGov(header.Governance, header.Number.Uint64())
 		if err != nil {
 			logger.Error("Failed to parse governance", "num", header.Number.Uint64(), "err", err)
 			return err
 		}
-		if !reflect.DeepEqual(&expected, actual) {
-			logger.Error("governance mismatch", "num", header.Number.Uint64(), "expected", &expected, "actual", actual)
+		if !reflect.DeepEqual(expected.Items(), actual.Items()) {
+			logger.Error("governance mismatch", "num", header.Number.Uint64(), "expected", expected.Items(), "actual", actual.Items())
 			return fmt.Errorf("expected governance: %v, actual: %v", &expected, actual)
 		}
 
@@ -65,7 +64,7 @@ func (h *HeaderGovModule) PrepareHeader(header *types.Header) (*types.Header, er
 
 	if header.Number.Uint64()%h.epoch == 0 {
 		gov := h.getExpectedGovernance(header.Number.Uint64())
-		if len(gov.Params) > 0 {
+		if len(gov.Items()) > 0 {
 			header.Governance, _ = gov.Serialize()
 		}
 	}
@@ -86,7 +85,7 @@ func (h *HeaderGovModule) VerifyVote(vote VoteData) error {
 		return nil
 	}
 
-	param, ok := headergov_types.Params[vote.Name()]
+	param, ok := Params[vote.Name()]
 	if !ok {
 		return errors.New("invalid param key")
 	}
@@ -104,7 +103,7 @@ func (h *HeaderGovModule) VerifyVote(vote VoteData) error {
 	return nil
 }
 
-func (h *HeaderGovModule) VerifyGov(gov *GovData) error {
+func (h *HeaderGovModule) VerifyGov(gov GovData) error {
 	gp := ParamSet{}
 	err := gp.SetFromGovernanceData(gov)
 	if err != nil {
@@ -116,16 +115,14 @@ func (h *HeaderGovModule) VerifyGov(gov *GovData) error {
 
 func (h *HeaderGovModule) getExpectedGovernance(blockNum uint64) GovData {
 	prevEpochVotes := h.getVotesInEpoch(calcEpochIdx(blockNum, h.epoch) - 1)
-	govs := GovData{
-		Params: make(map[string]interface{}),
-	}
+	govs := make(map[string]interface{})
 
 	// TODO: add tally
 	for _, vote := range prevEpochVotes {
-		govs.Params[vote.Name()] = vote.Value()
+		govs[vote.Name()] = vote.Value()
 	}
 
-	return govs
+	return NewGovData(govs)
 }
 
 func (h *HeaderGovModule) getVotesInEpoch(epochIdx uint64) map[uint64]VoteData {

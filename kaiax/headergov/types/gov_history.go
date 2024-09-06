@@ -21,7 +21,7 @@ func GetHistory(govs map[uint64]GovData) History {
 	gp := ParamSet{}
 	for _, num := range sortedNums {
 		govData := govs[num]
-		gp.SetFromGovernanceData(&govData)
+		gp.SetFromGovernanceData(govData)
 		gh[num] = gp
 	}
 	return gh

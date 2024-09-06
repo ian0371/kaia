@@ -35,11 +35,10 @@ func TestVerifyHeader(t *testing.T) {
 	require.NoError(t, err)
 	h.HandleVote(500, NewVoteData(common.Address{1}, governance.GovernanceKeyMapReverse[params.UnitPrice], uint64(100)))
 
-	gov := GovData{
-		Params: map[string]interface{}{
-			governance.GovernanceKeyMapReverse[params.UnitPrice]: uint64(100),
-		},
-	}
+	gov := NewGovData(map[string]interface{}{
+		"governance.unitprice": uint64(100),
+	})
+
 	govBytes, err := gov.Serialize()
 	require.NoError(t, err)
 
@@ -48,13 +47,14 @@ func TestVerifyHeader(t *testing.T) {
 		gov      []byte
 		isError  bool
 	}{
+		// no errors
 		{999, nil, false},
-		{999, govBytes, true},
-
-		{1000, nil, true},
 		{1000, govBytes, false},
-
 		{1001, nil, false},
+
+		// errors
+		{999, govBytes, true},
+		{1000, nil, true},
 		{1001, govBytes, true},
 	}
 
@@ -122,18 +122,14 @@ func TestGetExpectedGovernance(t *testing.T) {
 	v2 := NewVoteData(common.Address{2}, governance.GovernanceKeyMapReverse[params.UnitPrice], uint64(200))
 	h.HandleVote(1500, v2)
 
-	g1 := &GovData{
-		Params: map[string]interface{}{
-			governance.GovernanceKeyMapReverse[params.UnitPrice]: uint64(100),
-		},
-	}
+	g1 := NewGovData(map[string]interface{}{
+		"governance.unitprice": uint64(100),
+	})
 	h.HandleGov(1000, g1)
-	g2 := &GovData{
-		Params: map[string]interface{}{
-			governance.GovernanceKeyMapReverse[params.UnitPrice]: uint64(200),
-		},
-	}
+	g2 := NewGovData(map[string]interface{}{
+		"governance.unitprice": uint64(200),
+	})
 	h.HandleGov(2000, g2)
-	assert.Equal(t, *g1, h.getExpectedGovernance(1000))
-	assert.Equal(t, *g2, h.getExpectedGovernance(2000))
+	assert.Equal(t, g1, h.getExpectedGovernance(1000))
+	assert.Equal(t, g2, h.getExpectedGovernance(2000))
 }

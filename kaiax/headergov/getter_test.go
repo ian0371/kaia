@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	gomock "github.com/golang/mock/gomock"
-	"github.com/kaiachain/kaia/governance"
 	"github.com/kaiachain/kaia/log"
 	"github.com/kaiachain/kaia/params"
 	"github.com/kaiachain/kaia/storage/database"
@@ -17,18 +16,13 @@ import (
 
 func TestEffectiveParams(t *testing.T) {
 	log.EnableLogForTest(log.LvlCrit, log.LvlDebug)
-	gasPrice := governance.GovernanceKeyMapReverse[params.UnitPrice]
 	gov := map[uint64]GovData{
-		0: {
-			Params: map[string]interface{}{
-				gasPrice: uint64(25),
-			},
-		},
-		604800: {
-			Params: map[string]interface{}{
-				gasPrice: uint64(750),
-			},
-		},
+		0: NewGovData(map[string]interface{}{
+			"governance.unitprice": uint64(25),
+		}),
+		604800: NewGovData(map[string]interface{}{
+			"governance.unitprice": uint64(750),
+		}),
 	}
 
 	testCases := []struct {
@@ -65,7 +59,7 @@ func TestEffectiveParams(t *testing.T) {
 			require.NoError(t, err)
 
 			for num, g := range gov {
-				h.HandleGov(num, &g)
+				h.HandleGov(num, g)
 			}
 
 			gp, err := h.EffectiveParams(tc.blockNum)

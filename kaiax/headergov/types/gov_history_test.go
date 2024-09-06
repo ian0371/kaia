@@ -9,16 +9,12 @@ import (
 
 func TestGetHistory(t *testing.T) {
 	govs := map[uint64]GovData{
-		0: {
-			Params: map[string]interface{}{
-				"governance.unitprice": uint64(100),
-			},
-		},
-		4: {
-			Params: map[string]interface{}{
-				"governance.unitprice": uint64(200),
-			},
-		},
+		0: NewGovData(map[string]interface{}{
+			"governance.unitprice": uint64(100),
+		}),
+		4: NewGovData(map[string]interface{}{
+			"governance.unitprice": uint64(200),
+		}),
 	}
 
 	history := GetHistory(govs)
@@ -38,16 +34,12 @@ func TestSearch(t *testing.T) {
 	}
 
 	govs := map[uint64]GovData{
-		0: {
-			Params: map[string]interface{}{
-				"governance.unitprice": uint64(100),
-			},
-		},
-		4: {
-			Params: map[string]interface{}{
-				"governance.unitprice": uint64(200),
-			},
-		},
+		0: NewGovData(map[string]interface{}{
+			"governance.unitprice": uint64(100),
+		}),
+		4: NewGovData(map[string]interface{}{
+			"governance.unitprice": uint64(200),
+		}),
 	}
 
 	gh := GetHistory(govs)

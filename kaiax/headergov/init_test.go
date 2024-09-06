@@ -52,8 +52,8 @@ func TestReadGovDataFromDB(t *testing.T) {
 	WriteGovDataBlockNums(db, &StoredUint64Array{1, 2})
 
 	govs := map[uint64]GovData{
-		1: {Params: map[string]interface{}{governance.GovernanceKeyMapReverse[params.UnitPrice]: ps1.UnitPrice}},
-		2: {Params: map[string]interface{}{governance.GovernanceKeyMapReverse[params.UnitPrice]: ps2.UnitPrice}},
+		1: NewGovData(map[string]interface{}{"governance.unitprice": ps1.UnitPrice}),
+		2: NewGovData(map[string]interface{}{"governance.unitprice": ps2.UnitPrice}),
 	}
 	for num, govData := range govs {
 		headerGovData, err := govData.Serialize()

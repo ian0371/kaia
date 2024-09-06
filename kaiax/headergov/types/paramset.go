@@ -52,8 +52,8 @@ func (p *ParamSet) Set(key string, cv interface{}) error {
 	return nil
 }
 
-func (p *ParamSet) SetFromGovernanceData(g *GovData) error {
-	for name, value := range g.Params {
+func (p *ParamSet) SetFromGovernanceData(g GovData) error {
+	for name, value := range g.Items() {
 		err := p.Set(name, value)
 		if err != nil {
 			continue

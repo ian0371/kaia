@@ -28,7 +28,10 @@ type ParamSet = headergov_types.ParamSet
 type HeaderCache = headergov_types.HeaderCache
 
 var NewVoteData = headergov_types.NewVoteData
+var NewGovData = headergov_types.NewGovData
 var Params = headergov_types.Params
+var DeserializeHeaderVote = headergov_types.DeserializeHeaderVote
+var DeserializeHeaderGov = headergov_types.DeserializeHeaderGov
 
 type chain interface {
 	GetHeaderByNumber(number uint64) *types.Header
@@ -166,7 +169,7 @@ func readGovDataFromDB(chain chain, db database.Database) map[uint64]GovData {
 				panic(err)
 			}
 
-			govs[blockNum] = *parsedGov
+			govs[blockNum] = parsedGov
 		}
 	}
 

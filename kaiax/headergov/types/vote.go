@@ -24,7 +24,7 @@ type voteData struct {
 	value interface{} // canonicalized value
 }
 
-func NewVoteData(voter common.Address, name string, value interface{}) *voteData {
+func NewVoteData(voter common.Address, name string, value interface{}) VoteData {
 	v := &voteData{voter: voter, name: name, value: value}
 	err := v.Canonicalize()
 	if err != nil {
@@ -78,7 +78,7 @@ func (vote *voteData) Serialize() ([]byte, error) {
 	return rlp.EncodeToBytes(v)
 }
 
-func DeserializeHeaderVote(b []byte, blockNum uint64) (*voteData, error) {
+func DeserializeHeaderVote(b []byte, blockNum uint64) (VoteData, error) {
 	var v struct {
 		Validator common.Address
 		Key       string

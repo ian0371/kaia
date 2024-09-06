@@ -19,7 +19,7 @@ func TestHeaderVoteSerialization(t *testing.T) {
 	tcs := []struct {
 		serializedVoteData string
 		blockNum           uint64
-		voteData           *voteData
+		voteData           VoteData
 	}{
 		///// all vote datas.
 		{serializedVoteData: "0xf8439452d41ca72af615a1ac3301b0a93efa222ecc754198676f7665726e616e63652e676f7665726e696e676e6f64659452d41ca72af615a1ac3301b0a93efa222ecc7541", blockNum: 1, voteData: NewVoteData(v1, "governance.governingnode", v1)},

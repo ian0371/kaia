@@ -31,6 +31,15 @@ type ParamSet struct {
 	UnitPrice     uint64
 }
 
+func GetDefaultGovernanceParamSet() *ParamSet {
+	p := &ParamSet{}
+	for name, param := range Params {
+		p.Set(name, param.DefaultValue)
+	}
+
+	return p
+}
+
 // TODO: add tests, compare from gov/default
 func (p *ParamSet) Set(key string, cv interface{}) error {
 	param, ok := Params[key]
@@ -71,18 +80,22 @@ func (p *ParamSet) ToJSON() (string, error) {
 }
 
 func (p *ParamSet) ToStrMap() (map[string]interface{}, error) {
-	jsonStr, err := p.ToJSON()
-	if err != nil {
-		return nil, err
+	ret := make(map[string]interface{})
+
+	// Iterate through all params in Params and ensure they're in the result
+	for paramName, param := range Params {
+		field := reflect.ValueOf(p).Elem().FieldByName(param.ParamSetFieldName)
+		if field.IsValid() {
+			// Convert big.Int to string for JSON compatibility
+			if bigIntValue, ok := field.Interface().(*big.Int); ok {
+				ret[paramName] = bigIntValue.String()
+			} else {
+				ret[paramName] = field.Interface()
+			}
+		}
 	}
 
-	var result map[string]interface{}
-	err = json.Unmarshal([]byte(jsonStr), &result)
-	if err != nil {
-		return nil, err
-	}
-
-	return result, nil
+	return ret, nil
 }
 
 func (p *ParamSet) Copy() *ParamSet {

@@ -30,7 +30,7 @@ func GetHistory(govs map[uint64]GovData) History {
 func (g *History) Search(blockNum uint64) (ParamSet, error) {
 	idx := uint64(0)
 	for num := range *g {
-		if num > idx && num <= blockNum {
+		if idx < num && num <= blockNum {
 			idx = num
 		}
 	}

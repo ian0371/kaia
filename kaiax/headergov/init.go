@@ -111,7 +111,7 @@ func (s *HeaderGovModule) PopMyVotes(idx int) {
 }
 
 func readGovVoteDataFromDB(chain chain, db database.Database) map[uint64]VoteData {
-	voteBlocks := ReadGovVoteDataBlockNums(db)
+	voteBlocks := ReadVoteDataBlockNums(db)
 	votes := make(map[uint64]VoteData)
 	if voteBlocks != nil {
 		for _, blockNum := range *voteBlocks {

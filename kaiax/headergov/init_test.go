@@ -1,12 +1,13 @@
 package headergov
 
 import (
+	"math/big"
 	"testing"
 
 	gomock "github.com/golang/mock/gomock"
 	"github.com/kaiachain/kaia/blockchain/types"
 	"github.com/kaiachain/kaia/common"
-	"github.com/kaiachain/kaia/governance"
+	headergov_types "github.com/kaiachain/kaia/kaiax/headergov/types"
 	"github.com/kaiachain/kaia/params"
 	"github.com/kaiachain/kaia/storage/database"
 	"github.com/kaiachain/kaia/work/mocks"
@@ -14,11 +15,40 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+var GetDefaultGovernanceParamSet = headergov_types.GetDefaultGovernanceParamSet
+
+func newHeaderGovModule(t *testing.T, config *params.ChainConfig) *HeaderGovModule {
+	var (
+		mockCtrl = gomock.NewController(t)
+		chain    = mocks.NewMockBlockChain(mockCtrl)
+		db       = database.NewMemDB()
+
+		m, _   = GetDefaultGovernanceParamSet().ToStrMap()
+		gov, _ = NewGovData(m).Serialize()
+	)
+
+	WriteVoteDataBlockNums(db, &StoredUint64Array{})
+	WriteGovDataBlockNums(db, &StoredUint64Array{0})
+	chain.EXPECT().GetHeaderByNumber(uint64(0)).Return(&types.Header{
+		Number:     big.NewInt(0),
+		Governance: gov,
+	})
+
+	h := &HeaderGovModule{}
+	h.Init(&InitOpts{
+		Chain:       chain,
+		ChainKv:     db,
+		ChainConfig: config,
+	})
+
+	return h
+}
+
 func TestReadGovVoteBlockNumsFromDB(t *testing.T) {
 	votes := map[uint64]VoteData{
-		1:   NewVoteData(common.Address{1}, governance.GovernanceKeyMapReverse[params.UnitPrice], uint64(100)),
-		50:  NewVoteData(common.Address{2}, governance.GovernanceKeyMapReverse[params.UnitPrice], uint64(200)),
-		100: NewVoteData(common.Address{3}, governance.GovernanceKeyMapReverse[params.UnitPrice], uint64(300)),
+		1:   NewVoteData(common.Address{1}, "governance.unitprice", uint64(100)),
+		50:  NewVoteData(common.Address{2}, "governance.unitprice", uint64(200)),
+		100: NewVoteData(common.Address{3}, "governance.unitprice", uint64(300)),
 	}
 
 	mockCtrl := gomock.NewController(t)
@@ -32,7 +62,7 @@ func TestReadGovVoteBlockNumsFromDB(t *testing.T) {
 		chain.EXPECT().GetHeaderByNumber(num).Return(&types.Header{Vote: headerVoteData})
 		voteDataBlockNums = append(voteDataBlockNums, num)
 	}
-	WriteGovVoteDataBlockNums(db, &voteDataBlockNums)
+	WriteVoteDataBlockNums(db, &voteDataBlockNums)
 
 	assert.Equal(t, votes, readGovVoteDataFromDB(chain, db))
 }

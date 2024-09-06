@@ -326,12 +326,3 @@ const (
 	WeightedRandom
 	ProposerPolicy_End
 )
-
-func GetDefaultGovernanceParam() *ParamSet {
-	p := &ParamSet{}
-	for _, param := range Params {
-		p.Set(param.ParamSetFieldName, param.DefaultValue)
-	}
-
-	return p
-}

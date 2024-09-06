@@ -32,7 +32,7 @@ func (h *HeaderGovModule) HandleVote(blockNum uint64, vote VoteData) error {
 	h.cache.AddVote(calcEpochIdx(blockNum, h.epoch), blockNum, vote)
 
 	var data StoredUint64Array = h.cache.VoteBlockNums()
-	WriteGovVoteDataBlockNums(h.ChainKv, &data)
+	WriteVoteDataBlockNums(h.ChainKv, &data)
 
 	for i, myvote := range h.myVotes {
 		if reflect.DeepEqual(&myvote, vote) {

@@ -7,9 +7,8 @@ import (
 )
 
 var (
-	govVoteDataBlockNumsKey = []byte("governanceVoteDataBlockNums")
-	valVoteDataBlockNumsKey = []byte("validatorVoteDataBlockNums")
-	govDataBlockNumsKey     = []byte("governanceDataBlockNums")
+	voteDataBlockNumsKey = []byte("governanceVoteDataBlockNums")
+	govDataBlockNumsKey  = []byte("governanceDataBlockNums")
 )
 
 type StoredUint64Array []uint64
@@ -40,20 +39,12 @@ func writeStoredUint64Array(db database.Database, key []byte, data *StoredUint64
 	}
 }
 
-func ReadGovVoteDataBlockNums(db database.Database) *StoredUint64Array {
-	return readStoredUint64Array(db, govVoteDataBlockNumsKey)
+func ReadVoteDataBlockNums(db database.Database) *StoredUint64Array {
+	return readStoredUint64Array(db, voteDataBlockNumsKey)
 }
 
-func WriteGovVoteDataBlockNums(db database.Database, voteDataBlockNums *StoredUint64Array) {
-	writeStoredUint64Array(db, govVoteDataBlockNumsKey, voteDataBlockNums)
-}
-
-func ReadValVoteDataBlockNums(db database.Database) *StoredUint64Array {
-	return readStoredUint64Array(db, valVoteDataBlockNumsKey)
-}
-
-func WriteValVoteDataBlockNums(db database.Database, voteDataBlockNums *StoredUint64Array) {
-	writeStoredUint64Array(db, valVoteDataBlockNumsKey, voteDataBlockNums)
+func WriteVoteDataBlockNums(db database.Database, voteDataBlockNums *StoredUint64Array) {
+	writeStoredUint64Array(db, voteDataBlockNumsKey, voteDataBlockNums)
 }
 
 func ReadGovDataBlockNums(db database.Database) *StoredUint64Array {

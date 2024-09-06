@@ -9,6 +9,7 @@ import (
 	"github.com/kaiachain/kaia/blockchain/types"
 	"github.com/kaiachain/kaia/common"
 	"github.com/kaiachain/kaia/governance"
+	"github.com/kaiachain/kaia/log"
 	"github.com/kaiachain/kaia/params"
 	"github.com/kaiachain/kaia/storage/database"
 	"github.com/kaiachain/kaia/work/mocks"
@@ -17,22 +18,15 @@ import (
 )
 
 func TestVerifyHeader(t *testing.T) {
-	mockCtrl := gomock.NewController(t)
-	chain := mocks.NewMockBlockChain(mockCtrl)
-	db := database.NewMemDB()
+	log.EnableLogForTest(log.LvlCrit, log.LvlDebug)
 	config := &params.ChainConfig{
 		KoreCompatibleBlock: big.NewInt(999999999),
 		Istanbul: &params.IstanbulConfig{
 			Epoch: 1000,
 		},
 	}
-	h := &HeaderGovModule{}
-	err := h.Init(&InitOpts{
-		Chain:       chain,
-		ChainKv:     db,
-		ChainConfig: config,
-	})
-	require.NoError(t, err)
+
+	h := newHeaderGovModule(t, config)
 	h.HandleVote(500, NewVoteData(common.Address{1}, governance.GovernanceKeyMapReverse[params.UnitPrice], uint64(100)))
 
 	gov := NewGovData(map[string]interface{}{
@@ -90,9 +84,9 @@ func TestGetVotesInEpoch(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	v1 := NewVoteData(common.Address{1}, governance.GovernanceKeyMapReverse[params.UnitPrice], uint64(100))
+	v1 := NewVoteData(common.Address{1}, "governance.unitprice", uint64(100))
 	h.HandleVote(500, v1)
-	v2 := NewVoteData(common.Address{2}, governance.GovernanceKeyMapReverse[params.UnitPrice], uint64(200))
+	v2 := NewVoteData(common.Address{2}, "governance.unitprice", uint64(200))
 	h.HandleVote(1500, v2)
 
 	assert.Equal(t, map[uint64]VoteData{500: v1}, h.getVotesInEpoch(0))
@@ -100,36 +94,31 @@ func TestGetVotesInEpoch(t *testing.T) {
 }
 
 func TestGetExpectedGovernance(t *testing.T) {
-	mockCtrl := gomock.NewController(t)
-	chain := mocks.NewMockBlockChain(mockCtrl)
-	db := database.NewMemDB()
-	config := &params.ChainConfig{
-		KoreCompatibleBlock: big.NewInt(999999999),
-		Istanbul: &params.IstanbulConfig{
-			Epoch: 1000,
-		},
-	}
-	h := &HeaderGovModule{}
-	err := h.Init(&InitOpts{
-		Chain:       chain,
-		ChainKv:     db,
-		ChainConfig: config,
-	})
-	require.NoError(t, err)
 
-	v1 := NewVoteData(common.Address{1}, governance.GovernanceKeyMapReverse[params.UnitPrice], uint64(100))
+	var (
+		config = &params.ChainConfig{
+			KoreCompatibleBlock: big.NewInt(999999999),
+			Istanbul: &params.IstanbulConfig{
+				Epoch: 1000,
+			},
+		}
+		h  = newHeaderGovModule(t, config)
+		v1 = NewVoteData(common.Address{1}, "governance.unitprice", uint64(100))
+		v2 = NewVoteData(common.Address{2}, "governance.unitprice", uint64(200))
+		g1 = NewGovData(map[string]interface{}{
+			"governance.unitprice": uint64(100),
+		})
+		g2 = NewGovData(map[string]interface{}{
+			"governance.unitprice": uint64(200),
+		})
+	)
+
 	h.HandleVote(500, v1)
-	v2 := NewVoteData(common.Address{2}, governance.GovernanceKeyMapReverse[params.UnitPrice], uint64(200))
 	h.HandleVote(1500, v2)
 
-	g1 := NewGovData(map[string]interface{}{
-		"governance.unitprice": uint64(100),
-	})
 	h.HandleGov(1000, g1)
-	g2 := NewGovData(map[string]interface{}{
-		"governance.unitprice": uint64(200),
-	})
 	h.HandleGov(2000, g2)
+
 	assert.Equal(t, g1, h.getExpectedGovernance(1000))
 	assert.Equal(t, g2, h.getExpectedGovernance(2000))
 }

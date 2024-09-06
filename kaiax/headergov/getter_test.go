@@ -5,11 +5,8 @@ import (
 	"math/big"
 	"testing"
 
-	gomock "github.com/golang/mock/gomock"
 	"github.com/kaiachain/kaia/log"
 	"github.com/kaiachain/kaia/params"
-	"github.com/kaiachain/kaia/storage/database"
-	"github.com/kaiachain/kaia/work/mocks"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -41,22 +38,13 @@ func TestEffectiveParams(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			mockCtrl := gomock.NewController(t)
-			chain := mocks.NewMockBlockChain(mockCtrl)
-			db := database.NewMemDB()
 			config := &params.ChainConfig{
 				KoreCompatibleBlock: big.NewInt(int64(tc.koreBlock)),
 				Istanbul: &params.IstanbulConfig{
 					Epoch: 604800,
 				},
 			}
-			h := &HeaderGovModule{}
-			err := h.Init(&InitOpts{
-				Chain:       chain,
-				ChainKv:     db,
-				ChainConfig: config,
-			})
-			require.NoError(t, err)
+			h := newHeaderGovModule(t, config)
 
 			for num, g := range gov {
 				h.HandleGov(num, g)

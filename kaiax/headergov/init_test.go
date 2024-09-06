@@ -16,9 +16,9 @@ import (
 
 func TestReadGovVoteBlockNumsFromDB(t *testing.T) {
 	votes := map[uint64]VoteData{
-		1:   {Voter: common.Address{1}, Name: governance.GovernanceKeyMapReverse[params.UnitPrice], Value: uint64(100)},
-		50:  {Voter: common.Address{2}, Name: governance.GovernanceKeyMapReverse[params.UnitPrice], Value: uint64(200)},
-		100: {Voter: common.Address{3}, Name: governance.GovernanceKeyMapReverse[params.UnitPrice], Value: uint64(300)},
+		1:   NewVoteData(common.Address{1}, governance.GovernanceKeyMapReverse[params.UnitPrice], uint64(100)),
+		50:  NewVoteData(common.Address{2}, governance.GovernanceKeyMapReverse[params.UnitPrice], uint64(200)),
+		100: NewVoteData(common.Address{3}, governance.GovernanceKeyMapReverse[params.UnitPrice], uint64(300)),
 	}
 
 	mockCtrl := gomock.NewController(t)

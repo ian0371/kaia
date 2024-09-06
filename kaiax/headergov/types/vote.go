@@ -5,19 +5,27 @@ import (
 	"math/big"
 
 	"github.com/kaiachain/kaia/common"
-	"github.com/kaiachain/kaia/params"
 	"github.com/kaiachain/kaia/rlp"
 )
 
-// Always use NewVoteData (constructor) to create a new VoteData.
-type VoteData struct {
-	Voter common.Address
-	Name  string
-	Value interface{} // canonicalized value
+type VoteData interface {
+	Voter() common.Address
+	Name() string
+	Value() interface{}
+
+	Serialize() ([]byte, error)
 }
 
-func NewVoteData(voter common.Address, name string, value interface{}) *VoteData {
-	v := &VoteData{Voter: voter, Name: name, Value: value}
+var _ VoteData = (*voteData)(nil)
+
+type voteData struct {
+	voter common.Address
+	name  string
+	value interface{} // canonicalized value
+}
+
+func NewVoteData(voter common.Address, name string, value interface{}) *voteData {
+	v := &voteData{voter: voter, name: name, value: value}
 	err := v.Canonicalize()
 	if err != nil {
 		return nil
@@ -25,48 +33,52 @@ func NewVoteData(voter common.Address, name string, value interface{}) *VoteData
 	return v
 }
 
-func (vote *VoteData) ToParamSet() (*params.GovParamSet, error) {
-	tmp := map[string]interface{}{
-		vote.Name: vote.Value,
-	}
-
-	return params.NewGovParamSetStrMap(tmp)
+func (vote *voteData) Voter() common.Address {
+	return vote.voter
 }
 
-func (vote *VoteData) Canonicalize() error {
-	param, ok := Params[vote.Name]
+func (vote *voteData) Name() string {
+	return vote.name
+}
+
+func (vote *voteData) Value() interface{} {
+	return vote.value
+}
+
+func (vote *voteData) Canonicalize() error {
+	param, ok := Params[vote.name]
 	if !ok {
 		return errors.New("invalid param key")
 	}
 
-	cv, err := param.Canonicalizer(vote.Value)
+	cv, err := param.Canonicalizer(vote.value)
 	if err != nil {
 		return err
 	}
 
-	vote.Value = cv
+	vote.value = cv
 	return nil
 }
 
-func (vote *VoteData) Serialize() ([]byte, error) {
+func (vote *voteData) Serialize() ([]byte, error) {
 	v := &struct {
 		Validator common.Address
 		Key       string
 		Value     interface{}
 	}{
-		Validator: vote.Voter,
-		Key:       vote.Name,
-		Value:     vote.Value,
+		Validator: vote.voter,
+		Key:       vote.name,
+		Value:     vote.value,
 	}
 
-	if cv, ok := vote.Value.(*big.Int); ok {
+	if cv, ok := vote.value.(*big.Int); ok {
 		v.Value = cv.String()
 	}
 
 	return rlp.EncodeToBytes(v)
 }
 
-func DeserializeHeaderVote(b []byte, blockNum uint64) (*VoteData, error) {
+func DeserializeHeaderVote(b []byte, blockNum uint64) (*voteData, error) {
 	var v struct {
 		Validator common.Address
 		Key       string

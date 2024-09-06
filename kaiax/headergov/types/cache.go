@@ -67,7 +67,7 @@ func (h *HeaderCache) GovBlockNums() []uint64 {
 
 func (h *HeaderCache) AddVote(epochIdx, blockNum uint64, vote VoteData) {
 	if _, ok := h.groupedVotes[epochIdx]; !ok {
-		h.groupedVotes[epochIdx] = make(map[uint64]VoteData)
+		h.groupedVotes[epochIdx] = make(VotesInEpoch)
 	}
 	h.groupedVotes[epochIdx][blockNum] = vote
 }

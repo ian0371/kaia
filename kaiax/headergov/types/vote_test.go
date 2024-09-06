@@ -10,6 +10,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+var _ VoteData = (*voteData)(nil)
+
 func TestHeaderVoteSerialization(t *testing.T) {
 	v1 := common.HexToAddress("0x52d41ca72af615a1ac3301b0a93efa222ecc7541")
 	v2 := common.HexToAddress("0xc0cbe1c770fbce1eb7786bfba1ac2115d5c0a456")
@@ -17,7 +19,7 @@ func TestHeaderVoteSerialization(t *testing.T) {
 	tcs := []struct {
 		serializedVoteData string
 		blockNum           uint64
-		voteData           *VoteData
+		voteData           *voteData
 	}{
 		///// all vote datas.
 		{serializedVoteData: "0xf8439452d41ca72af615a1ac3301b0a93efa222ecc754198676f7665726e616e63652e676f7665726e696e676e6f64659452d41ca72af615a1ac3301b0a93efa222ecc7541", blockNum: 1, voteData: NewVoteData(v1, "governance.governingnode", v1)},

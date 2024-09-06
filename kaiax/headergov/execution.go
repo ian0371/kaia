@@ -29,8 +29,8 @@ func (h *HeaderGovModule) PostInsertBlock(b *types.Block) error {
 	return nil
 }
 
-func (h *HeaderGovModule) HandleVote(blockNum uint64, vote *VoteData) error {
-	h.cache.AddVote(calcEpochIdx(blockNum, h.epoch), blockNum, *vote)
+func (h *HeaderGovModule) HandleVote(blockNum uint64, vote VoteData) error {
+	h.cache.AddVote(calcEpochIdx(blockNum, h.epoch), blockNum, vote)
 
 	var data StoredUint64Array = h.cache.VoteBlockNums()
 	WriteGovVoteDataBlockNums(h.ChainKv, &data)

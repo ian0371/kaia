@@ -80,13 +80,13 @@ func (h *HeaderGovModule) FinalizeBlock(b *types.Block) (*types.Block, error) {
 }
 
 // VerifyVote takes canonical VoteData.
-func (h *HeaderGovModule) VerifyVote(canonicalVote *VoteData) error {
+func (h *HeaderGovModule) VerifyVote(vote VoteData) error {
 	// handled by valset module.
-	if canonicalVote.Name == "governance.addvalidator" || canonicalVote.Name == "governance.removevalidator" {
+	if vote.Name() == "governance.addvalidator" || vote.Name() == "governance.removevalidator" {
 		return nil
 	}
 
-	param, ok := headergov_types.Params[canonicalVote.Name]
+	param, ok := headergov_types.Params[vote.Name()]
 	if !ok {
 		return errors.New("invalid param key")
 	}
@@ -96,7 +96,7 @@ func (h *HeaderGovModule) VerifyVote(canonicalVote *VoteData) error {
 	}
 
 	if param.FormatChecker != nil {
-		if valid := param.FormatChecker(canonicalVote.Value); !valid {
+		if valid := param.FormatChecker(vote.Value); !valid {
 			return errors.New("invalid format")
 		}
 	}
@@ -122,7 +122,7 @@ func (h *HeaderGovModule) getExpectedGovernance(blockNum uint64) GovData {
 
 	// TODO: add tally
 	for _, vote := range prevEpochVotes {
-		govs.Params[vote.Name] = vote.Value
+		govs.Params[vote.Name()] = vote.Value()
 	}
 
 	return govs

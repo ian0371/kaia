@@ -118,7 +118,7 @@ func readGovVoteDataFromDB(chain chain, db database.Database) map[uint64]VoteDat
 				logger.Error("Failed to parse vote", "num", blockNum, "err", err)
 			}
 
-			votes[blockNum] = *parsedVote
+			votes[blockNum] = parsedVote
 		}
 	}
 

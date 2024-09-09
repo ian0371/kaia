@@ -24,12 +24,28 @@ type voteData struct {
 	value interface{} // canonicalized value
 }
 
+// NewVoteData returns a canonical & formatted vote data. Consistency is NOT checked.
 func NewVoteData(voter common.Address, name string, value interface{}) VoteData {
 	v := &voteData{voter: voter, name: name, value: value}
-	err := v.Canonicalize()
+	param, ok := Params[v.name]
+	if !ok {
+		return nil
+	}
+
+	if param.VoteForbidden {
+		return nil
+	}
+
+	cv, err := param.Canonicalizer(v.value)
 	if err != nil {
 		return nil
 	}
+
+	if param.FormatChecker != nil && !param.FormatChecker(cv) {
+		return nil
+	}
+
+	v.value = cv
 	return v
 }
 
@@ -43,21 +59,6 @@ func (vote *voteData) Name() string {
 
 func (vote *voteData) Value() interface{} {
 	return vote.value
-}
-
-func (vote *voteData) Canonicalize() error {
-	param, ok := Params[vote.name]
-	if !ok {
-		return errors.New("invalid param key")
-	}
-
-	cv, err := param.Canonicalizer(vote.value)
-	if err != nil {
-		return err
-	}
-
-	vote.value = cv
-	return nil
 }
 
 func (vote *voteData) Serialize() ([]byte, error) {

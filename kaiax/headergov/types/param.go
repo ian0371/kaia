@@ -11,10 +11,9 @@ import (
 )
 
 type Param struct {
-	ParamSetFieldName  string
-	Canonicalizer      func(v interface{}) (interface{}, error)
-	FormatChecker      func(cv interface{}) bool // validation on canonical value.
-	ConsistencyChecker func(cv interface{}) bool // validation on canonical value.
+	ParamSetFieldName string
+	Canonicalizer     func(v interface{}) (interface{}, error)
+	FormatChecker     func(cv interface{}) bool // validation on canonical value.
 
 	DefaultValue  interface{}
 	VoteForbidden bool
@@ -33,8 +32,14 @@ func stringCanonicalizer(v interface{}) (interface{}, error) {
 func addressCanonicalizer(v interface{}) (interface{}, error) {
 	switch v := v.(type) {
 	case []byte:
+		if len(v) != common.AddressLength {
+			return nil, errors.New("invalid address length")
+		}
 		return common.BytesToAddress(v), nil
 	case string:
+		if !common.IsHexAddress(v) {
+			return nil, errors.New("invalid address")
+		}
 		return common.HexToAddress(v), nil
 	case common.Address:
 		return v, nil
@@ -99,11 +104,12 @@ var Params = map[string]Param{
 		ParamSetFieldName: "GovernanceMode",
 		Canonicalizer:     stringCanonicalizer,
 		FormatChecker: func(cv interface{}) bool {
-			switch v := cv.(type) {
-			case string:
-				if v == "none" || v == "single" || v == "ballot" {
-					return true
-				}
+			v, ok := cv.(string)
+			if !ok {
+				return false
+			}
+			if v == "none" || v == "single" {
+				return true
 			}
 			return false
 		},
@@ -114,8 +120,8 @@ var Params = map[string]Param{
 		ParamSetFieldName: "GoverningNode",
 		Canonicalizer:     addressCanonicalizer,
 		FormatChecker: func(cv interface{}) bool {
-			addr, ok := cv.(common.Address)
-			return ok && addr != common.Address{}
+			_, ok := cv.(common.Address)
+			return ok
 		},
 		DefaultValue:  common.HexToAddress("0x0000000000000000000000000000000000000000"),
 		VoteForbidden: false,
@@ -124,10 +130,8 @@ var Params = map[string]Param{
 		ParamSetFieldName: "GovParamContract",
 		Canonicalizer:     addressCanonicalizer,
 		FormatChecker: func(cv interface{}) bool {
-			if addr, ok := cv.(common.Address); ok {
-				return addr != common.Address{}
-			}
-			return false
+			_, ok := cv.(common.Address)
+			return ok
 		},
 		DefaultValue:  common.HexToAddress("0x0000000000000000000000000000000000000000"),
 		VoteForbidden: false,
@@ -135,9 +139,15 @@ var Params = map[string]Param{
 	"istanbul.committeesize": {
 		ParamSetFieldName: "CommitteeSize",
 		Canonicalizer:     uint64Canonicalizer,
-		FormatChecker:     nil,
-		DefaultValue:      uint64(21),
-		VoteForbidden:     false,
+		FormatChecker: func(cv interface{}) bool {
+			v, ok := cv.(uint64)
+			if !ok {
+				return false
+			}
+			return v > 0
+		},
+		DefaultValue:  uint64(21),
+		VoteForbidden: false,
 	},
 	"istanbul.policy": {
 		ParamSetFieldName: "ProposerPolicy",

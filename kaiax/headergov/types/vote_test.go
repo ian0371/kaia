@@ -12,11 +12,148 @@ import (
 
 var _ VoteData = (*voteData)(nil)
 
-func TestNewVote(t *testing.T) {
+func TestNewVoteNewGov(t *testing.T) {
 	tcs := []struct {
-		name  string
-		value interface{}
+		name    string
+		value   interface{}
+		invalid bool
 	}{
+		{name: "istanbul.epoch", value: uint64(30000), invalid: true},
+		{name: "istanbul.epoch", value: "bad", invalid: true},
+		{name: "istanbul.epoch", value: float64(30000.00), invalid: true},
+		{name: "istanbul.Epoch", value: float64(30000.10), invalid: true},
+		{name: "istanbul.epoch", value: false, invalid: true},
+		{name: "istanbul.committeesize", value: uint64(7), invalid: false},
+		{name: "istanbul.committeesize", value: float64(7.0), invalid: false},
+		{name: "istanbul.committeesize", value: float64(7.1), invalid: true},
+		{name: "istanbul.committeesize", value: "7", invalid: true},
+		{name: "istanbul.committeesize", value: false, invalid: true},
+		{name: "istanbul.committeesize", value: float64(-7), invalid: true},
+		{name: "istanbul.committeesize", value: uint64(0), invalid: true},
+		{name: "istanbul.policy", value: "roundrobin", invalid: true},
+		{name: "istanbul.policy", value: "RoundRobin", invalid: true},
+		{name: "istanbul.policy", value: "sticky", invalid: true},
+		{name: "istanbul.policy", value: "weightedrandom", invalid: true},
+		{name: "istanbul.policy", value: "WeightedRandom", invalid: true},
+		{name: "istanbul.policy", value: uint64(0), invalid: true},
+		{name: "istanbul.policy", value: uint64(1), invalid: true},
+		{name: "istanbul.policy", value: uint64(2), invalid: true},
+		{name: "istanbul.policy", value: float64(1.2), invalid: true},
+		{name: "istanbul.policy", value: float64(1.0), invalid: true},
+		{name: "istanbul.policy", value: false, invalid: true},
+		{name: "governance.governancemode", value: "none", invalid: true},
+		{name: "governance.governancemode", value: "single", invalid: true},
+		{name: "governance.governancemode", value: "ballot", invalid: true},
+		{name: "governance.governancemode", value: 0, invalid: true},
+		{name: "governance.governancemode", value: 1, invalid: true},
+		{name: "governance.governancemode", value: 2, invalid: true},
+		{name: "governance.governancemode", value: "unexpected", invalid: true},
+		{name: "governance.governingnode", value: "0x00000000000000000000", invalid: true},
+		{name: "governance.governingnode", value: "0x0000000000000000000000000000000000000000", invalid: true},
+		{name: "governance.governingnode", value: "0x000000000000000000000000000abcd000000000", invalid: false},
+		{name: "governance.governingnode", value: "000000000000000000000000000abcd000000000", invalid: false},
+		{name: "governance.governingnode", value: common.HexToAddress("000000000000000000000000000abcd000000000"), invalid: false},
+		{name: "governance.governingnode", value: "0x000000000000000000000000000xxxx000000000", invalid: true},
+		{name: "governance.governingnode", value: "address", invalid: true},
+		{name: "governance.governingnode", value: []byte{}, invalid: true},
+		{name: "governance.governingnode", value: []byte{0}, invalid: true},
+		{name: "governance.governingnode", value: 0, invalid: true},
+		{name: "governance.governingnode", value: false, invalid: true},
+		{name: "governance.govparamcontract", value: "0x00000000000000000000", invalid: true},
+		{name: "governance.govparamcontract", value: "0x0000000000000000000000000000000000000000", invalid: true},
+		{name: "governance.govparamcontract", value: "0x000000000000000000000000000abcd000000000", invalid: false},
+		{name: "governance.govparamcontract", value: "000000000000000000000000000abcd000000000", invalid: false},
+		{name: "governance.govparamcontract", value: common.HexToAddress("000000000000000000000000000abcd000000000"), invalid: false},
+		{name: "governance.govparamcontract", value: "0x000000000000000000000000000xxxx000000000", invalid: true},
+		{name: "governance.govparamcontract", value: "address", invalid: true},
+		{name: "governance.govparamcontract", value: []byte{}, invalid: true},
+		{name: "governance.govparamcontract", value: []byte{0}, invalid: true},
+		{name: "governance.govparamcontract", value: 0, invalid: true},
+		{name: "governance.govparamcontract", value: false, invalid: true},
+		{name: "governance.unitprice", value: float64(0.0), invalid: false},
+		{name: "governance.unitprice", value: float64(0.1), invalid: true},
+		{name: "governance.unitprice", value: uint64(25000000000), invalid: false},
+		{name: "governance.unitprice", value: float64(-10), invalid: true},
+		{name: "governance.unitprice", value: "25000000000", invalid: true},
+		{name: "governance.unitprice", value: false, invalid: true},
+		{name: "governance.deriveshaimpl", value: float64(0.0), invalid: false},
+		{name: "governance.deriveshaimpl", value: float64(0.1), invalid: true},
+		{name: "governance.deriveshaimpl", value: uint64(2), invalid: false},
+		{name: "governance.deriveshaimpl", value: float64(-1), invalid: true},
+		{name: "governance.deriveshaimpl", value: "2", invalid: true},
+		{name: "governance.deriveshaimpl", value: false, invalid: true},
+		{name: "reward.useginicoeff", value: true, invalid: true},
+		{name: "reward.useginicoeff", value: false, invalid: true},
+		{name: "reward.useginicoeff", value: "false", invalid: true},
+		{name: "reward.useginicoeff", value: 0, invalid: true},
+		{name: "reward.useginicoeff", value: 1, invalid: true},
+		{name: "reward.mintingamount", value: "9600000000000000000", invalid: false},
+		{name: "reward.mintingamount", value: "0", invalid: false},
+		{name: "reward.mintingamount", value: 96000, invalid: true},
+		{name: "reward.mintingamount", value: "many", invalid: true},
+		{name: "reward.mintingamount", value: false, invalid: true},
+		{name: "reward.ratio", value: "30/40/30", invalid: false},
+		{name: "reward.ratio", value: "10/10/80", invalid: false},
+		{name: "reward.ratio", value: "30/70", invalid: true},
+		{name: "reward.ratio", value: "30/40/31", invalid: true},
+		{name: "reward.ratio", value: "30/40/29", invalid: true},
+		{name: "reward.ratio", value: 30 / 40 / 30, invalid: true},
+		{name: "reward.ratio", value: "0/0/100", invalid: false},
+		{name: "reward.ratio", value: "0/100/0", invalid: false},
+		{name: "reward.ratio", value: "100/0/0", invalid: false},
+		{name: "reward.ratio", value: "0/0/0", invalid: true},
+		{name: "reward.ratio", value: "30.5/40/29.5", invalid: true},
+		{name: "reward.ratio", value: "30.5/40/30.5", invalid: true},
+		{name: "reward.kip82ratio", value: "20/80", invalid: false},
+		{name: "reward.kip82ratio", value: "10/90", invalid: false},
+		{name: "reward.kip82ratio", value: "30/80", invalid: true},
+		{name: "reward.kip82ratio", value: "30/30/40", invalid: true},
+		{name: "reward.kip82ratio", value: "49.5/50.5", invalid: true},
+		{name: "reward.kip82ratio", value: "50.5/50.5", invalid: true},
+		{name: "kip71.lowerboundbasefee", value: uint64(25000000000), invalid: false},
+		{name: "kip71.lowerboundbasefee", value: 25000000, invalid: true},
+		{name: "kip71.lowerboundbasefee", value: "250000000", invalid: true},
+		{name: "kip71.lowerboundbasefee", value: false, invalid: true},
+		{name: "kip71.lowerboundbasefee", value: "test", invalid: true},
+		{name: "kip71.upperboundbasefee", value: uint64(750000000000), invalid: false},
+		{name: "kip71.upperboundbasefee", value: 7500000, invalid: true},
+		{name: "kip71.upperboundbasefee", value: "750000", invalid: true},
+		{name: "kip71.upperboundbasefee", value: false, invalid: true},
+		{name: "kip71.upperboundbasefee", value: true, invalid: true},
+		{name: "kip71.gastarget", value: uint64(30000000), invalid: false},
+		{name: "kip71.gastarget", value: 3000, invalid: true},
+		{name: "kip71.gastarget", value: "30000", invalid: true},
+		{name: "kip71.gastarget", value: false, invalid: true},
+		{name: "kip71.gastarget", value: true, invalid: true},
+		{name: "kip71.maxblockgasusedforbasefee", value: uint64(84000000), invalid: false},
+		{name: "kip71.maxblockgasusedforbasefee", value: 840000, invalid: true},
+		{name: "kip71.maxblockgasusedforbasefee", value: false, invalid: true},
+		{name: "kip71.maxblockgasusedforbasefee", value: "84000", invalid: true},
+		{name: "kip71.maxblockgasusedforbasefee", value: 0, invalid: true},
+		{name: "kip71.basefeedenominator", value: uint64(64), invalid: false},
+		{name: "kip71.basefeedenominator", value: 64, invalid: true},
+		{name: "kip71.basefeedenominator", value: "64", invalid: true},
+		{name: "kip71.basefeedenominator", value: "sixtyfour", invalid: true},
+		{name: "kip71.basefeedenominator", value: false, invalid: true},
+		{name: "reward.deferredtxfee", value: false, invalid: true},
+		{name: "reward.deferredtxfee", value: true, invalid: true},
+		{name: "reward.deferredtxfee", value: 0, invalid: true},
+		{name: "reward.deferredtxfee", value: 1, invalid: true},
+		{name: "reward.deferredtxfee", value: "false", invalid: true},
+		{name: "reward.minimumstake", value: "2000000000000000000000000", invalid: true},
+		{name: "reward.minimumstake", value: 200000000000000, invalid: true},
+		{name: "reward.minimumstake", value: "-1", invalid: true},
+		{name: "reward.minimumstake", value: "0", invalid: true},
+		{name: "reward.minimumstake", value: 0, invalid: true},
+		{name: "reward.minimumstake", value: 1.1, invalid: true},
+		{name: "reward.stakingupdateinterval", value: uint64(20), invalid: true},
+		{name: "reward.stakingupdateinterval", value: float64(20.0), invalid: true},
+		{name: "reward.stakingupdateinterval", value: float64(20.2), invalid: true},
+		{name: "reward.stakingupdateinterval", value: "20", invalid: true},
+		{name: "reward.proposerupdateinterval", value: uint64(20), invalid: true},
+		{name: "reward.proposerupdateinterval", value: float64(20.0), invalid: true},
+		{name: "reward.proposerupdateinterval", value: float64(20.2), invalid: true},
+		{name: "reward.proposerupdateinterval", value: "20", invalid: true},
 		{name: "governance.governingnode", value: "0xc0cbe1c770fbce1eb7786bfba1ac2115d5c0a456"},
 		{name: "governance.governingnode", value: common.HexToAddress("0xc0cbe1c770fbce1eb7786bfba1ac2115d5c0a456")},
 		{name: "reward.mintingamount", value: "9600000000000000000"},
@@ -25,12 +162,37 @@ func TestNewVote(t *testing.T) {
 		{name: "governance.unitprice", value: uint64(25e9)},
 		{name: "reward.ratio", value: "50/25/25"},
 		{name: "kip71.gastarget", value: uint64(15000000)},
+
+		// invalid params
+		{name: "nonexistent.param", value: uint64(15000000), invalid: true},
+		{name: "governance.unitprice", value: "100", invalid: true},
+		{name: "governance.unitprice", value: big.NewInt(100), invalid: true},
+		{name: "governance.unitprice", value: big.NewInt(100), invalid: true},
+		{name: "istanbul.timeout", value: uint64(10000), invalid: true},
+		{name: "istanbul.timeout", value: uint64(5000), invalid: true},
+		{name: "istanbul.timeout", value: float64(-1000), invalid: true},
+		{name: "istanbul.timeout", value: false, invalid: true},
+		{name: "istanbul.timeout", value: "10", invalid: true},
+		{name: "istanbul.timeout", value: 5.3, invalid: true},
 	}
 
 	for _, tc := range tcs {
-		t.Run(tc.name, func(t *testing.T) {
+		t.Run("TestNewVote/"+tc.name, func(t *testing.T) {
 			vote := NewVoteData(common.Address{}, tc.name, tc.value)
-			assert.NotNil(t, vote)
+			if tc.invalid {
+				assert.Nil(t, vote)
+			} else {
+				assert.NotNil(t, vote)
+			}
+		})
+
+		t.Run("TestNewGov/"+tc.name, func(t *testing.T) {
+			vote := NewGovData(map[string]interface{}{tc.name: tc.value})
+			if tc.invalid {
+				assert.Nil(t, vote)
+			} else {
+				assert.NotNil(t, vote)
+			}
 		})
 	}
 }

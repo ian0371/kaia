@@ -41,7 +41,7 @@ func (h *HeaderGovModule) VerifyHeader(header *types.Header) error {
 		logger.Error("Failed to parse governance", "num", header.Number.Uint64(), "err", err)
 		return err
 	}
-	return h.VerifyGov(gov, header.Number.Uint64())
+	return h.VerifyGov(header.Number.Uint64(), gov)
 }
 
 func (h *HeaderGovModule) PrepareHeader(header *types.Header) (*types.Header, error) {
@@ -68,6 +68,10 @@ func (h *HeaderGovModule) FinalizeBlock(b *types.Block) (*types.Block, error) {
 
 // VerifyVote takes canonical VoteData.
 func (h *HeaderGovModule) VerifyVote(vote VoteData) error {
+	if vote == nil {
+		return errors.New("vote is nil")
+	}
+
 	// handled by valset module.
 	if vote.Name() == "governance.addvalidator" || vote.Name() == "governance.removevalidator" {
 		return nil
@@ -91,7 +95,7 @@ func (h *HeaderGovModule) VerifyVote(vote VoteData) error {
 	return nil
 }
 
-func (h *HeaderGovModule) VerifyGov(gov GovData, blockNum uint64) error {
+func (h *HeaderGovModule) VerifyGov(blockNum uint64, gov GovData) error {
 	expected := h.getExpectedGovernance(blockNum)
 	if !reflect.DeepEqual(expected, gov) {
 		return errors.New("governance is not matched")

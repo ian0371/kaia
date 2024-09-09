@@ -19,6 +19,7 @@ type govData struct {
 	items map[string]interface{}
 }
 
+// NewGovData returns a canonical & formatted gov data. Consistency is NOT checked.
 func NewGovData(m map[string]interface{}) GovData {
 	items := make(map[string]interface{})
 	for name, value := range m {
@@ -27,10 +28,20 @@ func NewGovData(m map[string]interface{}) GovData {
 			return nil
 		}
 
+		// it can be in the genesis.
+		// if param.VoteForbidden {
+		// 	return nil
+		// }
+
 		cv, err := param.Canonicalizer(value)
 		if err != nil {
 			return nil
 		}
+
+		if param.FormatChecker != nil && !param.FormatChecker(cv) {
+			return nil
+		}
+
 		items[name] = cv
 	}
 	return &govData{

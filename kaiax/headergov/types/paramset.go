@@ -40,7 +40,6 @@ func GetDefaultGovernanceParamSet() *ParamSet {
 	return p
 }
 
-// TODO: add tests, compare from gov/default
 func (p *ParamSet) Set(key string, cv interface{}) error {
 	param, ok := Params[key]
 	if !ok {

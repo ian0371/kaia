@@ -7,7 +7,6 @@ import (
 
 	"github.com/kaiachain/kaia/blockchain/types"
 	"github.com/kaiachain/kaia/common"
-	"github.com/kaiachain/kaia/governance"
 	"github.com/kaiachain/kaia/log"
 	"github.com/kaiachain/kaia/params"
 	"github.com/stretchr/testify/assert"
@@ -17,18 +16,20 @@ import (
 func TestVerifyHeader(t *testing.T) {
 	log.EnableLogForTest(log.LvlCrit, log.LvlDebug)
 	config := &params.ChainConfig{
-		KoreCompatibleBlock: big.NewInt(999999999),
 		Istanbul: &params.IstanbulConfig{
 			Epoch: 1000,
 		},
 	}
 
 	h := newHeaderGovModule(t, config)
-	h.HandleVote(500, NewVoteData(common.Address{1}, governance.GovernanceKeyMapReverse[params.UnitPrice], uint64(100)))
+	vote := NewVoteData(common.Address{1}, "governance.unitprice", uint64(100))
+	require.NotNil(t, vote)
+	h.HandleVote(500, vote)
 
 	gov := NewGovData(map[string]interface{}{
 		"governance.unitprice": uint64(100),
 	})
+	require.NotNil(t, gov)
 
 	govBytes, err := gov.Serialize()
 	require.NoError(t, err)
@@ -81,10 +82,8 @@ func TestGetVotesInEpoch(t *testing.T) {
 }
 
 func TestGetExpectedGovernance(t *testing.T) {
-
 	var (
 		config = &params.ChainConfig{
-			KoreCompatibleBlock: big.NewInt(999999999),
 			Istanbul: &params.IstanbulConfig{
 				Epoch: 1000,
 			},
@@ -108,4 +107,18 @@ func TestGetExpectedGovernance(t *testing.T) {
 
 	assert.Equal(t, g1, h.getExpectedGovernance(1000))
 	assert.Equal(t, g2, h.getExpectedGovernance(2000))
+}
+
+func TestGetExpectedGovernance2(t *testing.T) {
+	var (
+		v1 = NewVoteData(common.Address{1}, "nonexistent.param", uint64(100))
+		v2 = NewVoteData(common.Address{1}, "governance.unitprice", "100")
+		g1 = NewGovData(map[string]interface{}{
+			"nonexistent.param": uint64(100),
+		})
+	)
+
+	assert.Nil(t, v1)
+	assert.Nil(t, v2)
+	assert.Nil(t, g1)
 }

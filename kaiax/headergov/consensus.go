@@ -1,10 +1,14 @@
 package headergov
 
 import (
+	"bytes"
 	"errors"
 	"reflect"
 
 	"github.com/kaiachain/kaia/blockchain/types"
+	"github.com/kaiachain/kaia/blockchain/types/account"
+	"github.com/kaiachain/kaia/common"
+	"github.com/kaiachain/kaia/crypto"
 )
 
 func (h *HeaderGovModule) VerifyHeader(header *types.Header) error {
@@ -20,7 +24,7 @@ func (h *HeaderGovModule) VerifyHeader(header *types.Header) error {
 			return err
 		}
 
-		err = h.VerifyVote(vote)
+		err = h.VerifyVote(header.Number.Uint64(), vote)
 		if err != nil {
 			logger.Error("Failed to verify vote", "num", header.Number.Uint64(), "err", err)
 			return err
@@ -67,29 +71,48 @@ func (h *HeaderGovModule) FinalizeBlock(b *types.Block) (*types.Block, error) {
 	return b, nil
 }
 
-// VerifyVote takes canonical VoteData.
-func (h *HeaderGovModule) VerifyVote(vote VoteData) error {
+// VerifyVote takes canonical VoteData and performs the semantic check.
+func (h *HeaderGovModule) VerifyVote(blockNum uint64, vote VoteData) error {
 	if vote == nil {
 		return errors.New("vote is nil")
 	}
 
-	// will be handled by valset module, so ignore here.
-	if vote.Name() == "governance.addvalidator" || vote.Name() == "governance.removevalidator" {
-		return nil
-	}
+	// consistency check
+	switch vote.Name() {
+	case "governance.governingnode":
+		// TODO: check in valset
+		break
+	case "governance.govparamcontract":
+		state, err := h.Chain.State()
+		if err != nil {
+			return err
+		}
 
-	param, ok := Params[vote.Name()]
-	if !ok {
-		return errors.New("invalid param key")
-	}
+		acc := state.GetAccount(vote.Value().(common.Address))
+		if acc == nil {
+			return errors.New("govparamcontract is not an account")
+		}
 
-	if param.VoteForbidden {
-		return errors.New("parameter is forbidden to be changed")
-	}
-
-	if param.FormatChecker != nil {
-		if valid := param.FormatChecker(vote.Value); !valid {
-			return errors.New("invalid format")
+		pa := account.GetProgramAccount(acc)
+		emptyCodeHash := crypto.Keccak256(nil)
+		if pa != nil && !bytes.Equal(pa.GetCodeHash(), emptyCodeHash) {
+			return errors.New("govparamcontract is not an contract account")
+		}
+	case "kip71.lowerboundbasefee":
+		params, err := h.EffectiveParams(blockNum)
+		if err != nil {
+			return err
+		}
+		if vote.Value().(uint64) > params.UpperBoundBaseFee {
+			return errors.New("lowerboundbasefee is greater than upperboundbasefee")
+		}
+	case "kip71.upperboundbasefee":
+		params, err := h.EffectiveParams(blockNum)
+		if err != nil {
+			return err
+		}
+		if vote.Value().(uint64) < params.LowerBoundBaseFee {
+			return errors.New("upperboundbasefee is less than lowerboundbasefee")
 		}
 	}
 

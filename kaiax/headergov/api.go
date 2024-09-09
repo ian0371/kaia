@@ -55,7 +55,7 @@ func (api *headerGovAPI) Vote(name string, value interface{}) (string, error) {
 		return "", errInvalidKeyValue
 	}
 
-	err = api.h.VerifyVote(vote)
+	err = api.h.VerifyVote(blockNumber+1, vote)
 	if err != nil {
 		return "", err
 	}

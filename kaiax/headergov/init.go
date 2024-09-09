@@ -4,6 +4,7 @@ import (
 	"errors"
 	"math/big"
 
+	"github.com/kaiachain/kaia/blockchain/state"
 	"github.com/kaiachain/kaia/blockchain/types"
 	"github.com/kaiachain/kaia/common"
 	headergov_types "github.com/kaiachain/kaia/kaiax/headergov/types"
@@ -35,6 +36,7 @@ var DeserializeHeaderGov = headergov_types.DeserializeHeaderGov
 type chain interface {
 	GetHeaderByNumber(number uint64) *types.Header
 	CurrentBlock() *types.Block
+	State() (*state.StateDB, error)
 }
 
 type InitOpts struct {

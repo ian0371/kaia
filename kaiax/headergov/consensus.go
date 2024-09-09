@@ -2,7 +2,6 @@ package headergov
 
 import (
 	"errors"
-	"fmt"
 	"reflect"
 
 	"github.com/kaiachain/kaia/blockchain/types"
@@ -28,7 +27,6 @@ func (h *HeaderGovModule) VerifyHeader(header *types.Header) error {
 	}
 
 	// 2. Check Governance
-	// TODO-kaiax: fail fast
 	if header.Number.Uint64()%h.epoch != 0 {
 		if len(header.Governance) > 0 {
 			logger.Error("governance is not allowed in non-epoch block", "num", header.Number.Uint64())
@@ -36,24 +34,14 @@ func (h *HeaderGovModule) VerifyHeader(header *types.Header) error {
 		} else {
 			return nil
 		}
-	} else {
-		expected := h.getExpectedGovernance(header.Number.Uint64())
-		if len(expected.Items()) == 0 && len(header.Governance) == 0 {
-			return nil
-		}
-
-		actual, err := DeserializeHeaderGov(header.Governance, header.Number.Uint64())
-		if err != nil {
-			logger.Error("Failed to parse governance", "num", header.Number.Uint64(), "err", err)
-			return err
-		}
-		if !reflect.DeepEqual(expected.Items(), actual.Items()) {
-			logger.Error("governance mismatch", "num", header.Number.Uint64(), "expected", expected.Items(), "actual", actual.Items())
-			return fmt.Errorf("expected governance: %v, actual: %v", &expected, actual)
-		}
-
-		return nil
 	}
+
+	gov, err := DeserializeHeaderGov(header.Governance, header.Number.Uint64())
+	if err != nil {
+		logger.Error("Failed to parse governance", "num", header.Number.Uint64(), "err", err)
+		return err
+	}
+	return h.VerifyGov(gov, header.Number.Uint64())
 }
 
 func (h *HeaderGovModule) PrepareHeader(header *types.Header) (*types.Header, error) {
@@ -103,18 +91,19 @@ func (h *HeaderGovModule) VerifyVote(vote VoteData) error {
 	return nil
 }
 
-func (h *HeaderGovModule) VerifyGov(gov GovData) error {
-	gp := ParamSet{}
-	err := gp.SetFromGovernanceData(gov)
-	if err != nil {
-		return err
+func (h *HeaderGovModule) VerifyGov(gov GovData, blockNum uint64) error {
+	expected := h.getExpectedGovernance(blockNum)
+	if !reflect.DeepEqual(expected, gov) {
+		return errors.New("governance is not matched")
 	}
 
 	return nil
 }
 
+// blockNum must be greater than epoch.
 func (h *HeaderGovModule) getExpectedGovernance(blockNum uint64) GovData {
-	prevEpochVotes := h.getVotesInEpoch(calcEpochIdx(blockNum, h.epoch) - 1)
+	prevEpochIdx := calcEpochIdx(blockNum, h.epoch) - 1
+	prevEpochVotes := h.getVotesInEpoch(prevEpochIdx)
 	govs := make(map[string]interface{})
 
 	// TODO: add tally

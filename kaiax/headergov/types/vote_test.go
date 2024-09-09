@@ -162,6 +162,8 @@ func TestNewVote(t *testing.T) {
 		{name: "governance.unitprice", value: uint64(25e9)},
 		{name: "reward.ratio", value: "50/25/25"},
 		{name: "kip71.gastarget", value: uint64(15000000)},
+		{name: "governance.addvalidator", value: common.Address{}},
+		{name: "governance.removevalidator", value: common.Address{}},
 
 		// invalid params
 		{name: "nonexistent.param", value: uint64(15000000), invalid: true},

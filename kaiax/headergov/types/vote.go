@@ -29,7 +29,12 @@ func NewVoteData(voter common.Address, name string, value interface{}) VoteData 
 	v := &voteData{voter: voter, name: name, value: value}
 	param, ok := Params[v.name]
 	if !ok {
-		return nil
+		if name == "governance.addvalidator" || name == "governance.removevalidator" {
+			v.value = []common.Address{} // don't care about the value
+			return v
+		} else {
+			return nil
+		}
 	}
 
 	if param.VoteForbidden {

@@ -19,6 +19,7 @@ func (h *HeaderGovModule) VerifyHeader(header *types.Header) error {
 			logger.Error("Failed to parse vote", "num", header.Number.Uint64(), "err", err)
 			return err
 		}
+
 		err = h.VerifyVote(vote)
 		if err != nil {
 			logger.Error("Failed to verify vote", "num", header.Number.Uint64(), "err", err)
@@ -72,7 +73,7 @@ func (h *HeaderGovModule) VerifyVote(vote VoteData) error {
 		return errors.New("vote is nil")
 	}
 
-	// handled by valset module.
+	// will be handled by valset module, so ignore here.
 	if vote.Name() == "governance.addvalidator" || vote.Name() == "governance.removevalidator" {
 		return nil
 	}

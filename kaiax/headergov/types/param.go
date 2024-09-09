@@ -10,6 +10,25 @@ import (
 	"github.com/kaiachain/kaia/common"
 )
 
+var (
+	ErrInvalidType               = errors.New("invalid type")
+	ErrCanonicalizeUint64        = errors.New("could not canonicalize value to uint64")
+	ErrCanonicalizeFloat64       = errors.New("could not canonicalize value to float64")
+	ErrCanonicalizeString        = errors.New("could not canonicalize value to string")
+	ErrCanonicalizeToAddress     = errors.New("could not canonicalize value to address")
+	ErrCanonicalizeBigInt        = errors.New("could not canonicalize value to big.Int")
+	ErrCanonicalizeBool          = errors.New("could not canonicalize value to bool")
+	ErrCanonicalizeToAddressList = errors.New("could not canonicalize value to address list")
+
+	ErrCanonicalizeByteToAddress   = errors.New("could not canonicalize []byte to address")
+	ErrCanonicalizeByteToUint64    = errors.New("could not canonicalize []byte to uint64")
+	ErrCanonicalizeFloatToUint64   = errors.New("could not canonicalize float64 to uint64")
+	ErrCanonicalizeStringToAddress = errors.New("could not canonicalize string to address")
+	ErrCanonicalizeByteToBigInt    = errors.New("could not canonicalize []byte to big.Int")
+	ErrCanonicalizeStringToBigInt  = errors.New("could not canonicalize string to big.Int")
+	ErrCanonicalizeByteToBool      = errors.New("could not canonicalize []byte to bool")
+)
+
 type Param struct {
 	ParamSetFieldName string
 	Canonicalizer     func(v interface{}) (interface{}, error)
@@ -26,41 +45,65 @@ func stringCanonicalizer(v interface{}) (interface{}, error) {
 	case string:
 		return v, nil
 	}
-	return nil, errors.New("invalid type")
+	return nil, ErrCanonicalizeString
 }
 
 func addressCanonicalizer(v interface{}) (interface{}, error) {
 	switch v := v.(type) {
 	case []byte:
 		if len(v) != common.AddressLength {
-			return nil, errors.New("invalid address length")
+			return nil, ErrCanonicalizeByteToAddress
 		}
 		return common.BytesToAddress(v), nil
 	case string:
 		if !common.IsHexAddress(v) {
-			return nil, errors.New("invalid address")
+			return nil, ErrCanonicalizeStringToAddress
 		}
 		return common.HexToAddress(v), nil
 	case common.Address:
 		return v, nil
 	}
-	return nil, errors.New("invalid type")
+	return nil, ErrCanonicalizeToAddress
+}
+
+func addressListCanonicalizer(v interface{}) (interface{}, error) {
+	stringToAddressList := func(v string) ([]common.Address, error) {
+		ret := []common.Address{}
+		for _, address := range strings.Split(v, ",") {
+			if !common.IsHexAddress(address) {
+				return nil, ErrCanonicalizeStringToAddress
+			}
+			ret = append(ret, common.HexToAddress(address))
+		}
+		return ret, nil
+	}
+
+	switch v := v.(type) {
+	case []byte:
+		return stringToAddressList(string(v))
+	case string:
+		return stringToAddressList(v)
+	}
+	return nil, ErrCanonicalizeToAddressList
 }
 
 func uint64Canonicalizer(v interface{}) (interface{}, error) {
 	switch v := v.(type) {
 	case []byte:
+		if len(v) > 8 {
+			return nil, ErrCanonicalizeByteToUint64
+		}
 		return new(big.Int).SetBytes(v).Uint64(), nil
 	case float64:
 		if float64(uint64(v)) != v {
-			return nil, errors.New("value is not an integer")
+			return nil, ErrCanonicalizeFloatToUint64
 		}
 
 		return uint64(v), nil
 	case uint64:
 		return v, nil
 	}
-	return nil, errors.New("invalid type")
+	return nil, ErrCanonicalizeUint64
 }
 
 func bigIntCanonicalizer(v interface{}) (interface{}, error) {
@@ -68,19 +111,19 @@ func bigIntCanonicalizer(v interface{}) (interface{}, error) {
 	case []byte:
 		cv, ok := new(big.Int).SetString(string(v), 10)
 		if !ok {
-			return nil, errors.New("could not canonicalize []byte to big.Int")
+			return nil, ErrCanonicalizeByteToBigInt
 		}
 		return cv, nil
 	case string:
 		cv, ok := new(big.Int).SetString(v, 10)
 		if !ok {
-			return nil, errors.New("could not canonicalize string to big.Int")
+			return nil, ErrCanonicalizeStringToBigInt
 		}
 		return cv, nil
 	case *big.Int:
 		return v, nil
 	}
-	return nil, errors.New("could not canonicalize value to big.Int")
+	return nil, ErrCanonicalizeBigInt
 }
 
 func boolCanonicalizer(v interface{}) (interface{}, error) {
@@ -91,12 +134,12 @@ func boolCanonicalizer(v interface{}) (interface{}, error) {
 		} else if bytes.Equal(v, []byte{0x00}) {
 			return false, nil
 		} else {
-			return nil, errors.New("invalid type")
+			return nil, ErrCanonicalizeByteToBool
 		}
 	case bool:
 		return v, nil
 	}
-	return nil, errors.New("invalid type")
+	return nil, ErrCanonicalizeBool
 }
 
 var Params = map[string]Param{

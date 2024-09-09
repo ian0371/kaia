@@ -28,7 +28,7 @@ func NewGovData(m map[string]interface{}) GovData {
 			return nil
 		}
 
-		// it can be in the genesis.
+		// In genesis, forbidden-vote params can exist.
 		// if param.VoteForbidden {
 		// 	return nil
 		// }

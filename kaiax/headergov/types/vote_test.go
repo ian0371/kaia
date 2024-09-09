@@ -12,7 +12,7 @@ import (
 
 var _ VoteData = (*voteData)(nil)
 
-func TestNewVoteNewGov(t *testing.T) {
+func TestNewVote(t *testing.T) {
 	tcs := []struct {
 		name    string
 		value   interface{}
@@ -49,7 +49,7 @@ func TestNewVoteNewGov(t *testing.T) {
 		{name: "governance.governancemode", value: 2, invalid: true},
 		{name: "governance.governancemode", value: "unexpected", invalid: true},
 		{name: "governance.governingnode", value: "0x00000000000000000000", invalid: true},
-		{name: "governance.governingnode", value: "0x0000000000000000000000000000000000000000", invalid: true},
+		{name: "governance.governingnode", value: "0x0000000000000000000000000000000000000000", invalid: false},
 		{name: "governance.governingnode", value: "0x000000000000000000000000000abcd000000000", invalid: false},
 		{name: "governance.governingnode", value: "000000000000000000000000000abcd000000000", invalid: false},
 		{name: "governance.governingnode", value: common.HexToAddress("000000000000000000000000000abcd000000000"), invalid: false},
@@ -60,7 +60,7 @@ func TestNewVoteNewGov(t *testing.T) {
 		{name: "governance.governingnode", value: 0, invalid: true},
 		{name: "governance.governingnode", value: false, invalid: true},
 		{name: "governance.govparamcontract", value: "0x00000000000000000000", invalid: true},
-		{name: "governance.govparamcontract", value: "0x0000000000000000000000000000000000000000", invalid: true},
+		{name: "governance.govparamcontract", value: "0x0000000000000000000000000000000000000000", invalid: false},
 		{name: "governance.govparamcontract", value: "0x000000000000000000000000000abcd000000000", invalid: false},
 		{name: "governance.govparamcontract", value: "000000000000000000000000000abcd000000000", invalid: false},
 		{name: "governance.govparamcontract", value: common.HexToAddress("000000000000000000000000000abcd000000000"), invalid: false},
@@ -177,17 +177,8 @@ func TestNewVoteNewGov(t *testing.T) {
 	}
 
 	for _, tc := range tcs {
-		t.Run("TestNewVote/"+tc.name, func(t *testing.T) {
+		t.Run(tc.name, func(t *testing.T) {
 			vote := NewVoteData(common.Address{}, tc.name, tc.value)
-			if tc.invalid {
-				assert.Nil(t, vote)
-			} else {
-				assert.NotNil(t, vote)
-			}
-		})
-
-		t.Run("TestNewGov/"+tc.name, func(t *testing.T) {
-			vote := NewGovData(map[string]interface{}{tc.name: tc.value})
 			if tc.invalid {
 				assert.Nil(t, vote)
 			} else {
@@ -212,7 +203,7 @@ func TestHeaderVoteSerialization(t *testing.T) {
 		{serializedVoteData: "0xf39452d41ca72af615a1ac3301b0a93efa222ecc7541976b697037312e6c6f776572626f756e64626173656665658505d21dba00", blockNum: 3, voteData: NewVoteData(v1, "kip71.lowerboundbasefee", uint64(25e9))},
 		{serializedVoteData: "0xf39452d41ca72af615a1ac3301b0a93efa222ecc7541976b697037312e7570706572626f756e646261736566656585ae9f7bcc00", blockNum: 4, voteData: NewVoteData(v1, "kip71.upperboundbasefee", uint64(750e9))},
 		{serializedVoteData: "0xef9452d41ca72af615a1ac3301b0a93efa222ecc7541986b697037312e6261736566656564656e6f6d696e61746f7264", blockNum: 5, voteData: NewVoteData(v1, "kip71.basefeedenominator", uint64(100))},
-		{serializedVoteData: "0xf83d9452d41ca72af615a1ac3301b0a93efa222ecc7541937265776172642e6d696e696d756d7374616b659331303030303030303030303030303030303030", blockNum: 6, voteData: NewVoteData(v1, "reward.minimumstake", big.NewInt(1000000000000000000))},
+		{serializedVoteData: "0xf83e9452d41ca72af615a1ac3301b0a93efa222ecc7541947265776172642e6d696e74696e67616d6f756e749331303030303030303030303030303030303030", blockNum: 6, voteData: NewVoteData(v1, "reward.mintingamount", big.NewInt(1000000000000000000))},
 		// TODO: add govparamcontract from baobab
 
 		///// Real mainnet vote data.

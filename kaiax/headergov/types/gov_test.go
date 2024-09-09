@@ -12,6 +12,56 @@ import (
 
 var _ GovData = (*govData)(nil)
 
+func TestNewGov(t *testing.T) {
+	tcs := []struct {
+		name    string
+		value   interface{}
+		invalid bool
+	}{
+		{name: "istanbul.epoch", value: uint64(30000), invalid: false},
+		{name: "istanbul.epoch", value: float64(30000.00), invalid: false},
+		{name: "istanbul.policy", value: uint64(0), invalid: false},
+		{name: "istanbul.policy", value: uint64(1), invalid: false},
+		{name: "istanbul.policy", value: uint64(2), invalid: false},
+		{name: "governance.governancemode", value: "none", invalid: false},
+		{name: "governance.governancemode", value: "single", invalid: false},
+		{name: "governance.governancemode", value: 0, invalid: true},
+		{name: "governance.governancemode", value: 1, invalid: true},
+		{name: "governance.governancemode", value: "unexpected", invalid: true},
+		{name: "reward.useginicoeff", value: true, invalid: false},
+		{name: "reward.useginicoeff", value: false, invalid: false},
+		{name: "reward.useginicoeff", value: []byte{0}, invalid: false},
+		{name: "reward.useginicoeff", value: []byte{1}, invalid: false},
+		{name: "reward.useginicoeff", value: "false", invalid: true},
+		{name: "reward.useginicoeff", value: 0, invalid: true},
+		{name: "reward.useginicoeff", value: 1, invalid: true},
+		{name: "reward.minimumstake", value: "2000000000000000000000000", invalid: false},
+		{name: "reward.minimumstake", value: 200000000000000, invalid: true},
+		{name: "reward.minimumstake", value: "-1", invalid: true},
+		{name: "reward.minimumstake", value: "0", invalid: false},
+		{name: "reward.minimumstake", value: 0, invalid: true},
+		{name: "reward.minimumstake", value: 1.1, invalid: true},
+		{name: "reward.stakingupdateinterval", value: uint64(20), invalid: false},
+		{name: "reward.stakingupdateinterval", value: float64(20.0), invalid: false},
+		{name: "reward.stakingupdateinterval", value: float64(20.2), invalid: true},
+		{name: "reward.stakingupdateinterval", value: "20", invalid: true},
+		{name: "reward.proposerupdateinterval", value: uint64(20), invalid: false},
+		{name: "reward.proposerupdateinterval", value: float64(20.0), invalid: false},
+		{name: "reward.proposerupdateinterval", value: float64(20.2), invalid: true},
+		{name: "reward.proposerupdateinterval", value: "20", invalid: true},
+	}
+
+	for _, tc := range tcs {
+		t.Run(tc.name, func(t *testing.T) {
+			vote := NewGovData(map[string]interface{}{tc.name: tc.value})
+			if tc.invalid {
+				assert.Nil(t, vote)
+			} else {
+				assert.NotNil(t, vote)
+			}
+		})
+	}
+}
 func TestHeaderGovSerialization(t *testing.T) {
 	tcs := []struct {
 		serializedGovData string

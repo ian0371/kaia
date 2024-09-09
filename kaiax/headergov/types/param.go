@@ -251,9 +251,15 @@ var Params = map[string]Param{
 	"reward.minimumstake": {
 		ParamSetFieldName: "MinimumStake",
 		Canonicalizer:     bigIntCanonicalizer,
-		FormatChecker:     nil,
-		DefaultValue:      big.NewInt(2000000),
-		VoteForbidden:     true,
+		FormatChecker: func(cv interface{}) bool {
+			v, ok := cv.(*big.Int)
+			if !ok {
+				return false
+			}
+			return v.Sign() >= 0
+		},
+		DefaultValue:  big.NewInt(2000000),
+		VoteForbidden: true,
 	},
 	"reward.useginicoeff": {
 		ParamSetFieldName: "UseGiniCoeff",

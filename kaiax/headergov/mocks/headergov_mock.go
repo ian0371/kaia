@@ -55,19 +55,19 @@ func (mr *MockHeaderGovModuleMockRecorder) APIs() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "APIs", reflect.TypeOf((*MockHeaderGovModule)(nil).APIs))
 }
 
-// EffectiveParams mocks base method.
-func (m *MockHeaderGovModule) EffectiveParams(arg0 uint64) (types0.ParamSet, error) {
+// EffectiveParamSet mocks base method.
+func (m *MockHeaderGovModule) EffectiveParamSet(arg0 uint64) (types0.ParamSet, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "EffectiveParams", arg0)
+	ret := m.ctrl.Call(m, "EffectiveParamSet", arg0)
 	ret0, _ := ret[0].(types0.ParamSet)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// EffectiveParams indicates an expected call of EffectiveParams.
-func (mr *MockHeaderGovModuleMockRecorder) EffectiveParams(arg0 any) *gomock.Call {
+// EffectiveParamSet indicates an expected call of EffectiveParamSet.
+func (mr *MockHeaderGovModuleMockRecorder) EffectiveParamSet(arg0 any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EffectiveParams", reflect.TypeOf((*MockHeaderGovModule)(nil).EffectiveParams), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EffectiveParamSet", reflect.TypeOf((*MockHeaderGovModule)(nil).EffectiveParamSet), arg0)
 }
 
 // FinalizeBlock mocks base method.

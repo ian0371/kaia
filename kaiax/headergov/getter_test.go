@@ -50,7 +50,7 @@ func TestEffectiveParams(t *testing.T) {
 				h.HandleGov(num, g)
 			}
 
-			gp, err := h.EffectiveParams(tc.blockNum)
+			gp, err := h.EffectiveParamSet(tc.blockNum)
 			require.NoError(t, err)
 			assert.Equal(t, tc.expectedPrice, gp.UnitPrice)
 		})

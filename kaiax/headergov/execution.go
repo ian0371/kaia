@@ -48,7 +48,7 @@ func (h *headerGovModule) HandleGov(blockNum uint64, gov GovData) error {
 	h.cache.AddGov(blockNum, gov)
 
 	// merge gov based on latest effective params.
-	gp, err := h.EffectiveParams(blockNum)
+	gp, err := h.EffectiveParamSet(blockNum)
 	if err != nil {
 		logger.Error("kaiax.HandleGov error fetching EffectiveParams", "blockNum", blockNum, "gov", gov, "err", err)
 		return err

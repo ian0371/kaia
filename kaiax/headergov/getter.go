@@ -1,6 +1,6 @@
 package headergov
 
-func (h *headerGovModule) EffectiveParams(blockNum uint64) (ParamSet, error) {
+func (h *headerGovModule) EffectiveParamSet(blockNum uint64) (ParamSet, error) {
 	// TODO: only return when num <= head + 1
 	prevEpochStart := PrevEpochStart(blockNum, h.epoch, h.isKoreHF(blockNum))
 	gh := h.GetGovernanceHistory()

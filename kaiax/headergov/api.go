@@ -40,7 +40,7 @@ func newHeaderGovAPI(s *headerGovModule) *headerGovAPI {
 
 func (api *headerGovAPI) Vote(name string, value interface{}) (string, error) {
 	blockNumber := api.h.Chain.CurrentBlock().NumberU64()
-	gp, err := api.h.EffectiveParams(blockNumber + 1)
+	gp, err := api.h.EffectiveParamSet(blockNumber + 1)
 	if err != nil {
 		return "", err
 	}
@@ -135,7 +135,7 @@ func (api *headerGovAPI) getParams(num *rpc.BlockNumber) (map[string]interface{}
 		blockNumber = uint64(num.Int64())
 	}
 
-	gp, err := api.h.EffectiveParams(blockNumber)
+	gp, err := api.h.EffectiveParamSet(blockNumber)
 	if err != nil {
 		return nil, err
 	}

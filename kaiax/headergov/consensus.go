@@ -99,7 +99,7 @@ func (h *headerGovModule) VerifyVote(blockNum uint64, vote VoteData) error {
 			return errors.New("govparamcontract is not an contract account")
 		}
 	case "kip71.lowerboundbasefee":
-		params, err := h.EffectiveParams(blockNum)
+		params, err := h.EffectiveParamSet(blockNum)
 		if err != nil {
 			return err
 		}
@@ -107,7 +107,7 @@ func (h *headerGovModule) VerifyVote(blockNum uint64, vote VoteData) error {
 			return errors.New("lowerboundbasefee is greater than upperboundbasefee")
 		}
 	case "kip71.upperboundbasefee":
-		params, err := h.EffectiveParams(blockNum)
+		params, err := h.EffectiveParamSet(blockNum)
 		if err != nil {
 			return err
 		}

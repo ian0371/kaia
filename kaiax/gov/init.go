@@ -18,6 +18,8 @@ type ContractGovModule = contractgov_types.ContractGovModule
 type ParamSet = headergov_types.ParamSet
 type GovModule = gov_types.GovModule
 
+var GetDefaultGovernanceParamSet = headergov_types.GetDefaultGovernanceParamSet
+
 type govModule struct {
 	hgm HeaderGovModule
 	cgm ContractGovModule

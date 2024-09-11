@@ -62,7 +62,7 @@ func prepareContractGovModule(t *testing.T, bc *blockchain.BlockChain, addr comm
 	cgm.Init(&InitOpts{
 		Chain:       bc,
 		ChainConfig: &params.ChainConfig{KoreCompatibleBlock: big.NewInt(100)},
-		hgm:         mockHGM,
+		Hgm:         mockHGM,
 	})
 	mockHGM.EXPECT().EffectiveParamSet(oldgomock.Any()).Return(ParamSet{GovParamContract: addr}, nil).AnyTimes()
 	return cgm

@@ -24,9 +24,8 @@ func (c *contractGovModule) EffectiveParamSet(blockNum uint64) (ParamSet, error)
 	return ret, nil
 }
 
-func (c *contractGovModule) EffectiveParamsPartial(blockNum uint64) map[string]interface{} {
-	m, _ := c.contractGetAllParamsAt(blockNum)
-	return m
+func (c *contractGovModule) EffectiveParamsPartial(blockNum uint64) (map[string]interface{}, error) {
+	return c.contractGetAllParamsAt(blockNum)
 }
 
 func (c *contractGovModule) contractGetAllParamsAt(blockNum uint64) (map[string]interface{}, error) {

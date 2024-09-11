@@ -14,7 +14,7 @@ func (h *headerGovModule) EffectiveParamSet(blockNum uint64) (ParamSet, error) {
 	}
 }
 
-func (h *headerGovModule) EffectiveParamsPartial(blockNum uint64) map[string]interface{} {
+func (h *headerGovModule) EffectiveParamsPartial(blockNum uint64) (map[string]interface{}, error) {
 	ret := make(map[string]interface{})
 	for num, gov := range h.cache.Govs() {
 		if num > blockNum {
@@ -25,7 +25,7 @@ func (h *headerGovModule) EffectiveParamsPartial(blockNum uint64) map[string]int
 		}
 	}
 
-	return ret
+	return ret, nil
 }
 
 func (h *headerGovModule) GetGovernanceHistory() History {

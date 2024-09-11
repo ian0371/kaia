@@ -47,7 +47,7 @@ type InitOpts struct {
 	ChainKv     database.Database
 	ChainConfig *params.ChainConfig
 	Chain       chain
-	hgm         HeaderGovModule
+	Hgm         HeaderGovModule
 }
 
 type contractGovModule struct {
@@ -57,11 +57,15 @@ type contractGovModule struct {
 	hgm         HeaderGovModule
 }
 
+func NewContractGovModule() *contractGovModule {
+	return &contractGovModule{}
+}
+
 func (c *contractGovModule) Init(opts *InitOpts) error {
 	c.ChainKv = opts.ChainKv
 	c.ChainConfig = opts.ChainConfig
 	c.Chain = opts.Chain
-	c.hgm = opts.hgm
+	c.hgm = opts.Hgm
 	if c.ChainConfig == nil || c.ChainConfig.Istanbul == nil {
 		return errNoChainConfig
 	}

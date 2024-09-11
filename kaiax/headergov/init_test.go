@@ -19,9 +19,8 @@ var GetDefaultGovernanceParamSet = headergov_types.GetDefaultGovernanceParamSet
 
 func newHeaderGovModule(t *testing.T, config *params.ChainConfig) *headerGovModule {
 	var (
-		mockCtrl = gomock.NewController(t)
-		chain    = mocks.NewMockBlockChain(mockCtrl)
-		db       = database.NewMemDB()
+		chain = mocks.NewMockBlockChain(gomock.NewController(t))
+		db    = database.NewMemDB()
 
 		m, _   = GetDefaultGovernanceParamSet().ToStrMap()
 		gov, _ = NewGovData(m).Serialize()

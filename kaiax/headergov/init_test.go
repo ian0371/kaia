@@ -17,7 +17,7 @@ import (
 
 var GetDefaultGovernanceParamSet = headergov_types.GetDefaultGovernanceParamSet
 
-func newHeaderGovModule(t *testing.T, config *params.ChainConfig) *HeaderGovModule {
+func newHeaderGovModule(t *testing.T, config *params.ChainConfig) *headerGovModule {
 	var (
 		mockCtrl = gomock.NewController(t)
 		chain    = mocks.NewMockBlockChain(mockCtrl)
@@ -34,7 +34,7 @@ func newHeaderGovModule(t *testing.T, config *params.ChainConfig) *HeaderGovModu
 		Governance: gov,
 	})
 
-	h := &HeaderGovModule{}
+	h := &headerGovModule{}
 	h.Init(&InitOpts{
 		Chain:       chain,
 		ChainKv:     db,

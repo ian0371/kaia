@@ -6,7 +6,7 @@ import (
 	"github.com/kaiachain/kaia/blockchain/types"
 )
 
-func (h *HeaderGovModule) PostInsertBlock(b *types.Block) error {
+func (h *headerGovModule) PostInsertBlock(b *types.Block) error {
 	if len(b.Header().Vote) > 0 {
 		vote, err := DeserializeHeaderVote(b.Header().Vote, b.Number().Uint64())
 		if err != nil {
@@ -28,7 +28,7 @@ func (h *HeaderGovModule) PostInsertBlock(b *types.Block) error {
 	return nil
 }
 
-func (h *HeaderGovModule) HandleVote(blockNum uint64, vote VoteData) error {
+func (h *headerGovModule) HandleVote(blockNum uint64, vote VoteData) error {
 	h.cache.AddVote(calcEpochIdx(blockNum, h.epoch), blockNum, vote)
 
 	var data StoredUint64Array = h.cache.VoteBlockNums()
@@ -44,7 +44,7 @@ func (h *HeaderGovModule) HandleVote(blockNum uint64, vote VoteData) error {
 	return nil
 }
 
-func (h *HeaderGovModule) HandleGov(blockNum uint64, gov GovData) error {
+func (h *headerGovModule) HandleGov(blockNum uint64, gov GovData) error {
 	h.cache.AddGov(blockNum, gov)
 
 	// merge gov based on latest effective params.

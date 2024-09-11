@@ -1,6 +1,6 @@
 package headergov
 
-func (h *HeaderGovModule) Unwind(num uint64) error {
+func (h *headerGovModule) Unwind(num uint64) error {
 	// Remove entries from h.cache that are larger than num
 	h.cache.RemoveVotesAfter(num)
 	h.cache.RemoveGovernanceAfter(num)

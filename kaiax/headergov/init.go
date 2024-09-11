@@ -46,7 +46,8 @@ type InitOpts struct {
 	NodeAddress common.Address
 }
 
-type HeaderGovModule struct {
+//go:generate mockgen -destination=kaiax/headergov/mocks/headergov_mock.go github.com/kaiachain/kaia/kaiax/headergov HeaderGovModule
+type headerGovModule struct {
 	ChainKv     database.Database
 	ChainConfig *params.ChainConfig
 	Chain       chain
@@ -57,11 +58,11 @@ type HeaderGovModule struct {
 	cache HeaderCache
 }
 
-func NewHeaderGovModule() *HeaderGovModule {
-	return &HeaderGovModule{}
+func NewHeaderGovModule() *headerGovModule {
+	return &headerGovModule{}
 }
 
-func (h *HeaderGovModule) Init(opts *InitOpts) error {
+func (h *headerGovModule) Init(opts *InitOpts) error {
 	h.ChainKv = opts.ChainKv
 	h.ChainConfig = opts.ChainConfig
 	h.Chain = opts.Chain
@@ -90,24 +91,24 @@ func (h *HeaderGovModule) Init(opts *InitOpts) error {
 	return nil
 }
 
-func (s *HeaderGovModule) Start() error {
+func (s *headerGovModule) Start() error {
 	logger.Info("HeaderGovModule started")
 	return nil
 }
 
-func (s *HeaderGovModule) Stop() {
+func (s *headerGovModule) Stop() {
 	logger.Info("HeaderGovModule stopped")
 }
 
-func (s *HeaderGovModule) isKoreHF(num uint64) bool {
+func (s *headerGovModule) isKoreHF(num uint64) bool {
 	return s.ChainConfig.IsKoreForkEnabled(new(big.Int).SetUint64(num))
 }
 
-func (s *HeaderGovModule) PushMyVotes(vote VoteData) {
+func (s *headerGovModule) PushMyVotes(vote VoteData) {
 	s.myVotes = append(s.myVotes, vote)
 }
 
-func (s *HeaderGovModule) PopMyVotes(idx int) {
+func (s *headerGovModule) PopMyVotes(idx int) {
 	s.myVotes = append(s.myVotes[:idx], s.myVotes[idx+1:]...)
 }
 

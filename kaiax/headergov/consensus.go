@@ -11,7 +11,7 @@ import (
 	"github.com/kaiachain/kaia/crypto"
 )
 
-func (h *HeaderGovModule) VerifyHeader(header *types.Header) error {
+func (h *headerGovModule) VerifyHeader(header *types.Header) error {
 	if header.Number.Uint64() == 0 {
 		return nil
 	}
@@ -49,7 +49,7 @@ func (h *HeaderGovModule) VerifyHeader(header *types.Header) error {
 	return h.VerifyGov(header.Number.Uint64(), gov)
 }
 
-func (h *HeaderGovModule) PrepareHeader(header *types.Header) (*types.Header, error) {
+func (h *headerGovModule) PrepareHeader(header *types.Header) (*types.Header, error) {
 	// if epoch block & vote exists in the last epoch, put Governance to header.
 	if len(h.myVotes) > 0 {
 		header.Vote, _ = h.myVotes[0].Serialize()
@@ -65,14 +65,14 @@ func (h *HeaderGovModule) PrepareHeader(header *types.Header) (*types.Header, er
 	return header, nil
 }
 
-func (h *HeaderGovModule) FinalizeBlock(b *types.Block) (*types.Block, error) {
+func (h *headerGovModule) FinalizeBlock(b *types.Block) (*types.Block, error) {
 	// TODO-kaiax: must be removed later. only for testing.
 	h.PostInsertBlock(b)
 	return b, nil
 }
 
 // VerifyVote takes canonical VoteData and performs the semantic check.
-func (h *HeaderGovModule) VerifyVote(blockNum uint64, vote VoteData) error {
+func (h *headerGovModule) VerifyVote(blockNum uint64, vote VoteData) error {
 	if vote == nil {
 		return errors.New("vote is nil")
 	}
@@ -119,7 +119,7 @@ func (h *HeaderGovModule) VerifyVote(blockNum uint64, vote VoteData) error {
 	return nil
 }
 
-func (h *HeaderGovModule) VerifyGov(blockNum uint64, gov GovData) error {
+func (h *headerGovModule) VerifyGov(blockNum uint64, gov GovData) error {
 	expected := h.getExpectedGovernance(blockNum)
 	if !reflect.DeepEqual(expected, gov) {
 		return errors.New("governance is not matched")
@@ -129,7 +129,7 @@ func (h *HeaderGovModule) VerifyGov(blockNum uint64, gov GovData) error {
 }
 
 // blockNum must be greater than epoch.
-func (h *HeaderGovModule) getExpectedGovernance(blockNum uint64) GovData {
+func (h *headerGovModule) getExpectedGovernance(blockNum uint64) GovData {
 	prevEpochIdx := calcEpochIdx(blockNum, h.epoch) - 1
 	prevEpochVotes := h.getVotesInEpoch(prevEpochIdx)
 	govs := make(map[string]interface{})
@@ -142,7 +142,7 @@ func (h *HeaderGovModule) getExpectedGovernance(blockNum uint64) GovData {
 	return NewGovData(govs)
 }
 
-func (h *HeaderGovModule) getVotesInEpoch(epochIdx uint64) map[uint64]VoteData {
+func (h *headerGovModule) getVotesInEpoch(epochIdx uint64) map[uint64]VoteData {
 	votes := make(map[uint64]VoteData)
 	for blockNum, vote := range h.cache.GroupedVotes()[epochIdx] {
 		votes[blockNum] = vote

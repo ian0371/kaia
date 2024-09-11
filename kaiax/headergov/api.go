@@ -19,7 +19,7 @@ var (
 	errInvalidUpperBound      = errors.New("upperboundbasefee cannot be set lower than lowerboundbasefee")
 )
 
-func (s *HeaderGovModule) APIs() []rpc.API {
+func (s *headerGovModule) APIs() []rpc.API {
 	return []rpc.API{
 		{
 			Namespace: "governance",
@@ -31,10 +31,10 @@ func (s *HeaderGovModule) APIs() []rpc.API {
 }
 
 type headerGovAPI struct {
-	h *HeaderGovModule
+	h *headerGovModule
 }
 
-func newHeaderGovAPI(s *HeaderGovModule) *headerGovAPI {
+func newHeaderGovAPI(s *headerGovModule) *headerGovAPI {
 	return &headerGovAPI{s}
 }
 

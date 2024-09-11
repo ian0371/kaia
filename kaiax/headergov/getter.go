@@ -1,6 +1,6 @@
 package headergov
 
-func (h *HeaderGovModule) EffectiveParams(blockNum uint64) (ParamSet, error) {
+func (h *headerGovModule) EffectiveParams(blockNum uint64) (ParamSet, error) {
 	// TODO: only return when num <= head + 1
 	prevEpochStart := PrevEpochStart(blockNum, h.epoch, h.isKoreHF(blockNum))
 	gh := h.GetGovernanceHistory()
@@ -14,7 +14,7 @@ func (h *HeaderGovModule) EffectiveParams(blockNum uint64) (ParamSet, error) {
 	}
 }
 
-func (h *HeaderGovModule) GetGovernanceHistory() History {
+func (h *headerGovModule) GetGovernanceHistory() History {
 	return h.cache.History()
 }
 

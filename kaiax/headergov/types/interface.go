@@ -2,9 +2,9 @@ package types
 
 import (
 	"github.com/kaiachain/kaia/kaiax"
-	"github.com/kaiachain/kaia/params"
 )
 
+//go:generate mockgen -destination=kaiax/headergov/mocks/headergov_mock.go github.com/kaiachain/kaia/kaiax/headergov/types HeaderGovModule
 type HeaderGovModule interface {
 	kaiax.BaseModule
 	kaiax.JsonRpcModule
@@ -12,5 +12,5 @@ type HeaderGovModule interface {
 	kaiax.ExecutionModule
 	kaiax.UnwindableModule
 
-	EffectiveParams(num uint64) (*params.GovParamSet, error)
+	EffectiveParams(blockNum uint64) (ParamSet, error)
 }

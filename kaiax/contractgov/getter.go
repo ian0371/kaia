@@ -9,31 +9,44 @@ import (
 )
 
 func (c *contractGovModule) EffectiveParamSet(blockNum uint64) (ParamSet, error) {
-	pset, err := c.contractGetAllParamsAt(blockNum)
+	m, err := c.contractGetAllParamsAt(blockNum)
 	if err != nil {
 		return ParamSet{}, err
 	}
-	return pset, nil
+
+	ret := ParamSet{}
+	for k, v := range m {
+		err = ret.Set(k, v)
+		if err != nil {
+			return ParamSet{}, err
+		}
+	}
+	return ret, nil
 }
 
-func (c *contractGovModule) contractGetAllParamsAt(blockNum uint64) (ParamSet, error) {
+func (c *contractGovModule) EffectiveParamsPartial(blockNum uint64) map[string]interface{} {
+	m, _ := c.contractGetAllParamsAt(blockNum)
+	return m
+}
+
+func (c *contractGovModule) contractGetAllParamsAt(blockNum uint64) (map[string]interface{}, error) {
 	chain := c.Chain
 	if chain == nil {
-		return ParamSet{}, errContractEngineNotReady
+		return nil, errContractEngineNotReady
 	}
 
 	config := c.ChainConfig
 	if !config.IsKoreForkEnabled(new(big.Int).SetUint64(blockNum)) {
-		return ParamSet{}, errContractEngineNotReady
+		return nil, errContractEngineNotReady
 	}
 
 	addr, err := c.contractAddrAt(blockNum)
 	if err != nil {
-		return ParamSet{}, err
+		return nil, err
 	}
 	if common.EmptyAddress(addr) {
 		logger.Trace("ContractEngine disabled: GovParamContract address not set")
-		return ParamSet{}, nil
+		return nil, nil
 	}
 
 	caller := backends.NewBlockchainContractBackend(chain, nil, nil)
@@ -42,25 +55,22 @@ func (c *contractGovModule) contractGetAllParamsAt(blockNum uint64) (ParamSet, e
 	names, values, err := contract.GetAllParamsAt(nil, new(big.Int).SetUint64(blockNum))
 	if err != nil {
 		logger.Warn("ContractEngine disabled: getAllParams call failed", "err", err)
-		return ParamSet{}, nil
+		return nil, nil
 	}
 
 	if len(names) != len(values) {
 		logger.Warn("ContractEngine disabled: getAllParams result invalid", "len(names)", len(names), "len(values)", len(values))
-		return ParamSet{}, nil
+		return nil, nil
 	}
 
-	ret := ParamSet{}
+	ret := make(map[string]interface{})
 	for i := 0; i < len(names); i++ {
 		param := Params[names[i]]
 		cv, err := param.Canonicalizer(values[i])
 		if err != nil {
-			return ParamSet{}, err
+			return nil, err
 		}
-		err = ret.Set(names[i], cv)
-		if err != nil {
-			return ParamSet{}, err
-		}
+		ret[names[i]] = cv
 	}
 
 	return ret, nil

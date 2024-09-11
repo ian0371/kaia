@@ -70,6 +70,20 @@ func (mr *MockHeaderGovModuleMockRecorder) EffectiveParamSet(arg0 any) *gomock.C
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EffectiveParamSet", reflect.TypeOf((*MockHeaderGovModule)(nil).EffectiveParamSet), arg0)
 }
 
+// EffectiveParamsPartial mocks base method.
+func (m *MockHeaderGovModule) EffectiveParamsPartial(arg0 uint64) map[string]any {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "EffectiveParamsPartial", arg0)
+	ret0, _ := ret[0].(map[string]any)
+	return ret0
+}
+
+// EffectiveParamsPartial indicates an expected call of EffectiveParamsPartial.
+func (mr *MockHeaderGovModuleMockRecorder) EffectiveParamsPartial(arg0 any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EffectiveParamsPartial", reflect.TypeOf((*MockHeaderGovModule)(nil).EffectiveParamsPartial), arg0)
+}
+
 // FinalizeBlock mocks base method.
 func (m *MockHeaderGovModule) FinalizeBlock(arg0 *types.Block) (*types.Block, error) {
 	m.ctrl.T.Helper()
@@ -83,6 +97,18 @@ func (m *MockHeaderGovModule) FinalizeBlock(arg0 *types.Block) (*types.Block, er
 func (mr *MockHeaderGovModuleMockRecorder) FinalizeBlock(arg0 any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FinalizeBlock", reflect.TypeOf((*MockHeaderGovModule)(nil).FinalizeBlock), arg0)
+}
+
+// Init mocks base method.
+func (m *MockHeaderGovModule) Init() {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "Init")
+}
+
+// Init indicates an expected call of Init.
+func (mr *MockHeaderGovModuleMockRecorder) Init() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Init", reflect.TypeOf((*MockHeaderGovModule)(nil).Init))
 }
 
 // PostInsertBlock mocks base method.

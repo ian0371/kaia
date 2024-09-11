@@ -7,6 +7,7 @@ import (
 	"github.com/kaiachain/kaia/blockchain/state"
 	"github.com/kaiachain/kaia/blockchain/types"
 	"github.com/kaiachain/kaia/common"
+	contractgov_types "github.com/kaiachain/kaia/kaiax/contractgov/types"
 	headergov_types "github.com/kaiachain/kaia/kaiax/headergov/types"
 	"github.com/kaiachain/kaia/log"
 	"github.com/kaiachain/kaia/params"
@@ -14,6 +15,8 @@ import (
 )
 
 var (
+	_ ContractGovModule = (*contractGovModule)(nil)
+
 	logger = log.NewModuleLogger(log.KaiaXGov)
 
 	errNoChainConfig          = errors.New("ChainConfig or Istanbul is not set")
@@ -25,6 +28,7 @@ var (
 
 type ParamSet = headergov_types.ParamSet
 type HeaderGovModule = headergov_types.HeaderGovModule
+type ContractGovModule = contractgov_types.ContractGovModule
 
 var Params = headergov_types.Params
 
@@ -63,4 +67,13 @@ func (c *contractGovModule) Init(opts *InitOpts) error {
 	}
 
 	return nil
+}
+
+func (c *contractGovModule) Start() error {
+	logger.Info("ContractGovModule started")
+	return nil
+}
+
+func (c *contractGovModule) Stop() {
+	logger.Info("ContractGovModule stopped")
 }

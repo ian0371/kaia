@@ -13,4 +13,5 @@ type HeaderGovModule interface {
 	kaiax.UnwindableModule
 
 	EffectiveParamSet(blockNum uint64) (ParamSet, error)
+	EffectiveParamsPartial(blockNum uint64) map[string]interface{}
 }

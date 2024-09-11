@@ -14,6 +14,8 @@ import (
 )
 
 var (
+	_ HeaderGovModule = (*headerGovModule)(nil)
+
 	logger = log.NewModuleLogger(log.KaiaXGov)
 
 	errZeroEpoch     = errors.New("epoch cannot be zero")
@@ -26,6 +28,7 @@ type GovData = headergov_types.GovData
 type History = headergov_types.History
 type ParamSet = headergov_types.ParamSet
 type HeaderCache = headergov_types.HeaderCache
+type HeaderGovModule = headergov_types.HeaderGovModule
 
 var NewVoteData = headergov_types.NewVoteData
 var NewGovData = headergov_types.NewGovData

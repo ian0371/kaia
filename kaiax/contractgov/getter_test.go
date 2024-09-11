@@ -4,99 +4,104 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/golang/mock/gomock"
+	oldgomock "github.com/golang/mock/gomock"
+	"github.com/kaiachain/kaia/accounts/abi/bind"
 	"github.com/kaiachain/kaia/accounts/abi/bind/backends"
-	"github.com/kaiachain/kaia/blockchain/state"
+	"github.com/kaiachain/kaia/blockchain"
 	"github.com/kaiachain/kaia/blockchain/types"
 	"github.com/kaiachain/kaia/common"
-	headergov_mock "github.com/kaiachain/kaia/headergov/mocks"
-	headergov_types "github.com/kaiachain/kaia/kaiax/headergov/types"
-	"github.com/kaiachain/kaia/node/cn/filters"
+	govcontract "github.com/kaiachain/kaia/contracts/contracts/system_contracts/gov"
+	"github.com/kaiachain/kaia/crypto"
+	mock_headergov "github.com/kaiachain/kaia/kaiax/headergov/mocks"
+	"github.com/kaiachain/kaia/log"
 	"github.com/kaiachain/kaia/params"
-	"github.com/kaiachain/kaia/work/mocks"
+	"github.com/kaiachain/kaia/storage/database"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
+	"go.uber.org/mock/gomock"
 )
 
-func TestEffectiveParamSet(t *testing.T) {
-	var (
-		mockCtrl = gomock.NewController(t)
-		chain    = mocks.NewMockBlockChain(mockCtrl)
-		mockHGM  = new(headergov_mock.MockHeaderGovModule)
-	)
+func createSimulateBackend(t *testing.T) ([]*bind.TransactOpts, *backends.SimulatedBackend, common.Address, *govcontract.GovParam) {
+	// Create accounts and simulated blockchain
+	accounts := []*bind.TransactOpts{}
+	alloc := blockchain.GenesisAlloc{}
+	for i := 0; i < 1; i++ {
+		key, _ := crypto.GenerateKey()
+		account := bind.NewKeyedTransactor(key)
+		account.GasLimit = 10000000
+		accounts = append(accounts, account)
+		alloc[account.From] = blockchain.GenesisAccount{Balance: big.NewInt(params.KAIA)}
+	}
+	config := &params.ChainConfig{}
+	config.SetDefaults()
+	config.UnitPrice = 25e9
+	config.IstanbulCompatibleBlock = common.Big0
+	config.LondonCompatibleBlock = common.Big0
+	config.EthTxTypeCompatibleBlock = common.Big0
+	config.MagmaCompatibleBlock = common.Big0
+	config.KoreCompatibleBlock = common.Big0
 
-	cgm := &ContractGovModule{}
+	sim := backends.NewSimulatedBackendWithDatabase(database.NewMemoryDBManager(), alloc, config)
+
+	// Deploy contract
+	owner := accounts[0]
+	address, tx, contract, err := govcontract.DeployGovParam(owner, sim)
+	require.Nil(t, err)
+	sim.Commit()
+
+	receipt, _ := sim.TransactionReceipt(nil, tx.Hash())
+	require.NotNil(t, receipt)
+	require.Equal(t, types.ReceiptStatusSuccessful, receipt.Status)
+
+	return accounts, sim, address, contract
+}
+
+func prepareContractGovModule(t *testing.T, bc *blockchain.BlockChain, addr common.Address) *contractGovModule {
+	mockHGM := mock_headergov.NewMockHeaderGovModule(gomock.NewController(t))
+	cgm := &contractGovModule{}
 	cgm.Init(&InitOpts{
-		Chain:       chain,
-		ChainConfig: &params.ChainConfig{},
+		Chain:       bc,
+		ChainConfig: &params.ChainConfig{KoreCompatibleBlock: big.NewInt(100)},
 		hgm:         mockHGM,
 	})
+	mockHGM.EXPECT().EffectiveParamSet(oldgomock.Any()).Return(ParamSet{GovParamContract: addr}, nil).AnyTimes()
+	return cgm
+}
 
-	testCases := []struct {
-		name           string
-		blockNum       uint64
-		koreForkActive bool
-		contractAddr   common.Address
-		expectedParams ParamSet
-		expectedError  error
-	}{
-		{
-			name:           "Kore fork not active",
-			blockNum:       100,
-			koreForkActive: false,
-			expectedError:  errContractEngineNotReady,
-		},
-		{
-			name:           "Kore fork active, contract address not set",
-			blockNum:       200,
-			koreForkActive: true,
-			contractAddr:   common.Address{},
-			expectedParams: ParamSet{},
-			expectedError:  nil,
-		},
-		{
-			name:           "Kore fork active, contract address set",
-			blockNum:       300,
-			koreForkActive: true,
-			contractAddr:   common.HexToAddress("0x1234567890123456789012345678901234567890"),
-			expectedParams: ParamSet{
-				MaxValidators: 100,
-				MinStake:      big.NewInt(1000000),
-			},
-			expectedError: nil,
-		},
+func TestEffectiveParamSet(t *testing.T) {
+	log.EnableLogForTest(log.LvlTrace, log.LvlError)
+	accounts, sim, addr, gp := createSimulateBackend(t)
+	cgm := prepareContractGovModule(t, sim.BlockChain(), addr)
+
+	{
+		activation := big.NewInt(1000)
+		val := []byte{0, 0, 0, 0, 0, 0, 0, 25}
+		tx, err := gp.SetParam(accounts[0], "governance.unitprice", true, val, activation)
+		require.Nil(t, err)
+		sim.Commit()
+
+		receipt, _ := sim.TransactionReceipt(nil, tx.Hash())
+		require.NotNil(t, receipt)
+		require.Equal(t, types.ReceiptStatusSuccessful, receipt.Status)
+
+		pset, err := cgm.EffectiveParamSet(1000)
+		assert.NoError(t, err)
+		assert.Equal(t, uint64(25), pset.UnitPrice)
 	}
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			cgm.ChainConfig.KoreForkBlock = big.NewInt(150)
+	{
+		activation := big.NewInt(2000)
+		val := []byte{0, 0, 0, 0, 0, 0, 0, 125}
+		tx, err := gp.SetParam(accounts[0], "governance.unitprice", true, val, activation)
+		require.Nil(t, err)
+		sim.Commit()
 
-			chain.EXPECT().Config().Return(cgm.ChainConfig)
-			mockHGM.EXPECT().EffectiveParams(tc.blockNum).Return(headergov_types.ParamSet{GovParamContract: tc.contractAddr}, nil)
+		receipt, _ := sim.TransactionReceipt(nil, tx.Hash())
+		require.NotNil(t, receipt)
+		require.Equal(t, types.ReceiptStatusSuccessful, receipt.Status)
 
-			if tc.koreForkActive && !tc.contractAddr.IsZero() {
-				chain.On("GetHeaderByNumber", tc.blockNum).Return(&types.Header{})
-				chain.On("State").Return(&state.StateDB{}, nil)
-
-				mockBackend := new(mockContractBackend)
-				mockBackend.On("CallContract", mock.Anything, mock.Anything, mock.Anything).Return([]byte{}, nil)
-				backends.NewBlockchainContractBackend = func(chain backends.BlockChainForCaller, tp backends.TxPoolForCaller, es *filters.EventSystem) *backends.BlockchainContractBackend {
-					return mockBackend
-				}
-			}
-
-			params, err := cgm.EffectiveParamSet(tc.blockNum)
-
-			if tc.expectedError != nil {
-				assert.Error(t, err)
-				assert.Equal(t, tc.expectedError, err)
-			} else {
-				assert.NoError(t, err)
-				assert.Equal(t, tc.expectedParams, params)
-			}
-
-			chain.AssertExpectations(t)
-			mockHGM.AssertExpectations(t)
-		})
+		pset, err := cgm.EffectiveParamSet(2000)
+		assert.NoError(t, err)
+		assert.Equal(t, uint64(125), pset.UnitPrice)
 	}
 }

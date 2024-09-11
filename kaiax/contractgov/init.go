@@ -46,14 +46,14 @@ type InitOpts struct {
 	hgm         HeaderGovModule
 }
 
-type ContractGovModule struct {
+type contractGovModule struct {
 	ChainKv     database.Database
 	ChainConfig *params.ChainConfig
 	Chain       chain
 	hgm         HeaderGovModule
 }
 
-func (c *ContractGovModule) Init(opts *InitOpts) error {
+func (c *contractGovModule) Init(opts *InitOpts) error {
 	c.ChainKv = opts.ChainKv
 	c.ChainConfig = opts.ChainConfig
 	c.Chain = opts.Chain

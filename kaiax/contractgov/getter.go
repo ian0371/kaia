@@ -8,7 +8,7 @@ import (
 	govcontract "github.com/kaiachain/kaia/contracts/contracts/system_contracts/gov"
 )
 
-func (c *ContractGovModule) EffectiveParamSet(blockNum uint64) (ParamSet, error) {
+func (c *contractGovModule) EffectiveParamSet(blockNum uint64) (ParamSet, error) {
 	pset, err := c.contractGetAllParamsAt(blockNum)
 	if err != nil {
 		return ParamSet{}, err
@@ -16,7 +16,7 @@ func (c *ContractGovModule) EffectiveParamSet(blockNum uint64) (ParamSet, error)
 	return pset, nil
 }
 
-func (c *ContractGovModule) contractGetAllParamsAt(blockNum uint64) (ParamSet, error) {
+func (c *contractGovModule) contractGetAllParamsAt(blockNum uint64) (ParamSet, error) {
 	chain := c.Chain
 	if chain == nil {
 		return ParamSet{}, errContractEngineNotReady
@@ -50,17 +50,24 @@ func (c *ContractGovModule) contractGetAllParamsAt(blockNum uint64) (ParamSet, e
 		return ParamSet{}, nil
 	}
 
-	bytesMap := make(map[string][]byte)
+	ret := ParamSet{}
 	for i := 0; i < len(names); i++ {
-		bytesMap[names[i]] = values[i]
+		param := Params[names[i]]
+		cv, err := param.Canonicalizer(values[i])
+		if err != nil {
+			return ParamSet{}, err
+		}
+		err = ret.Set(names[i], cv)
+		if err != nil {
+			return ParamSet{}, err
+		}
 	}
 
-	// TODO: fix ParamSet
-	return ParamSet{}, nil
+	return ret, nil
 }
 
-func (c *ContractGovModule) contractAddrAt(blockNum uint64) (common.Address, error) {
-	headerParams, err := c.hgm.EffectiveParams(blockNum)
+func (c *contractGovModule) contractAddrAt(blockNum uint64) (common.Address, error) {
+	headerParams, err := c.hgm.EffectiveParamSet(blockNum)
 	if err != nil {
 		return common.Address{}, errParamsAtFail
 	}

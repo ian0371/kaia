@@ -3,11 +3,11 @@ package gov
 import (
 	"testing"
 
+	gomock "github.com/golang/mock/gomock"
 	contractgov_mock "github.com/kaiachain/kaia/kaiax/contractgov/mocks"
 	headergov_mock "github.com/kaiachain/kaia/kaiax/headergov/mocks"
 	"github.com/kaiachain/kaia/params"
 	"github.com/stretchr/testify/assert"
-	gomock "go.uber.org/mock/gomock"
 )
 
 func newHeaderGovModuleMock(t *testing.T, config *params.ChainConfig) *headergov_mock.MockHeaderGovModule {

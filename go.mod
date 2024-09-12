@@ -79,7 +79,6 @@ require (
 	github.com/satori/go.uuid v1.2.0
 	github.com/tyler-smith/go-bip32 v1.0.0
 	github.com/wealdtech/go-eth2-wallet-encryptor-keystorev4 v1.4.1
-	go.uber.org/mock v0.4.0
 	golang.org/x/exp v0.0.0-20240318143956-a85f2c67cd81
 )
 

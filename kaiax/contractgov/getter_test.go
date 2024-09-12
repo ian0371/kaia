@@ -4,7 +4,7 @@ import (
 	"math/big"
 	"testing"
 
-	oldgomock "github.com/golang/mock/gomock"
+	gomock "github.com/golang/mock/gomock"
 	"github.com/kaiachain/kaia/accounts/abi/bind"
 	"github.com/kaiachain/kaia/accounts/abi/bind/backends"
 	"github.com/kaiachain/kaia/blockchain"
@@ -18,7 +18,6 @@ import (
 	"github.com/kaiachain/kaia/storage/database"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/mock/gomock"
 )
 
 func createSimulateBackend(t *testing.T) ([]*bind.TransactOpts, *backends.SimulatedBackend, common.Address, *govcontract.GovParam) {
@@ -64,7 +63,7 @@ func prepareContractGovModule(t *testing.T, bc *blockchain.BlockChain, addr comm
 		ChainConfig: &params.ChainConfig{KoreCompatibleBlock: big.NewInt(100)},
 		Hgm:         mockHGM,
 	})
-	mockHGM.EXPECT().EffectiveParamSet(oldgomock.Any()).Return(ParamSet{GovParamContract: addr}, nil).AnyTimes()
+	mockHGM.EXPECT().EffectiveParamSet(gomock.Any()).Return(ParamSet{GovParamContract: addr}, nil).AnyTimes()
 	return cgm
 }
 

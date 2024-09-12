@@ -35,7 +35,7 @@ func NewGovData(m map[string]interface{}) GovData {
 			return nil
 		}
 
-		if param.FormatChecker != nil && !param.FormatChecker(cv) {
+		if !param.FormatChecker(cv) {
 			return nil
 		}
 

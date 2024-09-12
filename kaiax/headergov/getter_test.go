@@ -13,11 +13,9 @@ import (
 
 func TestEffectiveParams(t *testing.T) {
 	log.EnableLogForTest(log.LvlCrit, log.LvlDebug)
+	epoch := uint64(1000)
 	gov := map[uint64]GovData{
-		0: NewGovData(map[string]interface{}{
-			"governance.unitprice": uint64(25),
-		}),
-		604800: NewGovData(map[string]interface{}{
+		1000: NewGovData(map[string]interface{}{
 			"governance.unitprice": uint64(750),
 		}),
 	}
@@ -28,12 +26,17 @@ func TestEffectiveParams(t *testing.T) {
 		blockNum      uint64
 		expectedPrice uint64
 	}{
-		{"Pre-Kore, Block 0", 999999999, 0, 25},
-		{"Pre-Kore, Block 1209600", 999999999, 1209600, 25},
-		{"Pre-Kore, Block 1209601", 999999999, 1209601, 750},
-		{"Post-Kore, Block 0", 0, 0, 25},
-		{"Post-Kore, Block 1209600", 0, 1209600, 750},
-		{"Post-Kore, Block 1209601", 0, 1209601, 750},
+		{"Pre-Kore, Block 0", 999999999, 0, 250e9},
+		{"Pre-Kore, Block 1000", 999999999, 1000, 250e9},
+		{"Pre-Kore, Block 1001", 999999999, 1001, 250e9},
+		{"Pre-Kore, Block 2000", 999999999, 2000, 250e9},
+		{"Pre-Kore, Block 2001", 999999999, 2001, 750},
+
+		{"Post-Kore, Block 0", 0, 0, 250e9},
+		{"Post-Kore, Block 1000", 0, 1000, 250e9},
+		{"Post-Kore, Block 1001", 0, 1001, 250e9},
+		{"Post-Kore, Block 2000", 0, 2000, 750},
+		{"Post-Kore, Block 2001", 0, 2001, 750},
 	}
 
 	for _, tc := range testCases {
@@ -41,7 +44,7 @@ func TestEffectiveParams(t *testing.T) {
 			config := &params.ChainConfig{
 				KoreCompatibleBlock: big.NewInt(int64(tc.koreBlock)),
 				Istanbul: &params.IstanbulConfig{
-					Epoch: 604800,
+					Epoch: epoch,
 				},
 			}
 			h := newHeaderGovModule(t, config)
@@ -59,37 +62,47 @@ func TestEffectiveParams(t *testing.T) {
 
 func TestPrevEpochStart(t *testing.T) {
 	epoch := uint64(1000)
-	testCases := []struct {
+	type TestCase struct {
 		blockNum    uint64
-		isKore      bool
 		expectedGov uint64
-	}{
-		{0, false, 0},
-		{999, false, 0},
-		{1000, false, 0},
-		{1001, false, 0},
-		{1999, false, 0},
-		{2000, false, 0},
-		{2001, false, 1000},
-		{2999, false, 1000},
-		{3000, false, 1000},
-		{3001, false, 2000},
-
-		{0, true, 0},
-		{999, true, 0},
-		{1000, true, 0},
-		{1001, true, 0},
-		{1999, true, 0},
-		{2000, true, 1000},
-		{2001, true, 1000},
-		{2999, true, 1000},
-		{3000, true, 2000},
-		{3001, true, 2000},
 	}
 
-	for _, tc := range testCases {
-		t.Run(fmt.Sprintf("Block %d", tc.blockNum), func(t *testing.T) {
-			result := PrevEpochStart(tc.blockNum, epoch, tc.isKore)
+	preKoreTcs := []TestCase{
+		{0, 0},
+		{999, 0},
+		{1000, 0},
+		{1001, 0},
+		{1999, 0},
+		{2000, 0},
+		{2001, 1000},
+		{2999, 1000},
+		{3000, 1000},
+		{3001, 2000},
+	}
+
+	for _, tc := range preKoreTcs {
+		t.Run(fmt.Sprintf("Pre-Kore Block %d", tc.blockNum), func(t *testing.T) {
+			result := PrevEpochStart(tc.blockNum, epoch, false)
+			assert.Equal(t, tc.expectedGov, result, "Incorrect governance data block for block %d", tc.blockNum)
+		})
+	}
+
+	postKoreTcs := []TestCase{
+		{0, 0},
+		{999, 0},
+		{1000, 0},
+		{1001, 0},
+		{1999, 0},
+		{2000, 1000},
+		{2001, 1000},
+		{2999, 1000},
+		{3000, 2000},
+		{3001, 2000},
+	}
+
+	for _, tc := range postKoreTcs {
+		t.Run(fmt.Sprintf("Post-Kore Block %d", tc.blockNum), func(t *testing.T) {
+			result := PrevEpochStart(tc.blockNum, epoch, true)
 			assert.Equal(t, tc.expectedGov, result, "Incorrect governance data block for block %d", tc.blockNum)
 		})
 	}

@@ -142,6 +142,10 @@ func boolCanonicalizer(v interface{}) (interface{}, error) {
 	return nil, ErrCanonicalizeBool
 }
 
+func noopFormatChecker(cv interface{}) bool {
+	return true
+}
+
 var Params = map[string]Param{
 	"governance.governancemode": {
 		ParamSetFieldName: "GovernanceMode",
@@ -208,7 +212,7 @@ var Params = map[string]Param{
 	"istanbul.epoch": {
 		ParamSetFieldName: "Epoch",
 		Canonicalizer:     uint64Canonicalizer,
-		FormatChecker:     nil,
+		FormatChecker:     noopFormatChecker,
 		DefaultValue:      uint64(604800),
 		VoteForbidden:     true,
 	},
@@ -273,21 +277,21 @@ var Params = map[string]Param{
 	"reward.stakingupdateinterval": {
 		ParamSetFieldName: "StakingUpdateInterval",
 		Canonicalizer:     uint64Canonicalizer,
-		FormatChecker:     nil,
+		FormatChecker:     noopFormatChecker,
 		DefaultValue:      uint64(86400),
 		VoteForbidden:     true,
 	},
 	"reward.proposerupdateinterval": {
 		ParamSetFieldName: "ProposerUpdateInterval",
 		Canonicalizer:     uint64Canonicalizer,
-		FormatChecker:     nil,
+		FormatChecker:     noopFormatChecker,
 		DefaultValue:      uint64(3600),
 		VoteForbidden:     true,
 	},
 	"reward.mintingamount": {
 		ParamSetFieldName: "MintingAmount",
 		Canonicalizer:     bigIntCanonicalizer,
-		FormatChecker:     nil,
+		FormatChecker:     noopFormatChecker,
 		DefaultValue:      big.NewInt(0),
 		VoteForbidden:     false,
 	},
@@ -307,42 +311,42 @@ var Params = map[string]Param{
 	"reward.useginicoeff": {
 		ParamSetFieldName: "UseGiniCoeff",
 		Canonicalizer:     boolCanonicalizer,
-		FormatChecker:     nil,
+		FormatChecker:     noopFormatChecker,
 		DefaultValue:      false,
 		VoteForbidden:     true,
 	},
 	"reward.deferredtxfee": {
 		ParamSetFieldName: "DeferredTxFee",
 		Canonicalizer:     boolCanonicalizer,
-		FormatChecker:     nil,
+		FormatChecker:     noopFormatChecker,
 		DefaultValue:      false,
 		VoteForbidden:     true,
 	},
 	"kip71.lowerboundbasefee": {
 		ParamSetFieldName: "LowerBoundBaseFee",
 		Canonicalizer:     uint64Canonicalizer,
-		FormatChecker:     nil,
+		FormatChecker:     noopFormatChecker,
 		DefaultValue:      uint64(25000000000),
 		VoteForbidden:     false,
 	},
 	"kip71.upperboundbasefee": {
 		ParamSetFieldName: "UpperBoundBaseFee",
 		Canonicalizer:     uint64Canonicalizer,
-		FormatChecker:     nil,
+		FormatChecker:     noopFormatChecker,
 		DefaultValue:      uint64(750000000000),
 		VoteForbidden:     false,
 	},
 	"kip71.gastarget": {
 		ParamSetFieldName: "GasTarget",
 		Canonicalizer:     uint64Canonicalizer,
-		FormatChecker:     nil,
+		FormatChecker:     noopFormatChecker,
 		DefaultValue:      uint64(30000000),
 		VoteForbidden:     false,
 	},
 	"kip71.maxblockgasusedforbasefee": {
 		ParamSetFieldName: "MaxBlockGasUsedForBaseFee",
 		Canonicalizer:     uint64Canonicalizer,
-		FormatChecker:     nil,
+		FormatChecker:     noopFormatChecker,
 		DefaultValue:      uint64(60000000),
 		VoteForbidden:     false,
 	},
@@ -372,7 +376,7 @@ var Params = map[string]Param{
 	"governance.unitprice": {
 		ParamSetFieldName: "UnitPrice",
 		Canonicalizer:     uint64Canonicalizer,
-		FormatChecker:     nil,
+		FormatChecker:     noopFormatChecker,
 		DefaultValue:      uint64(250e9),
 		VoteForbidden:     false,
 	},

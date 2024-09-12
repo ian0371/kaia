@@ -23,16 +23,6 @@ func TestGetHistory(t *testing.T) {
 }
 
 func TestSearch(t *testing.T) {
-	testCases := []struct {
-		blockNumber       uint64
-		expectedUnitPrice uint64
-	}{
-		{0, 100},
-		{3, 100},
-		{4, 200},
-		{5, 200},
-	}
-
 	govs := map[uint64]GovData{
 		0: NewGovData(map[string]interface{}{
 			"governance.unitprice": uint64(100),
@@ -43,11 +33,19 @@ func TestSearch(t *testing.T) {
 	}
 
 	gh := GetHistory(govs)
-	for _, tc := range testCases {
-		t.Run(fmt.Sprintf("Block %d", tc.blockNumber), func(t *testing.T) {
-			gp, err := gh.Search(tc.blockNumber)
+	for i := 0; i < 4; i++ {
+		t.Run(fmt.Sprintf("Block %d", i), func(t *testing.T) {
+			gp, err := gh.Search(uint64(i))
 			assert.Nil(t, err)
-			assert.Equal(t, tc.expectedUnitPrice, gp.UnitPrice)
+			assert.Equal(t, uint64(100), gp.UnitPrice)
+		})
+	}
+
+	for i := 4; i < 100; i++ {
+		t.Run(fmt.Sprintf("Block %d", i), func(t *testing.T) {
+			gp, err := gh.Search(uint64(i))
+			assert.Nil(t, err)
+			assert.Equal(t, uint64(200), gp.UnitPrice)
 		})
 	}
 }

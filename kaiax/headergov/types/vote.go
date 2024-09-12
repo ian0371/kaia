@@ -46,7 +46,7 @@ func NewVoteData(voter common.Address, name string, value interface{}) VoteData 
 		return nil
 	}
 
-	if param.FormatChecker != nil && !param.FormatChecker(cv) {
+	if !param.FormatChecker(cv) {
 		return nil
 	}
 

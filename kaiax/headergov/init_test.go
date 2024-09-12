@@ -17,6 +17,7 @@ import (
 
 var GetDefaultGovernanceParamSet = headergov_types.GetDefaultGovernanceParamSet
 
+// genesis block has the default governance params
 func newHeaderGovModule(t *testing.T, config *params.ChainConfig) *headerGovModule {
 	var (
 		chain = mocks.NewMockBlockChain(gomock.NewController(t))

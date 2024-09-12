@@ -2,7 +2,6 @@ package types
 
 import (
 	"encoding/json"
-	"errors"
 	"math/big"
 	"reflect"
 
@@ -31,29 +30,34 @@ type ParamSet struct {
 	UnitPrice     uint64
 }
 
+// GetDefaultGovernanceParamSet must not return nil, which is unit-tested.
 func GetDefaultGovernanceParamSet() *ParamSet {
 	p := &ParamSet{}
 	for name, param := range Params {
-		p.Set(name, param.DefaultValue)
+		err := p.Set(name, param.DefaultValue)
+		if err != nil {
+			return nil
+		}
 	}
 
 	return p
 }
 
-func (p *ParamSet) Set(key string, cv interface{}) error {
-	param, ok := Params[key]
+// Set the canonical value in the ParamSet for the corresponding parameter name.
+func (p *ParamSet) Set(name string, cv interface{}) error {
+	param, ok := Params[name]
 	if !ok {
-		return errors.New("invalid param key")
+		return ErrInvalidParamName
 	}
 
 	field := reflect.ValueOf(p).Elem().FieldByName(param.ParamSetFieldName)
 	if !field.IsValid() || !field.CanSet() {
-		return errors.New("invalid field or cannot set value")
+		return ErrCannotSet
 	}
 
 	fieldValue := reflect.ValueOf(cv)
 	if !fieldValue.Type().AssignableTo(field.Type()) {
-		return errors.New("type mismatch")
+		return ErrInvalidParamValue
 	}
 
 	field.Set(fieldValue)
@@ -96,30 +100,4 @@ func (p *ParamSet) ToStrMap() (map[string]interface{}, error) {
 	}
 
 	return ret, nil
-}
-
-func (p *ParamSet) Copy() *ParamSet {
-	return &ParamSet{
-		GovernanceMode:            p.GovernanceMode,
-		GoverningNode:             p.GoverningNode,
-		GovParamContract:          p.GovParamContract,
-		CommitteeSize:             p.CommitteeSize,
-		ProposerPolicy:            p.ProposerPolicy,
-		Epoch:                     p.Epoch,
-		Ratio:                     p.Ratio,
-		Kip82Ratio:                p.Kip82Ratio,
-		StakingUpdateInterval:     p.StakingUpdateInterval,
-		ProposerUpdateInterval:    p.ProposerUpdateInterval,
-		MintingAmount:             new(big.Int).Set(p.MintingAmount),
-		MinimumStake:              new(big.Int).Set(p.MinimumStake),
-		UseGiniCoeff:              p.UseGiniCoeff,
-		DeferredTxFee:             p.DeferredTxFee,
-		LowerBoundBaseFee:         p.LowerBoundBaseFee,
-		UpperBoundBaseFee:         p.UpperBoundBaseFee,
-		GasTarget:                 p.GasTarget,
-		MaxBlockGasUsedForBaseFee: p.MaxBlockGasUsedForBaseFee,
-		BaseFeeDenominator:        p.BaseFeeDenominator,
-		DeriveShaImpl:             p.DeriveShaImpl,
-		UnitPrice:                 p.UnitPrice,
-	}
 }

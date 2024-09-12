@@ -10,7 +10,7 @@ func (h *headerGovModule) PostInsertBlock(b *types.Block) error {
 	if len(b.Header().Vote) > 0 {
 		vote, err := DeserializeHeaderVote(b.Header().Vote, b.Number().Uint64())
 		if err != nil {
-			logger.Error("kaiax.PostInsertBlock error", "vote", b.Header().Vote, "err", err)
+			logger.Error("DeserializeHeaderVote error", "vote", b.Header().Vote, "err", err)
 			return err
 		}
 		h.HandleVote(b.NumberU64(), vote)
@@ -19,7 +19,7 @@ func (h *headerGovModule) PostInsertBlock(b *types.Block) error {
 	if len(b.Header().Governance) > 0 {
 		gov, err := DeserializeHeaderGov(b.Header().Governance, b.NumberU64())
 		if err != nil {
-			logger.Error("kaiax.PostInsertBlock error", "governance", b.Header().Governance, "err", err)
+			logger.Error("DeserializeHeaderGov error", "governance", b.Header().Governance, "err", err)
 			return err
 		}
 		h.HandleGov(b.NumberU64(), gov)

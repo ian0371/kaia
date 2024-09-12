@@ -1,7 +1,6 @@
 package types
 
 import (
-	"errors"
 	"math/big"
 
 	"github.com/kaiachain/kaia/common"
@@ -98,7 +97,7 @@ func DeserializeHeaderVote(b []byte, blockNum uint64) (VoteData, error) {
 
 	vote := NewVoteData(v.Validator, v.Key, v.Value)
 	if vote == nil {
-		return nil, errors.New("failed to create vote data")
+		return nil, ErrInvalidVoteData
 	}
 
 	return vote, nil

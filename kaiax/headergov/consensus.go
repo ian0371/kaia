@@ -11,6 +11,17 @@ import (
 	"github.com/kaiachain/kaia/crypto"
 )
 
+var (
+	errGovInNonEpochBlock = errors.New("governance is not allowed in non-epoch block")
+	errNilVote            = errors.New("vote is nil")
+	errInvalidGov         = errors.New("header.Governance does not match the vote in previous epoch")
+
+	errGovParamNotAccount  = errors.New("govparamcontract is not an account")
+	errGovParamNotContract = errors.New("govparamcontract is not an contract account")
+	errLowerBoundBaseFee   = errors.New("lowerboundbasefee is greater than upperboundbasefee")
+	errUpperBoundBaseFee   = errors.New("upperboundbasefee is less than lowerboundbasefee")
+)
+
 func (h *headerGovModule) VerifyHeader(header *types.Header) error {
 	if header.Number.Uint64() == 0 {
 		return nil
@@ -35,7 +46,7 @@ func (h *headerGovModule) VerifyHeader(header *types.Header) error {
 	if header.Number.Uint64()%h.epoch != 0 {
 		if len(header.Governance) > 0 {
 			logger.Error("governance is not allowed in non-epoch block", "num", header.Number.Uint64())
-			return errors.New("governance is not allowed in non-epoch block")
+			return errGovInNonEpochBlock
 		} else {
 			return nil
 		}
@@ -74,7 +85,7 @@ func (h *headerGovModule) FinalizeBlock(b *types.Block) (*types.Block, error) {
 // VerifyVote takes canonical VoteData and performs the semantic check.
 func (h *headerGovModule) VerifyVote(blockNum uint64, vote VoteData) error {
 	if vote == nil {
-		return errors.New("vote is nil")
+		return errNilVote
 	}
 
 	// consistency check
@@ -90,13 +101,13 @@ func (h *headerGovModule) VerifyVote(blockNum uint64, vote VoteData) error {
 
 		acc := state.GetAccount(vote.Value().(common.Address))
 		if acc == nil {
-			return errors.New("govparamcontract is not an account")
+			return errGovParamNotAccount
 		}
 
 		pa := account.GetProgramAccount(acc)
 		emptyCodeHash := crypto.Keccak256(nil)
 		if pa != nil && !bytes.Equal(pa.GetCodeHash(), emptyCodeHash) {
-			return errors.New("govparamcontract is not an contract account")
+			return errGovParamNotContract
 		}
 	case "kip71.lowerboundbasefee":
 		params, err := h.EffectiveParamSet(blockNum)
@@ -104,7 +115,7 @@ func (h *headerGovModule) VerifyVote(blockNum uint64, vote VoteData) error {
 			return err
 		}
 		if vote.Value().(uint64) > params.UpperBoundBaseFee {
-			return errors.New("lowerboundbasefee is greater than upperboundbasefee")
+			return errLowerBoundBaseFee
 		}
 	case "kip71.upperboundbasefee":
 		params, err := h.EffectiveParamSet(blockNum)
@@ -112,7 +123,7 @@ func (h *headerGovModule) VerifyVote(blockNum uint64, vote VoteData) error {
 			return err
 		}
 		if vote.Value().(uint64) < params.LowerBoundBaseFee {
-			return errors.New("upperboundbasefee is less than lowerboundbasefee")
+			return errUpperBoundBaseFee
 		}
 	}
 
@@ -122,7 +133,7 @@ func (h *headerGovModule) VerifyVote(blockNum uint64, vote VoteData) error {
 func (h *headerGovModule) VerifyGov(blockNum uint64, gov GovData) error {
 	expected := h.getExpectedGovernance(blockNum)
 	if !reflect.DeepEqual(expected, gov) {
-		return errors.New("governance is not matched")
+		return errInvalidGov
 	}
 
 	return nil

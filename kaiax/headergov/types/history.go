@@ -1,7 +1,6 @@
 package types
 
 import (
-	"errors"
 	"sort"
 )
 
@@ -37,6 +36,6 @@ func (g *History) Search(blockNum uint64) (ParamSet, error) {
 	if ret, ok := (*g)[idx]; ok {
 		return ret, nil
 	} else {
-		return ParamSet{}, errors.New("blockNum not found from governance history")
+		return ParamSet{}, ErrNotFoundInHistory
 	}
 }

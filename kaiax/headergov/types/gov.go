@@ -2,7 +2,6 @@ package types
 
 import (
 	"encoding/json"
-	"errors"
 	"math/big"
 
 	"github.com/kaiachain/kaia/rlp"
@@ -87,7 +86,7 @@ func DeserializeHeaderGov(b []byte, blockNum uint64) (GovData, error) {
 	for name, value := range ret {
 		param, ok := Params[name]
 		if !ok {
-			return nil, errors.New("invalid param")
+			return nil, ErrInvalidParamName
 		}
 
 		cv, err := param.Canonicalizer(value)

@@ -16,6 +16,7 @@ func TestParamSet(t *testing.T) {
 
 func TestGetDefaultGovernanceParamSet(t *testing.T) {
 	p := GetDefaultGovernanceParamSet()
+	assert.NotNil(t, p)
 	for name, param := range Params {
 		fieldName := param.ParamSetFieldName
 		fieldValue := reflect.ValueOf(p).Elem().FieldByName(fieldName).Interface()

@@ -28,10 +28,7 @@ func NewGovData(m map[string]interface{}) GovData {
 			return nil
 		}
 
-		// In genesis, forbidden-vote params can exist.
-		// if param.VoteForbidden {
-		// 	return nil
-		// }
+		// In genesis, forbidden-vote params can exist. Skip VoteForbidden flag.
 
 		cv, err := param.Canonicalizer(value)
 		if err != nil {

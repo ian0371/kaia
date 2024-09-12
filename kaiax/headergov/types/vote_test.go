@@ -10,8 +10,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-var _ VoteData = (*voteData)(nil)
-
 func TestNewVote(t *testing.T) {
 	goodVotes := []struct {
 		name  string
@@ -54,6 +52,12 @@ func TestNewVote(t *testing.T) {
 		{name: "reward.ratio", value: "100/0/0"},
 		{name: "reward.ratio", value: "30/40/30"},
 		{name: "reward.ratio", value: "50/25/25"},
+	}
+
+	for _, tc := range goodVotes {
+		t.Run("goodVote/"+tc.name, func(t *testing.T) {
+			assert.NotNil(t, NewVoteData(common.Address{}, tc.name, tc.value))
+		})
 	}
 
 	badVotes := []struct {
@@ -170,12 +174,6 @@ func TestNewVote(t *testing.T) {
 		{name: "reward.useginicoeff", value: 1},
 		{name: "reward.useginicoeff", value: false},
 		{name: "reward.useginicoeff", value: true},
-	}
-
-	for _, tc := range goodVotes {
-		t.Run("goodVote/"+tc.name, func(t *testing.T) {
-			assert.NotNil(t, NewVoteData(common.Address{}, tc.name, tc.value))
-		})
 	}
 
 	for _, tc := range badVotes {

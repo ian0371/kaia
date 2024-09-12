@@ -29,14 +29,29 @@ func TestEffectiveParamSet(t *testing.T) {
 		cgm: cgm,
 	}
 
-	hgm.EXPECT().EffectiveParamsPartial(gomock.Any()).Return(map[string]interface{}{"governance.unitprice": uint64(250)}, nil).AnyTimes()
-	cgm.EXPECT().EffectiveParamsPartial(gomock.Any()).Return(map[string]interface{}{}, nil)
+	// default value returned
+	{
+		hgm.EXPECT().EffectiveParamsPartial(gomock.Any()).Return(nil, nil)
+		cgm.EXPECT().EffectiveParamsPartial(gomock.Any()).Return(nil, nil)
+		ps, _ := m.EffectiveParamSet(1)
+		assert.Equal(t, uint64(250e9), ps.UnitPrice)
+	}
 
-	ps, _ := m.EffectiveParamSet(1)
-	assert.Equal(t, uint64(250), ps.UnitPrice)
+	// headergov value returned
+	{
+		val := uint64(123)
+		hgm.EXPECT().EffectiveParamsPartial(gomock.Any()).Return(map[string]interface{}{"governance.unitprice": val}, nil)
+		cgm.EXPECT().EffectiveParamsPartial(gomock.Any()).Return(map[string]interface{}{}, nil)
+		ps, _ := m.EffectiveParamSet(1)
+		assert.Equal(t, val, ps.UnitPrice)
+	}
 
-	cgm.EXPECT().EffectiveParamsPartial(gomock.Any()).Return(map[string]interface{}{"governance.unitprice": uint64(500)}, nil)
-
-	ps, _ = m.EffectiveParamSet(1)
-	assert.Equal(t, uint64(500), ps.UnitPrice)
+	// contractgov value returned
+	{
+		val := uint64(456)
+		hgm.EXPECT().EffectiveParamsPartial(gomock.Any()).Return(map[string]interface{}{"governance.unitprice": 0}, nil)
+		cgm.EXPECT().EffectiveParamsPartial(gomock.Any()).Return(map[string]interface{}{"governance.unitprice": val}, nil)
+		ps, _ := m.EffectiveParamSet(1)
+		assert.Equal(t, val, ps.UnitPrice)
+	}
 }

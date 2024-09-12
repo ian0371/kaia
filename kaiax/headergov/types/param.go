@@ -373,7 +373,7 @@ var Params = map[string]Param{
 		ParamSetFieldName: "UnitPrice",
 		Canonicalizer:     uint64Canonicalizer,
 		FormatChecker:     nil,
-		DefaultValue:      uint64(250000000000),
+		DefaultValue:      uint64(250e9),
 		VoteForbidden:     false,
 	},
 }

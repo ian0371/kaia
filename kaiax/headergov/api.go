@@ -9,14 +9,8 @@ import (
 )
 
 var (
-	errUnknownBlock           = errors.New("Unknown block")
-	errNotAvailableInThisMode = errors.New("In current governance mode, voting power is not available")
-	errSetDefaultFailure      = errors.New("Failed to set a default value")
-	errPermissionDenied       = errors.New("You don't have the right to vote")
-	errRemoveSelf             = errors.New("You can't vote on removing yourself")
-	errInvalidKeyValue        = errors.New("Your vote couldn't be placed. Please check your vote's key and value")
-	errInvalidLowerBound      = errors.New("lowerboundbasefee cannot be set exceeding upperboundbasefee")
-	errInvalidUpperBound      = errors.New("upperboundbasefee cannot be set lower than lowerboundbasefee")
+	errPermissionDenied = errors.New("you don't have the right to vote")
+	errInvalidKeyValue  = errors.New("your vote couldn't be placed. Please check your vote's key and value")
 )
 
 func (s *headerGovModule) APIs() []rpc.API {
@@ -63,7 +57,7 @@ func (api *headerGovAPI) Vote(name string, value interface{}) (string, error) {
 	// TODO-kaiax: add removevalidator vote check
 
 	api.h.PushMyVotes(vote)
-	return "(kaiax) Your vote is prepared. It will be put into the block header or applied when your node generates a block as a proposer. Note that your vote may be duplicate.", nil
+	return "Your vote is prepared. It will be put into the block header or applied when your node generates a block as a proposer. Note that your vote may be duplicate.", nil
 }
 
 func (api *headerGovAPI) IdxCache() []uint64 {
@@ -142,16 +136,27 @@ func (api *headerGovAPI) getParams(num *rpc.BlockNumber) (map[string]interface{}
 	return gp.ToStrMap()
 }
 
+func (api *headerGovAPI) VotesInEpoch(blockNum uint64) string {
+	epochIdx := calcEpochIdx(blockNum, api.h.epoch)
+	votesInEpoch := api.h.getVotesInEpoch(epochIdx)
+	j, _ := json.Marshal(votesInEpoch)
+	return string(j)
+}
+
 func (api *headerGovAPI) Status() (string, error) {
-	type PublicCache struct {
+	type StatusApi struct {
 		GroupedVotes map[uint64]VotesInEpoch `json:"groupedVotes"`
 		Governances  map[uint64]GovData      `json:"governances"`
 		GovHistory   History                 `json:"govHistory"`
+		NodeAddress  common.Address          `json:"nodeAddress"`
+		MyVotes      []VoteData              `json:"myVotes"`
 	}
-	publicCache := PublicCache{
+	publicCache := StatusApi{
 		GroupedVotes: api.h.cache.GroupedVotes(),
 		Governances:  api.h.cache.Govs(),
 		GovHistory:   api.h.cache.History(),
+		NodeAddress:  api.h.NodeAddress,
+		MyVotes:      api.h.myVotes,
 	}
 
 	cacheJson, err := json.Marshal(publicCache)

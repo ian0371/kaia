@@ -78,8 +78,6 @@ func (h *headerGovModule) PrepareHeader(header *types.Header) (*types.Header, er
 }
 
 func (h *headerGovModule) FinalizeBlock(b *types.Block) (*types.Block, error) {
-	// TODO-kaiax: must be removed later. only for testing.
-	h.PostInsertBlock(b)
 	return b, nil
 }
 
@@ -146,7 +144,6 @@ func (h *headerGovModule) getExpectedGovernance(blockNum uint64) GovData {
 	prevEpochVotes := h.getVotesInEpoch(prevEpochIdx)
 	govs := make(map[string]interface{})
 
-	// TODO: add tally
 	for _, vote := range prevEpochVotes {
 		govs[vote.Name()] = vote.Value()
 	}

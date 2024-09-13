@@ -184,7 +184,9 @@ func TestNewVote(t *testing.T) {
 	}
 
 	t.Run("badVote/invalidParam", func(t *testing.T) {
-		assert.Nil(t, NewVoteData(common.Address{}, "aaaa.invalidparam", "2"))
+		assert.Nil(t, NewVoteData(common.Address{}, "nonexistent.param", "2"))
+		assert.Nil(t, NewVoteData(common.Address{}, "nonexistent.param", uint64(100)))
+		assert.Nil(t, NewVoteData(common.Address{}, "governance.unitprice", "100"))
 	})
 }
 

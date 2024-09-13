@@ -60,6 +60,8 @@ func TestNewGov(t *testing.T) {
 		{name: "reward.stakingupdateinterval", value: "20"},
 		{name: "reward.proposerupdateinterval", value: float64(20.2)},
 		{name: "reward.proposerupdateinterval", value: "20"},
+		{name: "nonexistent.param", value: "20"},
+		{name: "nonexistent.param", value: uint64(100)},
 	}
 
 	for _, tc := range badGovs {

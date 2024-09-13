@@ -6,6 +6,7 @@ import (
 
 type VotesInEpoch map[uint64]VoteData
 
+// in-memory cache of data from DB
 type HeaderCache struct {
 	groupedVotes map[uint64]VotesInEpoch
 	governances  map[uint64]GovData

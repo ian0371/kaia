@@ -30,7 +30,7 @@ type ParamSet = headergov_types.ParamSet
 type HeaderGovModule = headergov_types.HeaderGovModule
 type ContractGovModule = contractgov_types.ContractGovModule
 
-var Params = headergov_types.Params
+var GetParamByName = headergov_types.GetParamByName
 
 type chain interface {
 	blockchain.ChainContext

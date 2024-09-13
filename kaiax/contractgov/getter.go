@@ -64,7 +64,10 @@ func (c *contractGovModule) contractGetAllParamsAt(blockNum uint64) (map[string]
 
 	ret := make(map[string]interface{})
 	for i := 0; i < len(names); i++ {
-		param := Params[names[i]]
+		param, err := GetParamByName(names[i])
+		if err != nil {
+			return nil, err
+		}
 		cv, err := param.Canonicalizer(values[i])
 		if err != nil {
 			return nil, err

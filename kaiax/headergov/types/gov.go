@@ -18,16 +18,15 @@ type govData struct {
 	items map[string]interface{}
 }
 
-// NewGovData returns a canonical & formatted gov data. Consistency is NOT checked.
+// NewGovData returns a canonical & formatted gov data. VoteForbidden flag and consistency is NOT checked.
+// In genesis, forbidden-vote params can exist. Thus, unlike NewVoteData, here we must not check VoteForbidden flag.
 func NewGovData(m map[string]interface{}) GovData {
 	items := make(map[string]interface{})
 	for name, value := range m {
-		param, ok := Params[name]
-		if !ok {
+		param, err := GetParamByName(name)
+		if err != nil {
 			return nil
 		}
-
-		// In genesis, forbidden-vote params can exist. Skip VoteForbidden flag.
 
 		cv, err := param.Canonicalizer(value)
 		if err != nil {
@@ -84,9 +83,9 @@ func DeserializeHeaderGov(b []byte, blockNum uint64) (GovData, error) {
 	}
 
 	for name, value := range ret {
-		param, ok := Params[name]
-		if !ok {
-			return nil, ErrInvalidParamName
+		param, err := GetParamByName(name)
+		if err != nil {
+			return nil, err
 		}
 
 		cv, err := param.Canonicalizer(value)

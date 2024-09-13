@@ -9,6 +9,7 @@ import (
 	"github.com/kaiachain/kaia/blockchain/types/account"
 	"github.com/kaiachain/kaia/common"
 	"github.com/kaiachain/kaia/crypto"
+	headergov_types "github.com/kaiachain/kaia/kaiax/headergov/types"
 )
 
 var (
@@ -89,11 +90,11 @@ func (h *headerGovModule) VerifyVote(blockNum uint64, vote VoteData) error {
 	}
 
 	// consistency check
-	switch vote.Name() {
-	case "governance.governingnode":
+	switch vote.Type() {
+	case headergov_types.GovernanceGoverningNode:
 		// TODO: check in valset
 		break
-	case "governance.govparamcontract":
+	case headergov_types.GovernanceGovParamContract:
 		state, err := h.Chain.State()
 		if err != nil {
 			return err
@@ -109,7 +110,7 @@ func (h *headerGovModule) VerifyVote(blockNum uint64, vote VoteData) error {
 		if pa != nil && !bytes.Equal(pa.GetCodeHash(), emptyCodeHash) {
 			return errGovParamNotContract
 		}
-	case "kip71.lowerboundbasefee":
+	case headergov_types.Kip71LowerBoundBaseFee:
 		params, err := h.EffectiveParamSet(blockNum)
 		if err != nil {
 			return err
@@ -117,7 +118,7 @@ func (h *headerGovModule) VerifyVote(blockNum uint64, vote VoteData) error {
 		if vote.Value().(uint64) > params.UpperBoundBaseFee {
 			return errLowerBoundBaseFee
 		}
-	case "kip71.upperboundbasefee":
+	case headergov_types.Kip71UpperBoundBaseFee:
 		params, err := h.EffectiveParamSet(blockNum)
 		if err != nil {
 			return err

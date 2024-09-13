@@ -33,8 +33,8 @@ type ParamSet struct {
 // GetDefaultGovernanceParamSet must not return nil, which is unit-tested.
 func GetDefaultGovernanceParamSet() *ParamSet {
 	p := &ParamSet{}
-	for name, param := range Params {
-		err := p.Set(name, param.DefaultValue)
+	for _, param := range Params {
+		err := p.Set(param.Name, param.DefaultValue)
 		if err != nil {
 			return nil
 		}
@@ -45,9 +45,9 @@ func GetDefaultGovernanceParamSet() *ParamSet {
 
 // Set the canonical value in the ParamSet for the corresponding parameter name.
 func (p *ParamSet) Set(name string, cv interface{}) error {
-	param, ok := Params[name]
-	if !ok {
-		return ErrInvalidParamName
+	param, err := GetParamByName(name)
+	if err != nil {
+		return err
 	}
 
 	field := reflect.ValueOf(p).Elem().FieldByName(param.ParamSetFieldName)
@@ -87,14 +87,14 @@ func (p *ParamSet) ToStrMap() (map[string]interface{}, error) {
 	ret := make(map[string]interface{})
 
 	// Iterate through all params in Params and ensure they're in the result
-	for paramName, param := range Params {
+	for _, param := range Params {
 		field := reflect.ValueOf(p).Elem().FieldByName(param.ParamSetFieldName)
 		if field.IsValid() {
 			// Convert big.Int to string for JSON compatibility
 			if bigIntValue, ok := field.Interface().(*big.Int); ok {
-				ret[paramName] = bigIntValue.String()
+				ret[param.Name] = bigIntValue.String()
 			} else {
-				ret[paramName] = field.Interface()
+				ret[param.Name] = field.Interface()
 			}
 		}
 	}

@@ -45,10 +45,11 @@ func newHeaderGovModule(t *testing.T, config *params.ChainConfig) *headerGovModu
 }
 
 func TestReadGovVoteBlockNumsFromDB(t *testing.T) {
+	paramName := Params[headergov_types.GovernanceUnitPrice].Name
 	votes := map[uint64]VoteData{
-		1:   NewVoteData(common.Address{1}, "governance.unitprice", uint64(100)),
-		50:  NewVoteData(common.Address{2}, "governance.unitprice", uint64(200)),
-		100: NewVoteData(common.Address{3}, "governance.unitprice", uint64(300)),
+		1:   NewVoteData(common.Address{1}, paramName, uint64(100)),
+		50:  NewVoteData(common.Address{2}, paramName, uint64(200)),
+		100: NewVoteData(common.Address{3}, paramName, uint64(300)),
 	}
 
 	mockCtrl := gomock.NewController(t)
@@ -68,6 +69,7 @@ func TestReadGovVoteBlockNumsFromDB(t *testing.T) {
 }
 
 func TestReadGovDataFromDB(t *testing.T) {
+	paramName := Params[headergov_types.GovernanceUnitPrice].Name
 	mockCtrl := gomock.NewController(t)
 	chain := mocks.NewMockBlockChain(mockCtrl)
 	db := database.NewMemDB()
@@ -82,8 +84,8 @@ func TestReadGovDataFromDB(t *testing.T) {
 	WriteGovDataBlockNums(db, &StoredUint64Array{1, 2})
 
 	govs := map[uint64]GovData{
-		1: NewGovData(map[string]interface{}{"governance.unitprice": ps1.UnitPrice}),
-		2: NewGovData(map[string]interface{}{"governance.unitprice": ps2.UnitPrice}),
+		1: NewGovData(map[string]interface{}{paramName: ps1.UnitPrice}),
+		2: NewGovData(map[string]interface{}{paramName: ps2.UnitPrice}),
 	}
 	for num, govData := range govs {
 		headerGovData, err := govData.Serialize()

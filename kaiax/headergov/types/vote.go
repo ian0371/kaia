@@ -10,6 +10,7 @@ import (
 type VoteData interface {
 	Voter() common.Address
 	Name() string
+	Type() ParamEnum
 	Value() interface{}
 
 	Serialize() ([]byte, error)
@@ -20,27 +21,32 @@ var _ VoteData = (*voteData)(nil)
 type voteData struct {
 	voter common.Address
 	name  string
+	ty    ParamEnum
 	value interface{} // canonicalized value
 }
 
-// NewVoteData returns a canonical & formatted vote data. Consistency is NOT checked.
+// NewVoteData returns a valid, canonical vote data.
+// If return is not nil, the name and the value is valid.
+// The format of the value is checked, but consistency is NOT checked.
 func NewVoteData(voter common.Address, name string, value interface{}) VoteData {
-	v := &voteData{voter: voter, name: name, value: value}
-	param, ok := Params[v.name]
-	if !ok {
+	param, err := GetParamByName(name)
+	if err != nil {
 		if name == "governance.addvalidator" || name == "governance.removevalidator" {
-			v.value = []common.Address{} // don't care about the value
-			return v
-		} else {
-			return nil
+			return &voteData{
+				voter: voter,
+				name:  name,
+				value: []common.Address{},
+			}
 		}
+
+		return nil
 	}
 
 	if param.VoteForbidden {
 		return nil
 	}
 
-	cv, err := param.Canonicalizer(v.value)
+	cv, err := param.Canonicalizer(value)
 	if err != nil {
 		return nil
 	}
@@ -49,8 +55,12 @@ func NewVoteData(voter common.Address, name string, value interface{}) VoteData 
 		return nil
 	}
 
-	v.value = cv
-	return v
+	return &voteData{
+		voter: voter,
+		name:  name,
+		ty:    paramNameToEnum[name],
+		value: cv,
+	}
 }
 
 func (vote *voteData) Voter() common.Address {
@@ -59,6 +69,10 @@ func (vote *voteData) Voter() common.Address {
 
 func (vote *voteData) Name() string {
 	return vote.name
+}
+
+func (vote *voteData) Type() ParamEnum {
+	return vote.ty
 }
 
 func (vote *voteData) Value() interface{} {

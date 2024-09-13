@@ -5,6 +5,7 @@ import (
 	"math/big"
 	"testing"
 
+	headergov_types "github.com/kaiachain/kaia/kaiax/headergov/types"
 	"github.com/kaiachain/kaia/log"
 	"github.com/kaiachain/kaia/params"
 	"github.com/stretchr/testify/assert"
@@ -16,7 +17,7 @@ func TestEffectiveParams(t *testing.T) {
 	epoch := uint64(1000)
 	gov := map[uint64]GovData{
 		1000: NewGovData(map[string]interface{}{
-			"governance.unitprice": uint64(750),
+			Params[headergov_types.GovernanceUnitPrice].Name: uint64(750),
 		}),
 	}
 

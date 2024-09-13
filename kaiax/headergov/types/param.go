@@ -10,6 +10,7 @@ import (
 )
 
 type Param struct {
+	Name              string
 	ParamSetFieldName string
 	Canonicalizer     func(v interface{}) (interface{}, error)
 	FormatChecker     func(cv interface{}) bool // validation on canonical value.
@@ -126,8 +127,51 @@ func noopFormatChecker(cv interface{}) bool {
 	return true
 }
 
-var Params = map[string]Param{
-	"governance.governancemode": {
+// ParamEnum represents the name of a governance parameter
+type ParamEnum int
+
+// alphabetically sorted. These are only used in-memory, so the order does not matter.
+const (
+	GovernanceDeriveShaImpl ParamEnum = iota
+	GovernanceGovernanceMode
+	GovernanceGoverningNode
+	GovernanceGovParamContract
+	GovernanceUnitPrice
+	IstanbulCommitteeSize
+	IstanbulEpoch
+	IstanbulPolicy
+	Kip71BaseFeeDenominator
+	Kip71GasTarget
+	Kip71LowerBoundBaseFee
+	Kip71MaxBlockGasUsedForBaseFee
+	Kip71UpperBoundBaseFee
+	RewardDeferredTxFee
+	RewardKip82Ratio
+	RewardMintingAmount
+	RewardMinimumStake
+	RewardProposerUpdateInterval
+	RewardRatio
+	RewardStakingUpdateInterval
+	RewardUseGiniCoeff
+)
+
+var Params = map[ParamEnum]*Param{
+	GovernanceDeriveShaImpl: {
+		Name:              "governance.deriveshaimpl",
+		ParamSetFieldName: "DeriveShaImpl",
+		Canonicalizer:     uint64Canonicalizer,
+		FormatChecker: func(cv interface{}) bool {
+			v, ok := cv.(uint64)
+			if !ok {
+				return false
+			}
+			return v <= 2
+		},
+		DefaultValue:  uint64(0),
+		VoteForbidden: false,
+	},
+	GovernanceGovernanceMode: {
+		Name:              "governance.governancemode",
 		ParamSetFieldName: "GovernanceMode",
 		Canonicalizer:     stringCanonicalizer,
 		FormatChecker: func(cv interface{}) bool {
@@ -143,7 +187,8 @@ var Params = map[string]Param{
 		DefaultValue:  "none",
 		VoteForbidden: true,
 	},
-	"governance.governingnode": {
+	GovernanceGoverningNode: {
+		Name:              "governance.governingnode",
 		ParamSetFieldName: "GoverningNode",
 		Canonicalizer:     addressCanonicalizer,
 		FormatChecker: func(cv interface{}) bool {
@@ -153,7 +198,8 @@ var Params = map[string]Param{
 		DefaultValue:  common.HexToAddress("0x0000000000000000000000000000000000000000"),
 		VoteForbidden: false,
 	},
-	"governance.govparamcontract": {
+	GovernanceGovParamContract: {
+		Name:              "governance.govparamcontract",
 		ParamSetFieldName: "GovParamContract",
 		Canonicalizer:     addressCanonicalizer,
 		FormatChecker: func(cv interface{}) bool {
@@ -163,7 +209,16 @@ var Params = map[string]Param{
 		DefaultValue:  common.HexToAddress("0x0000000000000000000000000000000000000000"),
 		VoteForbidden: false,
 	},
-	"istanbul.committeesize": {
+	GovernanceUnitPrice: {
+		Name:              "governance.unitprice",
+		ParamSetFieldName: "UnitPrice",
+		Canonicalizer:     uint64Canonicalizer,
+		FormatChecker:     noopFormatChecker,
+		DefaultValue:      uint64(250e9),
+		VoteForbidden:     false,
+	},
+	IstanbulCommitteeSize: {
+		Name:              "istanbul.committeesize",
 		ParamSetFieldName: "CommitteeSize",
 		Canonicalizer:     uint64Canonicalizer,
 		FormatChecker: func(cv interface{}) bool {
@@ -176,7 +231,16 @@ var Params = map[string]Param{
 		DefaultValue:  uint64(21),
 		VoteForbidden: false,
 	},
-	"istanbul.policy": {
+	IstanbulEpoch: {
+		Name:              "istanbul.epoch",
+		ParamSetFieldName: "Epoch",
+		Canonicalizer:     uint64Canonicalizer,
+		FormatChecker:     noopFormatChecker,
+		DefaultValue:      uint64(604800),
+		VoteForbidden:     true,
+	},
+	IstanbulPolicy: {
+		Name:              "istanbul.policy",
 		ParamSetFieldName: "ProposerPolicy",
 		Canonicalizer:     uint64Canonicalizer,
 		FormatChecker: func(cv interface{}) bool {
@@ -189,43 +253,59 @@ var Params = map[string]Param{
 		DefaultValue:  uint64(RoundRobin),
 		VoteForbidden: true,
 	},
-	"istanbul.epoch": {
-		ParamSetFieldName: "Epoch",
+	Kip71BaseFeeDenominator: {
+		Name:              "kip71.basefeedenominator",
+		ParamSetFieldName: "BaseFeeDenominator",
 		Canonicalizer:     uint64Canonicalizer,
-		FormatChecker:     noopFormatChecker,
-		DefaultValue:      uint64(604800),
-		VoteForbidden:     true,
-	},
-	"reward.ratio": {
-		ParamSetFieldName: "Ratio",
-		Canonicalizer:     stringCanonicalizer,
 		FormatChecker: func(cv interface{}) bool {
-			v, ok := cv.(string)
-			if !ok {
-				return false
-			}
-			parts := strings.Split(v, "/")
-			if len(parts) != 3 {
-				return false
-			}
-			sum := 0
-			for _, part := range parts {
-				num, err := strconv.Atoi(part)
-				if err != nil {
-					return false
-				}
-				if num < 0 {
-					return false
-				}
-				sum += num
-			}
-
-			return sum == 100
+			v, ok := cv.(uint64)
+			return ok && v != 0
 		},
-		DefaultValue:  "100/0/0",
+		DefaultValue:  uint64(20),
 		VoteForbidden: false,
 	},
-	"reward.kip82ratio": {
+	Kip71GasTarget: {
+		Name:              "kip71.gastarget",
+		ParamSetFieldName: "GasTarget",
+		Canonicalizer:     uint64Canonicalizer,
+		FormatChecker:     noopFormatChecker,
+		DefaultValue:      uint64(30000000),
+		VoteForbidden:     false,
+	},
+	Kip71LowerBoundBaseFee: {
+		Name:              "kip71.lowerboundbasefee",
+		ParamSetFieldName: "LowerBoundBaseFee",
+		Canonicalizer:     uint64Canonicalizer,
+		FormatChecker:     noopFormatChecker,
+		DefaultValue:      uint64(25000000000),
+		VoteForbidden:     false,
+	},
+	Kip71MaxBlockGasUsedForBaseFee: {
+		Name:              "kip71.maxblockgasusedforbasefee",
+		ParamSetFieldName: "MaxBlockGasUsedForBaseFee",
+		Canonicalizer:     uint64Canonicalizer,
+		FormatChecker:     noopFormatChecker,
+		DefaultValue:      uint64(60000000),
+		VoteForbidden:     false,
+	},
+	Kip71UpperBoundBaseFee: {
+		Name:              "kip71.upperboundbasefee",
+		ParamSetFieldName: "UpperBoundBaseFee",
+		Canonicalizer:     uint64Canonicalizer,
+		FormatChecker:     noopFormatChecker,
+		DefaultValue:      uint64(750000000000),
+		VoteForbidden:     false,
+	},
+	RewardDeferredTxFee: {
+		Name:              "reward.deferredtxfee",
+		ParamSetFieldName: "DeferredTxFee",
+		Canonicalizer:     boolCanonicalizer,
+		FormatChecker:     noopFormatChecker,
+		DefaultValue:      false,
+		VoteForbidden:     true,
+	},
+	RewardKip82Ratio: {
+		Name:              "reward.kip82ratio",
 		ParamSetFieldName: "Kip82Ratio",
 		Canonicalizer:     stringCanonicalizer,
 		FormatChecker: func(cv interface{}) bool {
@@ -254,28 +334,16 @@ var Params = map[string]Param{
 		DefaultValue:  "20/80",
 		VoteForbidden: false,
 	},
-	"reward.stakingupdateinterval": {
-		ParamSetFieldName: "StakingUpdateInterval",
-		Canonicalizer:     uint64Canonicalizer,
-		FormatChecker:     noopFormatChecker,
-		DefaultValue:      uint64(86400),
-		VoteForbidden:     true,
-	},
-	"reward.proposerupdateinterval": {
-		ParamSetFieldName: "ProposerUpdateInterval",
-		Canonicalizer:     uint64Canonicalizer,
-		FormatChecker:     noopFormatChecker,
-		DefaultValue:      uint64(3600),
-		VoteForbidden:     true,
-	},
-	"reward.mintingamount": {
+	RewardMintingAmount: {
+		Name:              "reward.mintingamount",
 		ParamSetFieldName: "MintingAmount",
 		Canonicalizer:     bigIntCanonicalizer,
 		FormatChecker:     noopFormatChecker,
 		DefaultValue:      big.NewInt(0),
 		VoteForbidden:     false,
 	},
-	"reward.minimumstake": {
+	RewardMinimumStake: {
+		Name:              "reward.minimumstake",
 		ParamSetFieldName: "MinimumStake",
 		Canonicalizer:     bigIntCanonicalizer,
 		FormatChecker: func(cv interface{}) bool {
@@ -288,78 +356,77 @@ var Params = map[string]Param{
 		DefaultValue:  big.NewInt(2000000),
 		VoteForbidden: true,
 	},
-	"reward.useginicoeff": {
+	RewardProposerUpdateInterval: {
+		Name:              "reward.proposerupdateinterval",
+		ParamSetFieldName: "ProposerUpdateInterval",
+		Canonicalizer:     uint64Canonicalizer,
+		FormatChecker:     noopFormatChecker,
+		DefaultValue:      uint64(3600),
+		VoteForbidden:     true,
+	},
+	RewardRatio: {
+		Name:              "reward.ratio",
+		ParamSetFieldName: "Ratio",
+		Canonicalizer:     stringCanonicalizer,
+		FormatChecker: func(cv interface{}) bool {
+			v, ok := cv.(string)
+			if !ok {
+				return false
+			}
+			parts := strings.Split(v, "/")
+			if len(parts) != 3 {
+				return false
+			}
+			sum := 0
+			for _, part := range parts {
+				num, err := strconv.Atoi(part)
+				if err != nil {
+					return false
+				}
+				if num < 0 {
+					return false
+				}
+				sum += num
+			}
+
+			return sum == 100
+		},
+		DefaultValue:  "100/0/0",
+		VoteForbidden: false,
+	},
+	RewardStakingUpdateInterval: {
+		Name:              "reward.stakingupdateinterval",
+		ParamSetFieldName: "StakingUpdateInterval",
+		Canonicalizer:     uint64Canonicalizer,
+		FormatChecker:     noopFormatChecker,
+		DefaultValue:      uint64(86400),
+		VoteForbidden:     true,
+	},
+	RewardUseGiniCoeff: {
+		Name:              "reward.useginicoeff",
 		ParamSetFieldName: "UseGiniCoeff",
 		Canonicalizer:     boolCanonicalizer,
 		FormatChecker:     noopFormatChecker,
 		DefaultValue:      false,
 		VoteForbidden:     true,
 	},
-	"reward.deferredtxfee": {
-		ParamSetFieldName: "DeferredTxFee",
-		Canonicalizer:     boolCanonicalizer,
-		FormatChecker:     noopFormatChecker,
-		DefaultValue:      false,
-		VoteForbidden:     true,
-	},
-	"kip71.lowerboundbasefee": {
-		ParamSetFieldName: "LowerBoundBaseFee",
-		Canonicalizer:     uint64Canonicalizer,
-		FormatChecker:     noopFormatChecker,
-		DefaultValue:      uint64(25000000000),
-		VoteForbidden:     false,
-	},
-	"kip71.upperboundbasefee": {
-		ParamSetFieldName: "UpperBoundBaseFee",
-		Canonicalizer:     uint64Canonicalizer,
-		FormatChecker:     noopFormatChecker,
-		DefaultValue:      uint64(750000000000),
-		VoteForbidden:     false,
-	},
-	"kip71.gastarget": {
-		ParamSetFieldName: "GasTarget",
-		Canonicalizer:     uint64Canonicalizer,
-		FormatChecker:     noopFormatChecker,
-		DefaultValue:      uint64(30000000),
-		VoteForbidden:     false,
-	},
-	"kip71.maxblockgasusedforbasefee": {
-		ParamSetFieldName: "MaxBlockGasUsedForBaseFee",
-		Canonicalizer:     uint64Canonicalizer,
-		FormatChecker:     noopFormatChecker,
-		DefaultValue:      uint64(60000000),
-		VoteForbidden:     false,
-	},
-	"kip71.basefeedenominator": {
-		ParamSetFieldName: "BaseFeeDenominator",
-		Canonicalizer:     uint64Canonicalizer,
-		FormatChecker: func(cv interface{}) bool {
-			v, ok := cv.(uint64)
-			return ok && v != 0
-		},
-		DefaultValue:  uint64(20),
-		VoteForbidden: false,
-	},
-	"governance.deriveshaimpl": {
-		ParamSetFieldName: "DeriveShaImpl",
-		Canonicalizer:     uint64Canonicalizer,
-		FormatChecker: func(cv interface{}) bool {
-			v, ok := cv.(uint64)
-			if !ok {
-				return false
-			}
-			return v <= 2
-		},
-		DefaultValue:  uint64(0),
-		VoteForbidden: false,
-	},
-	"governance.unitprice": {
-		ParamSetFieldName: "UnitPrice",
-		Canonicalizer:     uint64Canonicalizer,
-		FormatChecker:     noopFormatChecker,
-		DefaultValue:      uint64(250e9),
-		VoteForbidden:     false,
-	},
+}
+
+var paramNameToEnum map[string]ParamEnum
+
+func init() {
+	paramNameToEnum = make(map[string]ParamEnum)
+	for k, v := range Params {
+		paramNameToEnum[v.Name] = k
+	}
+}
+
+func GetParamByName(name string) (*Param, error) {
+	enum, ok := paramNameToEnum[name]
+	if !ok {
+		return nil, ErrInvalidParamName
+	}
+	return Params[enum], nil
 }
 
 const (

@@ -7,6 +7,7 @@ import (
 
 	"github.com/kaiachain/kaia/blockchain/types"
 	"github.com/kaiachain/kaia/common"
+	headergov_types "github.com/kaiachain/kaia/kaiax/headergov/types"
 	"github.com/kaiachain/kaia/log"
 	"github.com/kaiachain/kaia/params"
 	"github.com/stretchr/testify/assert"
@@ -15,6 +16,7 @@ import (
 
 func TestVerifyHeader(t *testing.T) {
 	log.EnableLogForTest(log.LvlCrit, log.LvlDebug)
+	paramName := Params[headergov_types.GovernanceUnitPrice].Name
 	config := &params.ChainConfig{
 		Istanbul: &params.IstanbulConfig{
 			Epoch: 1000,
@@ -22,12 +24,12 @@ func TestVerifyHeader(t *testing.T) {
 	}
 
 	h := newHeaderGovModule(t, config)
-	vote := NewVoteData(common.Address{1}, "governance.unitprice", uint64(100))
+	vote := NewVoteData(common.Address{1}, paramName, uint64(100))
 	require.NotNil(t, vote)
 	h.HandleVote(500, vote)
 
 	gov := NewGovData(map[string]interface{}{
-		"governance.unitprice": uint64(100),
+		paramName: uint64(100),
 	})
 	require.NotNil(t, gov)
 
@@ -72,9 +74,10 @@ func TestGetVotesInEpoch(t *testing.T) {
 		},
 	})
 
-	v1 := NewVoteData(common.Address{1}, "governance.unitprice", uint64(100))
+	paramName := Params[headergov_types.GovernanceUnitPrice].Name
+	v1 := NewVoteData(common.Address{1}, paramName, uint64(100))
 	h.HandleVote(500, v1)
-	v2 := NewVoteData(common.Address{2}, "governance.unitprice", uint64(200))
+	v2 := NewVoteData(common.Address{2}, paramName, uint64(200))
 	h.HandleVote(1500, v2)
 
 	assert.Equal(t, map[uint64]VoteData{500: v1}, h.getVotesInEpoch(0))
@@ -83,19 +86,20 @@ func TestGetVotesInEpoch(t *testing.T) {
 
 func TestGetExpectedGovernance(t *testing.T) {
 	var (
-		config = &params.ChainConfig{
+		paramName = Params[headergov_types.GovernanceUnitPrice].Name
+		config    = &params.ChainConfig{
 			Istanbul: &params.IstanbulConfig{
 				Epoch: 1000,
 			},
 		}
 		h  = newHeaderGovModule(t, config)
-		v1 = NewVoteData(common.Address{1}, "governance.unitprice", uint64(100))
-		v2 = NewVoteData(common.Address{2}, "governance.unitprice", uint64(200))
+		v1 = NewVoteData(common.Address{1}, paramName, uint64(100))
+		v2 = NewVoteData(common.Address{2}, paramName, uint64(200))
 		g1 = NewGovData(map[string]interface{}{
-			"governance.unitprice": uint64(100),
+			paramName: uint64(100),
 		})
 		g2 = NewGovData(map[string]interface{}{
-			"governance.unitprice": uint64(200),
+			paramName: uint64(200),
 		})
 	)
 
@@ -107,18 +111,4 @@ func TestGetExpectedGovernance(t *testing.T) {
 
 	assert.Equal(t, g1, h.getExpectedGovernance(1000))
 	assert.Equal(t, g2, h.getExpectedGovernance(2000))
-}
-
-func TestGetExpectedGovernance2(t *testing.T) {
-	var (
-		v1 = NewVoteData(common.Address{1}, "nonexistent.param", uint64(100))
-		v2 = NewVoteData(common.Address{1}, "governance.unitprice", "100")
-		g1 = NewGovData(map[string]interface{}{
-			"nonexistent.param": uint64(100),
-		})
-	)
-
-	assert.Nil(t, v1)
-	assert.Nil(t, v2)
-	assert.Nil(t, g1)
 }

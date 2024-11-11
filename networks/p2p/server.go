@@ -663,7 +663,7 @@ running:
 			// This channel is used by AddPeer to add to the
 			// ephemeral static peer list. Add it to the dialer,
 			// it will keep the node connected.
-			srv.logger.Debug("Adding static node", "node", n)
+			srv.logger.Info("Adding static node", "node", n)
 			dialstate.addStatic(n)
 		case n := <-srv.removestatic:
 			// This channel is used by RemovePeer to send a
@@ -1093,6 +1093,8 @@ func (srv *BaseServer) PeerCountByType() map[string]uint {
 // server is shut down. If the connection fails for any reason, the server will
 // attempt to reconnect the peer.
 func (srv *BaseServer) AddPeer(node *discover.Node) {
+	logger.Info("[BaseServer] AddPeer", "node", node)
+
 	select {
 	case srv.addstatic <- node:
 	case <-srv.quit:

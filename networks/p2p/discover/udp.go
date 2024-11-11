@@ -29,6 +29,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"sync"
 	"time"
 
 	"github.com/kaiachain/kaia/crypto"
@@ -355,18 +356,31 @@ func (t *udp) ping(toid NodeID, toaddr *net.UDPAddr) error {
 
 func (t *udp) waitping(from NodeID) error {
 	return <-t.pending(from, pingPacket, NodeTypeUnknown, func(interface{}) bool { return true })
+
 }
+
+var (
+	ticket uint64
+	mu     sync.Mutex
+)
 
 // findnode sends a findnode request to the given node and waits until
 // the node has sent up to k neighbors.
 func (t *udp) findnode(toid NodeID, toaddr *net.UDPAddr, target NodeID, targetNT NodeType, max int) ([]*Node, error) {
-	logger.Trace("[udp] findnode", "toid", toid, "toaddr", toaddr, "target", target,
+	mu.Lock()
+	ticket++
+	ticketLocal := ticket
+	logger.Info("[udp] findnode", "ticket", ticketLocal, "toid", toid, "toaddr", toaddr, "target", target,
 		"targetNodeType", targetNT)
+	mu.Unlock()
+
 	nodes := make([]*Node, 0, bucketSize)
 	nreceived := 0
 	errc := t.pending(toid, neighborsPacket, targetNT, func(r interface{}) bool {
 		reply := r.(*neighbors)
+		logger.Info("[udp] findnode cb", "ticket", ticketLocal, "len Nodes", len(reply.Nodes))
 		for _, rn := range reply.Nodes {
+			logger.Info("[udp] findnode cb", "ticket", ticketLocal, "nreceived", nreceived, "node", rn)
 			nreceived++
 			n, err := t.nodeFromRPC(toaddr, rn)
 			if err != nil {

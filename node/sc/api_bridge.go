@@ -531,6 +531,7 @@ func (sb *SubBridgeAPI) DeregisterToken(cBridgeAddrOrAlias, pBridgeOrChildToken,
 // AddPeer requests connecting to a remote node, and also maintaining the new
 // connection at all times, even reconnecting if it is lost.
 func (sb *SubBridgeAPI) AddPeer(url string) (bool, error) {
+	logger.Info("[AddPeer] AddPeer", "url", url)
 	// Make sure the server is running, fail otherwise
 	server := sb.subBridge.bridgeServer
 	if server == nil {
@@ -546,6 +547,8 @@ func (sb *SubBridgeAPI) AddPeer(url string) (bool, error) {
 
 // addPeerInternal does common part for AddPeer.
 func addPeerInternal(server p2p.Server, url string) (*discover.Node, error) {
+	logger.Info("[AddPeer] addPeerInternal", "url", url, "server", server)
+
 	// Try to add the url as a static peer and return
 	node, err := discover.ParseNode(url)
 	if err != nil {

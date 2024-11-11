@@ -229,6 +229,7 @@ func newDialState(static []*discover.Node, bootnodes []*discover.Node, ntab disc
 
 		for _, n := range static {
 			if selfNodeID != n.ID {
+				logger.Info("[Dial] addStatic", n)
 				s.addStatic(n)
 			} else {
 				logger.Debug("[Dial] Ignored static node which has same id with myself", "mySelfID", selfNodeID)
@@ -238,6 +239,7 @@ func newDialState(static []*discover.Node, bootnodes []*discover.Node, ntab disc
 	}
 
 	for _, n := range static {
+		logger.Info("[Dial] addStatic 2", n)
 		s.addStatic(n)
 	}
 	return s
@@ -251,7 +253,7 @@ func (s *dialstate) addTypedStatic(n *discover.Node, dType dialType) {
 	// This overwrites the task instead of updating an existing
 	// entry, giving users the opportunity to force a resolve operation.
 	if s.static[n.ID] == nil {
-		logger.Trace("[Dial] Add TypedStatic", "node", n, "dialType", dType)
+		logger.Info("[Dial] Add TypedStatic", "node", n, "dialType", dType)
 		if dType != DT_UNLIMITED {
 			s.static[n.ID] = &dialTask{flags: staticDialedConn | trustedConn, dest: n, dialType: dType}
 		} else {
@@ -467,7 +469,7 @@ func (s *dialstate) taskDone(t task, now time.Time) {
 		s.lookupRunning = false
 		s.lookupBuf = append(s.lookupBuf, t.results...)
 	case *discoverTypedStaticTask:
-		logger.Trace("[Dial] discoverTypedStaticTask - done", "t.name", t.name,
+		logger.Info("[Dial] discoverTypedStaticTask - done", "t.name", t.name,
 			"result count", len(t.results))
 		s.typedLookupRunning[t.name] = false
 		for _, r := range t.results {

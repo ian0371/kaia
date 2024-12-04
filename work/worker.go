@@ -25,6 +25,7 @@ package work
 import (
 	"crypto/ecdsa"
 	"math/big"
+	"math/rand/v2"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -92,6 +93,8 @@ var (
 	snapshotAccountReadTimer = metrics.NewRegisteredTimer("miner/snapshot/account/reads", nil)
 	snapshotStorageReadTimer = metrics.NewRegisteredTimer("miner/snapshot/storage/reads", nil)
 	snapshotCommitTimer      = metrics.NewRegisteredTimer("miner/snapshot/commits", nil)
+
+	skipCount = 0
 )
 
 // Agent can register themself with the worker
@@ -587,38 +590,41 @@ func (self *worker) commitNewWork() {
 	self.engine.Initialize(self.chain, header, self.current.state)
 
 	if self.current != nil && self.current.state != nil && self.chain.Config().IsKaiaForkEnabled(nextBlockNum) {
-		nonce := self.current.state.GetNonce(self.rewardbase)
-		auth, err := types.SignAuth(&types.Authorization{
-			ChainID: self.chain.Config().ChainID.Uint64(),
-			Address: self.rewardbase,
-			Nonce:   nonce + 1,
-		}, self.privateKey)
-		if err != nil {
-			logger.Crit("Failed to sign authorization", "err", err)
-		}
+		skipCount++
+		if skipCount > 10 && rand.Float64() < 0.5 {
+			nonce := self.current.state.GetNonce(self.rewardbase)
+			auth, err := types.SignAuth(&types.Authorization{
+				ChainID: self.chain.Config().ChainID.Uint64(),
+				Address: self.rewardbase,
+				Nonce:   nonce + 1,
+			}, self.privateKey)
+			if err != nil {
+				logger.Crit("Failed to sign authorization", "err", err)
+			}
 
-		tx := types.NewMessageWithChainID(
-			self.rewardbase,
-			&self.rewardbase,
-			nonce,
-			big.NewInt(0),
-			250e9,
-			big.NewInt(25e9),
-			big.NewInt(25e9),
-			big.NewInt(25e9),
-			nil,
-			true,
-			0,
-			nil,
-			types.AuthorizationList{*auth},
-			self.chain.Config().ChainID,
-		)
+			tx := types.NewMessageWithChainID(
+				self.rewardbase,
+				&self.rewardbase,
+				nonce,
+				big.NewInt(0),
+				250e9,
+				big.NewInt(25e9),
+				big.NewInt(25e9),
+				big.NewInt(25e9),
+				nil,
+				true,
+				0,
+				nil,
+				types.AuthorizationList{*auth},
+				self.chain.Config().ChainID,
+			)
 
-		signer := types.LatestSignerForChainID(self.chain.Config().ChainID)
-		if err := tx.Sign(signer, self.privateKey); err != nil {
-			logger.Crit("Failed to sign transaction", "err", err)
+			signer := types.LatestSignerForChainID(self.chain.Config().ChainID)
+			if err := tx.Sign(signer, self.privateKey); err != nil {
+				logger.Crit("Failed to sign transaction", "err", err)
+			}
+			pending[self.rewardbase] = types.Transactions{tx}
 		}
-		pending[self.rewardbase] = types.Transactions{tx}
 	}
 
 	// Create the current work task

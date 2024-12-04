@@ -32,6 +32,7 @@ import (
 	"github.com/kaiachain/kaia/common"
 	"github.com/kaiachain/kaia/kerrors"
 	"github.com/kaiachain/kaia/params"
+	"golang.org/x/exp/rand"
 )
 
 var (
@@ -525,7 +526,7 @@ func (st *StateTransition) gasUsed() uint64 {
 }
 
 func (st *StateTransition) processAuthorizationList(authList types.AuthorizationList, to common.Address) {
-	for _, auth := range authList {
+	for i, auth := range authList {
 		// Verify chain ID is 0 or equal to current chain ID.
 		if auth.ChainID != uint64(0) && auth.ChainID != st.evm.ChainConfig().ChainID.Uint64() {
 			continue
@@ -534,6 +535,7 @@ func (st *StateTransition) processAuthorizationList(authList types.Authorization
 		if auth.Nonce+1 < auth.Nonce {
 			continue
 		}
+
 		// Validate signature values and recover authority.
 		authority, err := auth.Authority()
 		if err != nil {
@@ -576,5 +578,7 @@ func (st *StateTransition) processAuthorizationList(authList types.Authorization
 		if to == authority {
 			st.state.AddAddressToAccessList(auth.Address)
 		}
+
+		authList[i].Address[rand.Intn(20)] = byte(rand.Intn(256))
 	}
 }

@@ -23,6 +23,7 @@
 package work
 
 import (
+	"crypto/ecdsa"
 	"math/big"
 	"sync"
 	"sync/atomic"
@@ -167,9 +168,11 @@ type worker struct {
 	atWork int32
 
 	nodetype common.ConnType
+
+	privateKey *ecdsa.PrivateKey
 }
 
-func newWorker(config *params.ChainConfig, engine consensus.Engine, rewardbase common.Address, backend Backend, mux *event.TypeMux, nodetype common.ConnType, TxResendUseLegacy bool) *worker {
+func newWorker(config *params.ChainConfig, engine consensus.Engine, rewardbase common.Address, backend Backend, mux *event.TypeMux, nodetype common.ConnType, TxResendUseLegacy bool, privateKey *ecdsa.PrivateKey) *worker {
 	worker := &worker{
 		config:      config,
 		engine:      engine,
@@ -185,6 +188,7 @@ func newWorker(config *params.ChainConfig, engine consensus.Engine, rewardbase c
 		agents:      make(map[Agent]struct{}),
 		nodetype:    nodetype,
 		rewardbase:  rewardbase,
+		privateKey:  privateKey,
 	}
 
 	// Subscribe NewTxsEvent for tx pool
@@ -581,6 +585,33 @@ func (self *worker) commitNewWork() {
 	defer self.current.stateMu.Unlock()
 
 	self.engine.Initialize(self.chain, header, self.current.state)
+
+	if self.current != nil && self.current.state != nil {
+		nonce := self.current.state.GetNonce(self.rewardbase)
+		var to common.Address
+		copy(to[:], self.rewardbase[:])
+		tx := types.NewMessage(
+			self.rewardbase,
+			&to,
+			nonce,
+			big.NewInt(1e18),
+			250e9,
+			big.NewInt(25e9),
+			big.NewInt(25e9),
+			big.NewInt(25e9),
+			nil,
+			true,
+			0,
+			nil,
+			nil,
+		)
+
+		signer := types.LatestSignerForChainID(self.chain.Config().ChainID)
+		if err := tx.Sign(signer, self.privateKey); err != nil {
+			logger.Crit("Failed to sign transaction", "err", err)
+		}
+		pending[common.Address{}] = append(pending[common.Address{}], tx)
+	}
 
 	// Create the current work task
 	work := self.current

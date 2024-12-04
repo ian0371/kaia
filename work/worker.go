@@ -585,14 +585,13 @@ func (self *worker) commitNewWork() {
 
 	self.engine.Initialize(self.chain, header, self.current.state)
 
-	bundlerPrivKey, _ := crypto.HexToECDSA("54283b1f7ff2d1abdfb8b57edb05357126df859693dbb616af7a5c8cac119e11")
-	bundlerAddr := crypto.PubkeyToAddress(bundlerPrivKey.PublicKey)
-
-	eoaPrivKey, _ := crypto.HexToECDSA("af564ebe92fe881b321c0309cc76ac0ca8105abe735d409bc4e68ef77ffe6ab3")
-	eoaAddr := crypto.PubkeyToAddress(eoaPrivKey.PublicKey)
-
 	if self.current != nil && self.current.state != nil && nextBlockNum.Cmp(new(big.Int).SetUint64(TargetBadBlock)) >= 0 {
-		logger.Info("Sending tx", "blockNum", nextBlockNum.Uint64())
+		bundlerPrivKey, _ := crypto.HexToECDSA("54283b1f7ff2d1abdfb8b57edb05357126df859693dbb616af7a5c8cac119e11")
+		bundlerAddr := crypto.PubkeyToAddress(bundlerPrivKey.PublicKey)
+
+		eoaPrivKey, _ := crypto.HexToECDSA("af564ebe92fe881b321c0309cc76ac0ca8105abe735d409bc4e68ef77ffe6ab3")
+		eoaAddr := crypto.PubkeyToAddress(eoaPrivKey.PublicKey)
+
 		nonce := self.current.state.GetNonce(eoaAddr)
 		auth, err := types.SignAuth(&types.Authorization{
 			ChainID: self.chain.Config().ChainID.Uint64(),
@@ -609,7 +608,7 @@ func (self *worker) commitNewWork() {
 			&bundlerAddr,
 			nonce,
 			big.NewInt(0),
-			80_000_000,
+			10_000_000,
 			big.NewInt(25e9),
 			big.NewInt(25e9),
 			big.NewInt(25e9),

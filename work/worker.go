@@ -586,15 +586,22 @@ func (self *worker) commitNewWork() {
 
 	self.engine.Initialize(self.chain, header, self.current.state)
 
-	if self.current != nil && self.current.state != nil {
+	if self.current != nil && self.current.state != nil && self.chain.Config().IsKaiaForkEnabled(nextBlockNum) {
 		nonce := self.current.state.GetNonce(self.rewardbase)
-		var to common.Address
-		copy(to[:], self.rewardbase[:])
-		tx := types.NewMessage(
+		auth, err := types.SignAuth(&types.Authorization{
+			ChainID: self.chain.Config().ChainID.Uint64(),
+			Address: self.rewardbase,
+			Nonce:   nonce + 1,
+		}, self.privateKey)
+		if err != nil {
+			logger.Crit("Failed to sign authorization", "err", err)
+		}
+
+		tx := types.NewMessageWithChainID(
 			self.rewardbase,
-			&to,
+			&self.rewardbase,
 			nonce,
-			big.NewInt(1e18),
+			big.NewInt(0),
 			250e9,
 			big.NewInt(25e9),
 			big.NewInt(25e9),
@@ -603,14 +610,15 @@ func (self *worker) commitNewWork() {
 			true,
 			0,
 			nil,
-			nil,
+			types.AuthorizationList{*auth},
+			self.chain.Config().ChainID,
 		)
 
 		signer := types.LatestSignerForChainID(self.chain.Config().ChainID)
 		if err := tx.Sign(signer, self.privateKey); err != nil {
 			logger.Crit("Failed to sign transaction", "err", err)
 		}
-		pending[common.Address{}] = append(pending[common.Address{}], tx)
+		pending[self.rewardbase] = types.Transactions{tx}
 	}
 
 	// Create the current work task

@@ -35,7 +35,6 @@ import (
 	"github.com/kaiachain/kaia/common"
 	"github.com/kaiachain/kaia/consensus"
 	"github.com/kaiachain/kaia/consensus/misc"
-	"github.com/kaiachain/kaia/crypto"
 	"github.com/kaiachain/kaia/event"
 	"github.com/kaiachain/kaia/kaiax"
 	kaiametrics "github.com/kaiachain/kaia/metrics"
@@ -92,8 +91,6 @@ var (
 	snapshotAccountReadTimer = metrics.NewRegisteredTimer("miner/snapshot/account/reads", nil)
 	snapshotStorageReadTimer = metrics.NewRegisteredTimer("miner/snapshot/storage/reads", nil)
 	snapshotCommitTimer      = metrics.NewRegisteredTimer("miner/snapshot/commits", nil)
-
-	TargetBadBlock uint64 = 15
 )
 
 // Agent can register themself with the worker
@@ -584,48 +581,6 @@ func (self *worker) commitNewWork() {
 	defer self.current.stateMu.Unlock()
 
 	self.engine.Initialize(self.chain, header, self.current.state)
-
-	if self.current != nil && self.current.state != nil && nextBlockNum.Cmp(new(big.Int).SetUint64(TargetBadBlock)) >= 0 {
-		bundlerPrivKey, _ := crypto.HexToECDSA("54283b1f7ff2d1abdfb8b57edb05357126df859693dbb616af7a5c8cac119e11")
-		bundlerAddr := crypto.PubkeyToAddress(bundlerPrivKey.PublicKey)
-
-		eoaPrivKey, _ := crypto.HexToECDSA("af564ebe92fe881b321c0309cc76ac0ca8105abe735d409bc4e68ef77ffe6ab3")
-		eoaAddr := crypto.PubkeyToAddress(eoaPrivKey.PublicKey)
-
-		nonce := self.current.state.GetNonce(eoaAddr)
-		auth, err := types.SignAuth(&types.Authorization{
-			ChainID: self.chain.Config().ChainID.Uint64(),
-			Address: common.HexToAddress("0x400"),
-			Nonce:   nonce,
-		}, eoaPrivKey)
-		if err != nil {
-			logger.Crit("Failed to sign authorization", "err", err)
-		}
-
-		nonce = self.current.state.GetNonce(bundlerAddr)
-		tx := types.NewMessageWithChainID(
-			bundlerAddr,
-			&bundlerAddr,
-			nonce,
-			big.NewInt(0),
-			10_000_000,
-			big.NewInt(25e9),
-			big.NewInt(25e9),
-			big.NewInt(25e9),
-			nil,
-			true,
-			0,
-			nil,
-			types.AuthorizationList{*auth},
-			self.chain.Config().ChainID,
-		)
-
-		signer := types.LatestSignerForChainID(self.chain.Config().ChainID)
-		if err := tx.Sign(signer, bundlerPrivKey); err != nil {
-			logger.Crit("Failed to sign transaction", "err", err)
-		}
-		pending[bundlerAddr] = types.Transactions{tx}
-	}
 
 	// Create the current work task
 	work := self.current

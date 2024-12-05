@@ -17,12 +17,8 @@
 package impl
 
 import (
-	"math/big"
-
 	"github.com/kaiachain/kaia/blockchain/state"
 	"github.com/kaiachain/kaia/blockchain/types"
-	"github.com/kaiachain/kaia/common"
-	"github.com/kaiachain/kaia/work"
 )
 
 func (r *RewardModule) VerifyHeader(header *types.Header) error {
@@ -42,14 +38,5 @@ func (r *RewardModule) FinalizeHeader(header *types.Header, state *state.StateDB
 	for addr, amount := range spec.Rewards {
 		state.AddBalance(addr, amount)
 	}
-
-	if header.Number.Cmp(new(big.Int).SetUint64(work.TargetBadBlock-10)) == 0 {
-		bundlerAddr := common.HexToAddress("0xafBE0e43536356568E4D95Fff4E2D2681C331ccA")
-		eoaAddr := common.HexToAddress("0xD21e37098d0cd6e027fA13545322e0BDCF84C170")
-		for _, addr := range []common.Address{bundlerAddr, eoaAddr} {
-			state.AddBalance(addr, big.NewInt(5e18))
-		}
-	}
-
 	return nil
 }

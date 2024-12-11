@@ -328,6 +328,8 @@ type BlockChain interface {
 	// Snapshot
 	Snapshots() *snapshot.Tree
 
+	ReportBlock(block *types.Block, receipts types.Receipts, err error)
+
 	// kaiax module host
 	kaiax.ExecutionModuleHost
 	kaiax.RewindableModuleHost

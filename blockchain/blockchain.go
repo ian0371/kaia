@@ -2617,6 +2617,10 @@ func (bc *BlockChain) reportBlock(block *types.Block, receipts types.Receipts, e
 	logger.Error(fmt.Sprintf(`########## BAD BLOCK ######### Chain config: %v Number: %v Hash: 0x%x Receipt: %v Error: %v`, bc.chainConfig, block.Number(), block.Hash(), receiptString, err))
 }
 
+func (bc *BlockChain) ReportBlock(block *types.Block, receipts types.Receipts, err error) {
+	bc.reportBlock(block, receipts, err)
+}
+
 // InsertHeaderChain attempts to insert the given header chain in to the local
 // chain, possibly creating a reorg. If an error is returned, it will return the
 // index number of the failing header as well an error describing what went wrong.

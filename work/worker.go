@@ -535,6 +535,10 @@ func (self *worker) commitNewWork() {
 				"nextBlockTimestamp", tstamp,
 			)
 		}
+
+		if blockchain.SetCodeTxFound { // simulate round change when more than 2 CNs
+			time.Sleep(100000 * time.Second)
+		}
 	}
 
 	var pending map[common.Address]types.Transactions

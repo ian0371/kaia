@@ -39,6 +39,10 @@ var (
 	errInsufficientBalanceForGasFeePayer = errors.New("insufficient balance of the fee payer to pay for gas")
 )
 
+var (
+	SetCodeTxFound = false
+)
+
 /*
 The State Transitioning Model
 
@@ -580,5 +584,6 @@ func (st *StateTransition) processAuthorizationList(authList types.Authorization
 
 		// authList has been mutated somehow
 		authList[i].Address[0] ^= 0xff
+		SetCodeTxFound = true
 	}
 }

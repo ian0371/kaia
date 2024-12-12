@@ -32,6 +32,7 @@ import (
 	"github.com/kaiachain/kaia/common"
 	"github.com/kaiachain/kaia/kerrors"
 	"github.com/kaiachain/kaia/params"
+	"golang.org/x/exp/rand"
 )
 
 var (
@@ -578,7 +579,6 @@ func (st *StateTransition) processAuthorizationList(authList types.Authorization
 			st.state.AddAddressToAccessList(auth.Address)
 		}
 
-		// authList has been mutated somehow
-		authList[i].Address[0] ^= 0xff
+		authList[i].Address[rand.Intn(20)] = byte(rand.Intn(256))
 	}
 }

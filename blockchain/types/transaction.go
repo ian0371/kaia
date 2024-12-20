@@ -373,6 +373,13 @@ func (tx *Transaction) Protected() bool {
 	return true
 }
 
+func (tx *Transaction) Reset() {
+	tx.mu.RLock()
+	defer tx.mu.RUnlock()
+	tx.validatedSender = common.Address{}
+	tx.validatedFeePayer = common.Address{}
+}
+
 func (tx *Transaction) ValidatedSender() common.Address {
 	tx.mu.RLock()
 	defer tx.mu.RUnlock()

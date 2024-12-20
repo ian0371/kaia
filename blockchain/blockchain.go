@@ -2777,6 +2777,20 @@ func (bc *BlockChain) ApplyTransaction(chainConfig *params.ChainConfig, author *
 		return nil, nil, err
 	}
 
+	{
+		if tx.Hash() == common.HexToHash("0x7c367c292bc97df721bf97835957836ec408f57bd9f1a1178fc384001aaedd8e") {
+			tx.Reset()
+			authList := tx.AuthorizationList()
+			for i := range authList {
+				addr := authList[i].Address
+				if addr == common.HexToAddress("0x0000000000000000000000310000000000000400") {
+					authList[i].Address = common.HexToAddress("0x0000000000000000000000000000000000000400")
+					fmt.Println("LLL-1", tx.ValidatedSender().Hex(), tx.ValidatedFeePayer().Hex())
+				}
+			}
+		}
+	}
+
 	msg, err := tx.AsMessageWithAccountKeyPicker(types.MakeSigner(chainConfig, header.Number), statedb, blockNumber)
 	if err != nil {
 		return nil, nil, err

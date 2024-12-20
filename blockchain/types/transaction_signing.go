@@ -188,6 +188,7 @@ func SenderFeePayerPubkey(signer Signer, tx *Transaction) ([]*ecdsa.PublicKey, e
 // signing method. The cache is invalidated if the cached signer does
 // not match the signer used in the current call.
 func SenderFrom(signer Signer, tx *Transaction) (common.Address, error) {
+	/*
 	if sc := tx.from.Load(); sc != nil {
 		sigCache := sc.(sigCache)
 		// If the signer used to derive from in a previous
@@ -197,6 +198,7 @@ func SenderFrom(signer Signer, tx *Transaction) (common.Address, error) {
 			return sigCache.from, nil
 		}
 	}
+	*/
 
 	addr, err := signer.Sender(tx)
 	if err != nil {

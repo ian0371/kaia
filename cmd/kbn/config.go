@@ -62,9 +62,13 @@ type bootnodeConfig struct {
 	natm         nat.Interface
 	listenAddr   string
 
-	// Authorized Nodes are used as pre-configured nodes list which are only
+	// Authorized Nodes are used as whitelisted nodes list which are allowed to be
 	// bonded with this bootnode.
 	AuthorizedNodes []*discover.Node
+
+	// Pinned Nodes are used as pre-configured nodes list which doesn't require
+	// bonding with this bootnode. These nodes are never deleted.
+	PinnedNodes []*discover.Node
 
 	// DataDir is the file system folder the node should use for any data storage
 	// requirements. The configured data directory will not be directly shared with
@@ -177,6 +181,23 @@ func setAuthorizedNodes(ctx *cli.Context, cfg *bootnodeConfig) {
 			continue
 		}
 		cfg.AuthorizedNodes = append(cfg.AuthorizedNodes, node)
+	}
+}
+
+func setPinnedNodes(ctx *cli.Context, cfg *bootnodeConfig) {
+	if !ctx.IsSet(utils.PinnedNodesFlag.Name) {
+		return
+	}
+	urls := ctx.String(utils.PinnedNodesFlag.Name)
+	splitedUrls := strings.Split(urls, ",")
+	cfg.PinnedNodes = make([]*discover.Node, 0, len(splitedUrls))
+	for _, url := range splitedUrls {
+		node, err := discover.ParseNode(url)
+		if err != nil {
+			logger.Error("URL is invalid", "kni", url, "err", err)
+			continue
+		}
+		cfg.PinnedNodes = append(cfg.PinnedNodes, node)
 	}
 }
 

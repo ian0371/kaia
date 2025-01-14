@@ -163,8 +163,8 @@ func newTable(cfg *Config) (Discovery, error) {
 		tab.addStorage(NodeTypeEN, &KademliaStorage{targetType: NodeTypeEN})
 		tab.addStorage(NodeTypeBN, &simpleStorage{targetType: NodeTypeBN, noDiscover: true, max: 3})
 	case NodeTypeBN:
-		tab.addStorage(NodeTypeCN, NewSimpleStorage(NodeTypeCN, true, 100, cfg.AuthorizedNodes))
-		tab.addStorage(NodeTypePN, NewSimpleStorage(NodeTypePN, true, 100, cfg.AuthorizedNodes))
+		tab.addStorage(NodeTypeCN, NewSimpleStorage(NodeTypeCN, true, 100, cfg.AuthorizedNodes, cfg.PinnedNodes))
+		tab.addStorage(NodeTypePN, NewSimpleStorage(NodeTypePN, true, 100, cfg.AuthorizedNodes, cfg.PinnedNodes))
 		tab.addStorage(NodeTypeEN, &KademliaStorage{targetType: NodeTypeEN, noDiscover: true})
 		tab.addStorage(NodeTypeBN, &simpleStorage{targetType: NodeTypeBN, max: 3})
 	}

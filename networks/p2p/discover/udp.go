@@ -281,6 +281,7 @@ type Config struct {
 	// These settings are required for discovery packet control
 	MaxNeighborsNode uint
 	AuthorizedNodes  []*Node
+	PinnedNodes      []*Node
 }
 
 // ListenUDP returns a new table that listens for UDP packets on laddr.

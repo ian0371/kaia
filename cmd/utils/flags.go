@@ -1277,6 +1277,13 @@ var (
 		Aliases: []string{"common.authorized-nodes"},
 		EnvVars: []string{"KLAYTN_AUTHORIZED_NODES", "KAIA_AUTHORIZED_NODES"},
 	}
+	PinnedNodesFlag = &cli.StringFlag{
+		Name:    "pinned-nodes",
+		Usage:   "Comma separated kni URLs for pinned nodes list",
+		Value:   "",
+		Aliases: []string{"common.pinned-nodes"},
+		EnvVars: []string{"KLAYTN_PINNED_NODES", "KAIA_PINNED_NODES"},
+	}
 	// TODO-Kaia-Bootnode the boodnode flags should be updated when it is implemented
 	BNAddrFlag = &cli.StringFlag{
 		Name:    "bnaddr",

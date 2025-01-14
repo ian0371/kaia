@@ -94,6 +94,7 @@ func bootnode(ctx *cli.Context) error {
 	setWS(ctx, &bcfg)
 	setgRPC(ctx, &bcfg)
 	setAuthorizedNodes(ctx, &bcfg)
+	setPinnedNodes(ctx, &bcfg)
 
 	// Check exit condition
 	switch bcfg.checkCMDState() {
@@ -148,6 +149,7 @@ func bootnode(ctx *cli.Context) error {
 		Id:              discover.PubkeyID(&bcfg.nodeKey.PublicKey),
 		NodeType:        p2p.ConvertNodeType(common.BOOTNODE),
 		AuthorizedNodes: bcfg.AuthorizedNodes,
+		PinnedNodes:     bcfg.PinnedNodes,
 	}
 
 	tab, err := discover.ListenUDP(&cfg)

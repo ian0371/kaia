@@ -32,8 +32,9 @@ import (
 type simpleStorage struct {
 	tab         *Table
 	targetType  NodeType
-	nodes       []*Node
-	noDiscover  bool // if noDiscover is true, don't lookup new node.
+	nodes       []*Node          // discovered nodes sorted by last ping time in the decreasing order
+	pinnedNodes map[NodeID]*Node // write-once at constructor
+	noDiscover  bool             // if noDiscover is true, don't lookup new node.
 	nodesMutex  sync.Mutex
 	max         int
 	rand        *rand.Rand
@@ -44,13 +45,22 @@ type simpleStorage struct {
 	authorizedNodes    map[NodeID]*Node
 }
 
-func NewSimpleStorage(nodeType NodeType, noDiscover bool, max int, authorizedNodes []*Node) *simpleStorage {
-	storage := &simpleStorage{targetType: nodeType, noDiscover: noDiscover, max: max}
-	storage.authorizedNodes = make(map[NodeID]*Node)
+func NewSimpleStorage(nodeType NodeType, noDiscover bool, max int, authorizedNodes []*Node, pinnedNodes []*Node) *simpleStorage {
+	storage := &simpleStorage{
+		targetType:      nodeType,
+		noDiscover:      noDiscover,
+		max:             max,
+		nodes:           make([]*Node, 0),
+		pinnedNodes:     make(map[NodeID]*Node),
+		authorizedNodes: make(map[NodeID]*Node),
+	}
 	for _, node := range authorizedNodes {
 		if node.NType == nodeType {
 			storage.putAuthorizedNode(node)
 		}
+	}
+	for _, node := range pinnedNodes {
+		storage.pinnedNodes[node.ID] = node
 	}
 	return storage
 }
@@ -98,7 +108,9 @@ func (s *simpleStorage) shuffle(vals []*Node) []*Node {
 
 func (s *simpleStorage) getNodes(max int) []*Node {
 	s.nodesMutex.Lock()
-	nodes := s.shuffle(s.nodes)
+
+	nodes := s.getAllNodes()
+	nodes = s.shuffle(nodes)
 
 	var ret []*Node
 	for _, nd := range nodes {
@@ -179,14 +191,7 @@ func (s *simpleStorage) copyBondedNodes() {
 }
 
 func (s *simpleStorage) getBucketEntries() []*Node {
-	s.nodesMutex.Lock()
-	defer s.nodesMutex.Unlock()
-
-	var ret []*Node
-	for _, n := range s.nodes {
-		ret = append(ret, n)
-	}
-	return ret
+	return s.getAllNodes()
 }
 
 // The caller must not hold tab.mutex.
@@ -206,6 +211,10 @@ func (s *simpleStorage) deleteWithLock(n *Node) {
 }
 
 func (s *simpleStorage) deleteWithoutLock(n *Node) {
+	if s.isPinned(n.ID) {
+		return
+	}
+
 	s.nodes = deleteNode(s.nodes, n)
 
 	s.tab.db.deleteNode(n.ID)
@@ -221,7 +230,8 @@ func (s *simpleStorage) closest(target common.Hash, nresults int) *nodesByDistan
 	// TODO-Kaia-Node nodesByDistance is not suitable for SimpleStorage. Because there is no concept for distance
 	// in the SimpleStorage. Change it
 	cNodes := &nodesByDistance{target: target}
-	nodes := s.shuffle(s.nodes)
+	nodes := s.getAllNodes()
+	nodes = s.shuffle(nodes)
 	// TODO-Kaia We should cap the number of nodes with nresults, however we cannot estimate the side effect.
 	// As s.nodes can be longer than s.max, we cap the number of nodes returned with min(nresults, s.max).
 	cap := min(nresults, s.max)
@@ -295,6 +305,24 @@ func (s *simpleStorage) isAuthorized(id NodeID) bool {
 		}
 	}
 	return false
+}
+
+func (s *simpleStorage) isPinned(id NodeID) bool {
+	// no lock required as pinnedNodes is read-only
+	_, ok := s.pinnedNodes[id]
+	return ok
+}
+
+func (s *simpleStorage) getAllNodes() []*Node {
+	s.nodesMutex.Lock()
+	ret := make([]*Node, len(s.nodes))
+	copy(ret, s.nodes)
+	s.nodesMutex.Unlock()
+
+	for _, node := range s.pinnedNodes {
+		ret = append(ret, node)
+	}
+	return ret
 }
 
 func (s *simpleStorage) getAuthorizedNodes() []*Node {

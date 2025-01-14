@@ -332,6 +332,7 @@ var BNFlags = []cli.Flag{
 	altsrc.NewBoolFlag(PrometheusExporterFlag),
 	altsrc.NewIntFlag(PrometheusExporterPortFlag),
 	altsrc.NewStringFlag(AuthorizedNodesFlag),
+	altsrc.NewStringFlag(PinnedNodesFlag),
 	altsrc.NewUint64Flag(NetworkIdFlag),
 }
 

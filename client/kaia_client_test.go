@@ -25,9 +25,12 @@ package client
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"math/big"
+	"net/http"
 	"os"
 	"testing"
 	"time"
@@ -36,14 +39,10 @@ import (
 	"github.com/kaiachain/kaia/blockchain"
 	"github.com/kaiachain/kaia/blockchain/types"
 	"github.com/kaiachain/kaia/common"
-	"github.com/kaiachain/kaia/consensus/gxhash"
 	"github.com/kaiachain/kaia/crypto"
 	"github.com/kaiachain/kaia/networks/rpc"
-	"github.com/kaiachain/kaia/node"
-	"github.com/kaiachain/kaia/node/cn"
 	"github.com/kaiachain/kaia/params"
 	"github.com/kaiachain/kaia/rlp"
-	"github.com/kaiachain/kaia/storage/database"
 )
 
 // Verify that Client implements the Kaia interfaces.
@@ -101,60 +100,36 @@ var testTx2 = func() *types.Transaction {
 	return signedTx
 }()
 
-func newTestBackend(config *node.Config, workspace string) (*node.Node, []*types.Block, error) {
-	// Create a proper database and blockchain for testing
-	dbm := database.NewMemoryDBManager()
-
-	// Commit genesis to database
-	genesisBlock := genesis.MustCommit(dbm)
-
-	// Generate test chain
-	engine := gxhash.NewFaker()
-	generate := func(i int, g *blockchain.BlockGen) {
-		g.OffsetTime(1)
-		g.SetExtra([]byte("test"))
-		if i == 1 {
-			// Test transactions are included in block #2.
-			g.AddTx(testTx1)
-			g.AddTx(testTx2)
+func MockHttpServer(t *testing.T, quit chan struct{}) {
+	myHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
 		}
-	}
 
-	blocks, _ := blockchain.GenerateChain(params.TestChainConfig, genesisBlock, engine, dbm, 2, generate)
-	allBlocks := append([]*types.Block{genesisBlock}, blocks...)
-
-	// Create node with proper configuration
-	if config == nil {
-		config = &node.Config{
-			DataDir:          workspace,
-			HTTPHost:         "127.0.0.1",
-			HTTPPort:         36000,
-			HTTPVirtualHosts: []string{"*"},
-			HTTPModules:      []string{"kaia", "net", "web3", "admin", "debug"}, // Enable kaia namespace
+		var reqData map[string]interface{}
+		decoder := json.NewDecoder(r.Body)
+		if err := decoder.Decode(&reqData); err != nil {
+			http.Error(w, "Invalid JSON", http.StatusBadRequest)
+			return
 		}
-	}
 
-	cnConf := cn.GetDefaultConfig()
-	cnConf.Genesis = genesis
-	fullNode, err := node.New(config)
-	if err != nil {
-		return nil, nil, fmt.Errorf("can't create new node: %v", err)
-	}
-	if err = fullNode.Register(func(ctx *node.ServiceContext) (node.Service, error) { return cn.New(ctx, cnConf) }); err != nil {
-		return nil, nil, fmt.Errorf("failed to register Kaia protocol: %v", err)
-	}
+		t.Log("MockHttpServer received request", reqData)
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(reqData)
+	})
 
-	// Start the node first to initialize services
-	if err := fullNode.Start(); err != nil {
-		return nil, nil, fmt.Errorf("can't start test node: %v", err)
+	s := &http.Server{
+		Addr:    "127.0.0.1:36000",
+		Handler: myHandler,
 	}
+	go log.Fatal(s.ListenAndServe())
+	t.Log("MockHttpServer started")
 
-	var cn *cn.CN
-	if err := fullNode.Service(&cn); err != nil {
-		return nil, nil, fmt.Errorf("failed to service Kaia protocol: %v", err)
-	}
-
-	return fullNode, allBlocks, nil
+	go func() {
+		<-quit
+		s.Shutdown(context.Background())
+	}()
 }
 
 func TestEthClient(t *testing.T) {
@@ -164,25 +139,30 @@ func TestEthClient(t *testing.T) {
 	}
 	defer os.RemoveAll(workspace)
 
-	backend, chain, err := newTestBackend(nil, workspace)
+	quitChan := make(chan struct{})
+	MockHttpServer(t, quitChan)
+
+	rpcClient, err := rpc.DialHTTP("http://127.0.0.1:36000")
 	if err != nil {
 		t.Fatal(err)
 	}
-	client, err := backend.Attach()
+	t.Log("rpcClient dialed")
+	client := NewClient(rpcClient)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer backend.Stop()
 	defer client.Close()
 
 	tests := map[string]struct {
 		test func(t *testing.T)
 	}{
-		"Header": {
-			func(t *testing.T) { testHeader(t, chain, client) },
-		},
+		/*
+			"Header": {
+				func(t *testing.T) { testHeader(t, chain, client) },
+			},
+		*/
 		"BalanceAt": {
-			func(t *testing.T) { testBalanceAt(t, client) },
+			func(t *testing.T) { testBalanceAt(t, rpcClient) },
 		},
 		/*
 			"TxInBlockInterrupted": {

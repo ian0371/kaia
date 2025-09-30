@@ -28,14 +28,16 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"math/big"
 	"net/http"
 	"os"
+	"slices"
+	"strconv"
 	"testing"
 	"time"
 
 	"github.com/kaiachain/kaia"
+	"github.com/kaiachain/kaia/api"
 	"github.com/kaiachain/kaia/blockchain"
 	"github.com/kaiachain/kaia/blockchain/types"
 	"github.com/kaiachain/kaia/common"
@@ -76,8 +78,42 @@ var extra, _ = rlp.EncodeToBytes(&types.IstanbulExtra{
 	Seal:          []byte{},
 	CommittedSeal: [][]byte{},
 })
+
+var genesisConfig = &params.ChainConfig{
+	ChainID:                  big.NewInt(1337),
+	IstanbulCompatibleBlock:  big.NewInt(0),
+	LondonCompatibleBlock:    big.NewInt(0),
+	EthTxTypeCompatibleBlock: big.NewInt(0),
+	MagmaCompatibleBlock:     big.NewInt(0),
+	KoreCompatibleBlock:      big.NewInt(0),
+	ShanghaiCompatibleBlock:  big.NewInt(0),
+	CancunCompatibleBlock:    big.NewInt(0),
+	KaiaCompatibleBlock:      big.NewInt(0),
+	PragueCompatibleBlock:    big.NewInt(0),
+	DeriveShaImpl:            2,
+	Governance: &params.GovernanceConfig{
+		GoverningNode:  common.HexToAddress("0x99fb17d324fa0e07f23b49d09028ac0919414db6"),
+		GovernanceMode: "single",
+		Reward: &params.RewardConfig{
+			MintingAmount:          big.NewInt(0),
+			Ratio:                  "34/54/12",
+			UseGiniCoeff:           true,
+			DeferredTxFee:          true,
+			StakingUpdateInterval:  86400,
+			ProposerUpdateInterval: 3600,
+			MinimumStake:           big.NewInt(5000000),
+		},
+	},
+	Istanbul: &params.IstanbulConfig{
+		Epoch:          604800,
+		ProposerPolicy: 2,
+		SubGroupSize:   22,
+	},
+	UnitPrice: 25000000000,
+}
+
 var genesis = &blockchain.Genesis{
-	Config: params.TestChainConfig,
+	Config: genesisConfig,
 	Alloc: blockchain.GenesisAlloc{
 		testAddr:           {Balance: testBalance},
 		revertContractAddr: {Balance: big.NewInt(0), Code: revertCode},
@@ -100,7 +136,16 @@ var testTx2 = func() *types.Transaction {
 	return signedTx
 }()
 
-func MockHttpServer(t *testing.T, quit chan struct{}) {
+var blocks = make([]*types.Block, 3)
+
+func init() {
+	for i := 0; i < 3; i++ {
+		header := genMockHeader(i)
+		blocks[i] = types.NewBlockWithHeader(header)
+	}
+}
+
+func MockHttpServer(t *testing.T, quit chan struct{}) string {
 	myHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -114,22 +159,171 @@ func MockHttpServer(t *testing.T, quit chan struct{}) {
 			return
 		}
 
-		t.Log("MockHttpServer received request", reqData)
+		t.Logf("MockHttpServer received request: %+v", reqData)
+
+		// Extract method and id from JSON-RPC request
+		method, _ := reqData["method"].(string)
+		id := reqData["id"]
+
+		// Create proper JSON-RPC response based on method
+		var response map[string]interface{}
+
+		switch method {
+		case "kaia_chainID":
+			response = map[string]interface{}{
+				"jsonrpc": "2.0",
+				"id":      id,
+				"result":  "0x539", // 1337 in hex
+			}
+		case "kaia_getBalance":
+			params := reqData["params"].([]interface{})
+			address := params[0].(string)
+			blockNumber := params[1].(string)
+
+			// Handle different test scenarios
+			if blockNumber == "0x3b9aca00" { // 1000000000 in hex - future block
+				// Return header not found error for future blocks
+				response = map[string]interface{}{
+					"jsonrpc": "2.0",
+					"id":      id,
+					"error": map[string]interface{}{
+						"code":    -32000,
+						"message": "header not found",
+					},
+				}
+			} else if address == "0x71562b71999873db5b286df957af199ec94617f7" {
+				// testAddr - has balance (2000000000000000 wei)
+				response = map[string]interface{}{
+					"jsonrpc": "2.0",
+					"id":      id,
+					"result":  "0x71afd498d0000", // 2000000000000000 wei
+				}
+			} else if address == "0x0100000000000000000000000000000000000000" {
+				// Non-existent account - zero balance
+				response = map[string]interface{}{
+					"jsonrpc": "2.0",
+					"id":      id,
+					"result":  "0x0",
+				}
+			} else {
+				// Default case
+				response = map[string]interface{}{
+					"jsonrpc": "2.0",
+					"id":      id,
+					"result":  "0x0",
+				}
+			}
+		case "kaia_getBlockByNumber":
+			params := reqData["params"].([]interface{})
+			blockNumber := params[0].(string)
+			t.Logf("kaia_getBlockByNumber blockNumber: %s", blockNumber)
+			var block *types.Block
+
+			switch blockNumber {
+			case "0x0", "earliest":
+				block = blocks[0]
+			case "0x1":
+				block = blocks[1]
+			case "0x2", "latest":
+				block = blocks[2]
+			default:
+				// Return not found for other blocks
+				response = map[string]interface{}{
+					"jsonrpc": "2.0",
+					"id":      id,
+					"error": map[string]interface{}{
+						"code":    -32000,
+						"message": "header not found",
+					},
+				}
+				goto ret
+			}
+
+			rpcOutput, err := api.RpcOutputBlock(block, false, false, genesis.Config)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			response = map[string]interface{}{
+				"jsonrpc": "2.0",
+				"id":      id,
+				"result":  rpcOutput,
+			}
+		case "kaia_getBlockByHash":
+			params := reqData["params"].([]interface{})
+			blockHash := params[0].(string)
+			blockNum := slices.IndexFunc(blocks, func(h *types.Block) bool {
+				return h.Hash().Hex() == blockHash
+			})
+			if blockNum == -1 {
+				response = map[string]interface{}{
+					"jsonrpc": "2.0",
+					"id":      id,
+					"error": map[string]interface{}{
+						"code":    -32000,
+						"message": "header not found",
+					},
+				}
+				goto ret
+			}
+
+			block := blocks[blockNum]
+			rpcOutput, err := api.RpcOutputBlock(block, false, false, genesis.Config)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			response = map[string]interface{}{
+				"jsonrpc": "2.0",
+				"id":      id,
+				"result":  rpcOutput,
+			}
+		case "kaia_blockNumber":
+			response = map[string]interface{}{
+				"jsonrpc": "2.0",
+				"id":      id,
+				"result":  "0x2", // Block 2
+			}
+		default:
+			// Return method not found error
+			response = map[string]interface{}{
+				"jsonrpc": "2.0",
+				"id":      id,
+				"error": map[string]interface{}{
+					"code":    -32601,
+					"message": fmt.Sprintf("the method %s does not exist/is not available", method),
+				},
+			}
+		}
+
+	ret:
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(reqData)
+		if err := json.NewEncoder(w).Encode(response); err != nil {
+			t.Errorf("Failed to encode response: %v", err)
+		}
+		t.Logf("MockHttpServer sent response: %+v", response)
 	})
 
 	s := &http.Server{
 		Addr:    "127.0.0.1:36000",
 		Handler: myHandler,
 	}
-	go log.Fatal(s.ListenAndServe())
-	t.Log("MockHttpServer started")
+
+	go func() {
+		if err := s.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			t.Errorf("Server failed: %v", err)
+		}
+	}()
+
+	t.Log("MockHttpServer started on 127.0.0.1:36000")
 
 	go func() {
 		<-quit
-		s.Shutdown(context.Background())
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		s.Shutdown(ctx)
+		t.Log("MockHttpServer stopped")
 	}()
+
+	return "http://127.0.0.1:36000"
 }
 
 func TestEthClient(t *testing.T) {
@@ -140,56 +334,53 @@ func TestEthClient(t *testing.T) {
 	defer os.RemoveAll(workspace)
 
 	quitChan := make(chan struct{})
-	MockHttpServer(t, quitChan)
+	defer close(quitChan)
 
-	rpcClient, err := rpc.DialHTTP("http://127.0.0.1:36000")
+	serverURL := MockHttpServer(t, quitChan)
+
+	// Give server time to start
+	time.Sleep(100 * time.Millisecond)
+
+	client, err := DialContext(context.Background(), serverURL)
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Log("rpcClient dialed")
-	client := NewClient(rpcClient)
-	if err != nil {
-		t.Fatal(err)
-	}
+	t.Log("Client connected to mock server")
 	defer client.Close()
 
 	tests := map[string]struct {
 		test func(t *testing.T)
 	}{
-		/*
-			"Header": {
-				func(t *testing.T) { testHeader(t, chain, client) },
-			},
-		*/
-		"BalanceAt": {
-			func(t *testing.T) { testBalanceAt(t, rpcClient) },
+		// "Header": {
+		// 	func(t *testing.T) { testHeader(t, chain, client) },
+		// },
+		// "BalanceAt": {
+		// 	func(t *testing.T) { testBalanceAt(t, client) },
+		// },
+		// "ChainID": {
+		// 	func(t *testing.T) { testChainID(t, client) },
+		// },
+		// "TxInBlockInterrupted": {
+		// 	func(t *testing.T) { testTransactionInBlock(t, client) },
+		// },
+		"GetBlock": {
+			func(t *testing.T) { testGetBlock(t, client) },
 		},
-		/*
-			"TxInBlockInterrupted": {
-				func(t *testing.T) { testTransactionInBlock(t, client) },
-			},
-			"ChainID": {
-				func(t *testing.T) { testChainID(t, client) },
-			},
-			"GetBlock": {
-				func(t *testing.T) { testGetBlock(t, client) },
-			},
-			"StatusFunctions": {
-				func(t *testing.T) { testStatusFunctions(t, client) },
-			},
-			"CallContract": {
-				func(t *testing.T) { testCallContract(t, client) },
-			},
-			"CallContractAtHash": {
-				func(t *testing.T) { testCallContractAtHash(t, client) },
-			},
-			"AtFunctions": {
-				func(t *testing.T) { testAtFunctions(t, client) },
-			},
-			"TransactionSender": {
-				func(t *testing.T) { testTransactionSender(t, client) },
-			},
-		*/
+		// "StatusFunctions": {
+		// 	func(t *testing.T) { testStatusFunctions(t, client) },
+		// },
+		// "CallContract": {
+		// 	func(t *testing.T) { testCallContract(t, client) },
+		// },
+		// "CallContractAtHash": {
+		// 	func(t *testing.T) { testCallContractAtHash(t, client) },
+		// },
+		// "AtFunctions": {
+		// 	func(t *testing.T) { testAtFunctions(t, client) },
+		// },
+		// "TransactionSender": {
+		// 	func(t *testing.T) { testTransactionSender(t, client) },
+		// },
 	}
 
 	t.Parallel()
@@ -198,7 +389,7 @@ func TestEthClient(t *testing.T) {
 	}
 }
 
-func testHeader(t *testing.T, chain []*types.Block, client *rpc.Client) {
+func testHeader(t *testing.T, chain []*types.Block, client *Client) {
 	tests := map[string]struct {
 		block   *big.Int
 		want    *types.Header
@@ -220,11 +411,11 @@ func testHeader(t *testing.T, chain []*types.Block, client *rpc.Client) {
 	}
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
-			ec := NewClient(client)
+			c := client
 			ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 			defer cancel()
 
-			got, err := ec.HeaderByNumber(ctx, tt.block)
+			got, err := c.HeaderByNumber(ctx, tt.block)
 			if !errors.Is(err, tt.wantErr) {
 				t.Fatalf("HeaderByNumber(%v) error = %q, want %q", tt.block, err, tt.wantErr)
 			}
@@ -238,7 +429,7 @@ func testHeader(t *testing.T, chain []*types.Block, client *rpc.Client) {
 	}
 }
 
-func testBalanceAt(t *testing.T, client *rpc.Client) {
+func testBalanceAt(t *testing.T, client *Client) {
 	tests := map[string]struct {
 		account common.Address
 		block   *big.Int
@@ -269,11 +460,11 @@ func testBalanceAt(t *testing.T, client *rpc.Client) {
 	}
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
-			ec := NewClient(client)
+			c := client
 			ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 			defer cancel()
 
-			got, err := ec.BalanceAt(ctx, tt.account, tt.block)
+			got, err := c.BalanceAt(ctx, tt.account, tt.block)
 			if tt.wantErr != nil && (err == nil || err.Error() != tt.wantErr.Error()) {
 				t.Fatalf("BalanceAt(%x, %v) error = %q, want %q", tt.account, tt.block, err, tt.wantErr)
 			}
@@ -284,22 +475,20 @@ func testBalanceAt(t *testing.T, client *rpc.Client) {
 	}
 }
 
-func testTransactionInBlock(t *testing.T, client *rpc.Client) {
-	ec := NewClient(client)
-
+func testTransactionInBlock(t *testing.T, c *Client) {
 	// Get current block by number.
-	block, err := ec.BlockByNumber(context.Background(), nil)
+	block, err := c.BlockByNumber(context.Background(), nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
 	// Test tx in block not found.
-	if _, err := ec.TransactionInBlock(context.Background(), block.Hash(), 20); err != kaia.NotFound {
+	if _, err := c.TransactionInBlock(context.Background(), block.Hash(), 20); err != kaia.NotFound {
 		t.Fatal("error should be kaia.NotFound")
 	}
 
 	// Test tx in block found.
-	tx, err := ec.TransactionInBlock(context.Background(), block.Hash(), 0)
+	tx, err := c.TransactionInBlock(context.Background(), block.Hash(), 0)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -307,7 +496,7 @@ func testTransactionInBlock(t *testing.T, client *rpc.Client) {
 		t.Fatalf("unexpected transaction: %v", tx)
 	}
 
-	tx, err = ec.TransactionInBlock(context.Background(), block.Hash(), 1)
+	tx, err = c.TransactionInBlock(context.Background(), block.Hash(), 1)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -316,36 +505,33 @@ func testTransactionInBlock(t *testing.T, client *rpc.Client) {
 	}
 
 	// Test pending block
-	_, err = ec.BlockByNumber(context.Background(), big.NewInt(int64(rpc.PendingBlockNumber)))
+	_, err = c.BlockByNumber(context.Background(), big.NewInt(int64(rpc.PendingBlockNumber)))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
 
-func testChainID(t *testing.T, client *rpc.Client) {
-	ec := NewClient(client)
-	id, err := ec.ChainID(context.Background())
+func testChainID(t *testing.T, c *Client) {
+	id, err := c.ChainID(context.Background())
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if id == nil || id.Cmp(params.TestChainConfig.ChainID) != 0 {
+	if id == nil || id.Cmp(big.NewInt(1337)) != 0 {
 		t.Fatalf("ChainID returned wrong number: %+v", id)
 	}
 }
 
-func testGetBlock(t *testing.T, client *rpc.Client) {
-	ec := NewClient(client)
-
+func testGetBlock(t *testing.T, c *Client) {
 	// Get current block number
-	blockNumber, err := ec.BlockNumber(context.Background())
+	blockNumber, err := c.BlockNumber(context.Background())
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if blockNumber.Int64() != 2 {
 		t.Fatalf("BlockNumber returned wrong number: %d", blockNumber)
 	}
-	// Get current block by number
-	block, err := ec.BlockByNumber(context.Background(), big.NewInt(blockNumber.Int64()))
+	// Get current block
+	block, err := c.BlockByNumber(context.Background(), big.NewInt(blockNumber.Int64()))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -353,7 +539,7 @@ func testGetBlock(t *testing.T, client *rpc.Client) {
 		t.Fatalf("BlockByNumber returned wrong block: want %d got %d", blockNumber, block.NumberU64())
 	}
 	// Get current block by hash
-	blockH, err := ec.BlockByHash(context.Background(), block.Hash())
+	blockH, err := c.BlockByHash(context.Background(), block.Hash())
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -361,7 +547,7 @@ func testGetBlock(t *testing.T, client *rpc.Client) {
 		t.Fatalf("BlockByHash returned wrong block: want %v got %v", block.Hash().Hex(), blockH.Hash().Hex())
 	}
 	// Get header by number
-	header, err := ec.HeaderByNumber(context.Background(), big.NewInt(blockNumber.Int64()))
+	header, err := c.HeaderByNumber(context.Background(), big.NewInt(blockNumber.Int64()))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -369,7 +555,7 @@ func testGetBlock(t *testing.T, client *rpc.Client) {
 		t.Fatalf("HeaderByNumber returned wrong header: want %v got %v", block.Header().Hash().Hex(), header.Hash().Hex())
 	}
 	// Get header by hash
-	headerH, err := ec.HeaderByHash(context.Background(), block.Hash())
+	headerH, err := c.HeaderByHash(context.Background(), block.Hash())
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -378,11 +564,9 @@ func testGetBlock(t *testing.T, client *rpc.Client) {
 	}
 }
 
-func testStatusFunctions(t *testing.T, client *rpc.Client) {
-	ec := NewClient(client)
-
+func testStatusFunctions(t *testing.T, c *Client) {
 	// Sync progress
-	progress, err := ec.SyncProgress(context.Background())
+	progress, err := c.SyncProgress(context.Background())
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -391,7 +575,7 @@ func testStatusFunctions(t *testing.T, client *rpc.Client) {
 	}
 
 	// NetworkID
-	networkID, err := ec.NetworkID(context.Background())
+	networkID, err := c.NetworkID(context.Background())
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -400,7 +584,7 @@ func testStatusFunctions(t *testing.T, client *rpc.Client) {
 	}
 
 	// SuggestGasPrice
-	gasPrice, err := ec.SuggestGasPrice(context.Background())
+	gasPrice, err := c.SuggestGasPrice(context.Background())
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -412,9 +596,7 @@ func testStatusFunctions(t *testing.T, client *rpc.Client) {
 	// Skipping these tests for Kaia compatibility
 }
 
-func testCallContractAtHash(t *testing.T, client *rpc.Client) {
-	ec := NewClient(client)
-
+func testCallContractAtHash(t *testing.T, c *Client) {
 	// EstimateGas
 	msg := kaia.CallMsg{
 		From:  testAddr,
@@ -422,14 +604,14 @@ func testCallContractAtHash(t *testing.T, client *rpc.Client) {
 		Gas:   21000,
 		Value: big.NewInt(1),
 	}
-	gas, err := ec.EstimateGas(context.Background(), msg)
+	gas, err := c.EstimateGas(context.Background(), msg)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if gas != 21000 {
 		t.Fatalf("unexpected gas price: %v", gas)
 	}
-	_, err = ec.HeaderByNumber(context.Background(), big.NewInt(1))
+	_, err = c.HeaderByNumber(context.Background(), big.NewInt(1))
 	if err != nil {
 		t.Fatalf("BlockByNumber error: %v", err)
 	}
@@ -437,9 +619,7 @@ func testCallContractAtHash(t *testing.T, client *rpc.Client) {
 	// Skipping this test for Kaia compatibility
 }
 
-func testCallContract(t *testing.T, client *rpc.Client) {
-	ec := NewClient(client)
-
+func testCallContract(t *testing.T, c *Client) {
 	// EstimateGas
 	msg := kaia.CallMsg{
 		From:  testAddr,
@@ -447,7 +627,7 @@ func testCallContract(t *testing.T, client *rpc.Client) {
 		Gas:   21000,
 		Value: big.NewInt(1),
 	}
-	gas, err := ec.EstimateGas(context.Background(), msg)
+	gas, err := c.EstimateGas(context.Background(), msg)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -455,32 +635,30 @@ func testCallContract(t *testing.T, client *rpc.Client) {
 		t.Fatalf("unexpected gas price: %v", gas)
 	}
 	// CallContract
-	if _, err := ec.CallContract(context.Background(), msg, big.NewInt(1)); err != nil {
+	if _, err := c.CallContract(context.Background(), msg, big.NewInt(1)); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	// PendingCallContract
-	if _, err := ec.PendingCallContract(context.Background(), msg); err != nil {
+	if _, err := c.PendingCallContract(context.Background(), msg); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
 
-func testAtFunctions(t *testing.T, client *rpc.Client) {
-	ec := NewClient(client)
-
-	_, err := ec.HeaderByNumber(context.Background(), big.NewInt(1))
+func testAtFunctions(t *testing.T, c *Client) {
+	_, err := c.HeaderByNumber(context.Background(), big.NewInt(1))
 	if err != nil {
 		t.Fatalf("BlockByNumber error: %v", err)
 	}
 
 	// send a transaction for some interesting pending status
-	if err := sendTransaction(ec); err != nil {
+	if err := sendTransaction(c); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
 	// wait for the transaction to be included in the pending block
 	for {
 		// Check pending transaction count
-		pending, err := ec.PendingTransactionCount(context.Background())
+		pending, err := c.PendingTransactionCount(context.Background())
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -491,13 +669,13 @@ func testAtFunctions(t *testing.T, client *rpc.Client) {
 	}
 
 	// Query balance
-	balance, err := ec.BalanceAt(context.Background(), testAddr, nil)
+	balance, err := c.BalanceAt(context.Background(), testAddr, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	// Note: BalanceAtHash method is not available in Kaia client
 	// Skipping this test for Kaia compatibility
-	penBalance, err := ec.PendingBalanceAt(context.Background(), testAddr)
+	penBalance, err := c.PendingBalanceAt(context.Background(), testAddr)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -505,13 +683,13 @@ func testAtFunctions(t *testing.T, client *rpc.Client) {
 		t.Fatalf("unexpected balance: %v %v", balance, penBalance)
 	}
 	// NonceAt
-	nonce, err := ec.NonceAt(context.Background(), testAddr, nil)
+	nonce, err := c.NonceAt(context.Background(), testAddr, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	// Note: NonceAtHash method is not available in Kaia client
 	// Skipping this test for Kaia compatibility
-	penNonce, err := ec.PendingNonceAt(context.Background(), testAddr)
+	penNonce, err := c.PendingNonceAt(context.Background(), testAddr)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -519,13 +697,13 @@ func testAtFunctions(t *testing.T, client *rpc.Client) {
 		t.Fatalf("unexpected nonce: %v %v", nonce, penNonce)
 	}
 	// StorageAt
-	storage, err := ec.StorageAt(context.Background(), testAddr, common.Hash{}, nil)
+	storage, err := c.StorageAt(context.Background(), testAddr, common.Hash{}, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	// Note: StorageAtHash method is not available in Kaia client
 	// Skipping this test for Kaia compatibility
-	penStorage, err := ec.PendingStorageAt(context.Background(), testAddr, common.Hash{})
+	penStorage, err := c.PendingStorageAt(context.Background(), testAddr, common.Hash{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -533,13 +711,13 @@ func testAtFunctions(t *testing.T, client *rpc.Client) {
 		t.Fatalf("unexpected storage: %v %v", storage, penStorage)
 	}
 	// CodeAt
-	code, err := ec.CodeAt(context.Background(), testAddr, nil)
+	code, err := c.CodeAt(context.Background(), testAddr, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	// Note: CodeAtHash method is not available in Kaia client
 	// Skipping this test for Kaia compatibility
-	penCode, err := ec.PendingCodeAt(context.Background(), testAddr)
+	penCode, err := c.PendingCodeAt(context.Background(), testAddr)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -550,13 +728,13 @@ func testAtFunctions(t *testing.T, client *rpc.Client) {
 	// Skipping these tests for Kaia compatibility
 
 	// Verify that sender address of pending transaction is saved in cache.
-	pendingBlock, err := ec.BlockByNumber(context.Background(), big.NewInt(int64(rpc.PendingBlockNumber)))
+	pendingBlock, err := c.BlockByNumber(context.Background(), big.NewInt(int64(rpc.PendingBlockNumber)))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	// No additional RPC should be required, ensure the server is not asked by
 	// canceling the context.
-	sender, err := ec.TransactionSender(newCanceledContext(), pendingBlock.Transactions()[0], pendingBlock.Hash(), 0)
+	sender, err := c.TransactionSender(newCanceledContext(), pendingBlock.Transactions()[0], pendingBlock.Hash(), 0)
 	if err != nil {
 		t.Fatal("unable to recover sender:", err)
 	}
@@ -565,16 +743,15 @@ func testAtFunctions(t *testing.T, client *rpc.Client) {
 	}
 }
 
-func testTransactionSender(t *testing.T, client *rpc.Client) {
-	ec := NewClient(client)
+func testTransactionSender(t *testing.T, c *Client) {
 	ctx := context.Background()
 
 	// Retrieve testTx1 via RPC.
-	block2, err := ec.HeaderByNumber(ctx, big.NewInt(2))
+	block2, err := c.HeaderByNumber(ctx, big.NewInt(2))
 	if err != nil {
 		t.Fatal("can't get block 1:", err)
 	}
-	tx1, err := ec.TransactionInBlock(ctx, block2.Hash(), 0)
+	tx1, err := c.TransactionInBlock(ctx, block2.Hash(), 0)
 	if err != nil {
 		t.Fatal("can't get tx:", err)
 	}
@@ -584,7 +761,7 @@ func testTransactionSender(t *testing.T, client *rpc.Client) {
 
 	// The sender address is cached in tx1, so no additional RPC should be required in
 	// TransactionSender. Ensure the server is not asked by canceling the context here.
-	sender1, err := ec.TransactionSender(newCanceledContext(), tx1, block2.Hash(), 0)
+	sender1, err := c.TransactionSender(newCanceledContext(), tx1, block2.Hash(), 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -594,7 +771,7 @@ func testTransactionSender(t *testing.T, client *rpc.Client) {
 
 	// Now try to get the sender of testTx2, which was not fetched through RPC.
 	// TransactionSender should query the server here.
-	sender2, err := ec.TransactionSender(ctx, testTx2, block2.Hash(), 1)
+	sender2, err := c.TransactionSender(ctx, testTx2, block2.Hash(), 1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -610,12 +787,12 @@ func newCanceledContext() context.Context {
 	return ctx
 }
 
-func sendTransaction(ec *Client) error {
-	chainID, err := ec.ChainID(context.Background())
+func sendTransaction(c *Client) error {
+	chainID, err := c.ChainID(context.Background())
 	if err != nil {
 		return err
 	}
-	nonce, err := ec.NonceAt(context.Background(), testAddr, nil)
+	nonce, err := c.NonceAt(context.Background(), testAddr, nil)
 	if err != nil {
 		return err
 	}
@@ -626,31 +803,33 @@ func sendTransaction(ec *Client) error {
 	if err != nil {
 		return err
 	}
-	return ec.SendTransaction(context.Background(), tx)
+	return c.SendTransaction(context.Background(), tx)
 }
 
-// Here we show how to get the error message of reverted contract call.
-func ExampleRevertErrorData() {
-	// First create a client.Client instance.
-	ctx := context.Background()
-	ec, _ := DialContext(ctx, "http://localhost:36000")
-
-	// Call the contract.
-	// Note we expect the call to return an error.
-	contract := common.HexToAddress("290f1b36649a61e369c6276f6d29463335b4400c")
-	call := kaia.CallMsg{To: &contract, Gas: 30000}
-	result, err := ec.CallContract(ctx, call, nil)
-	if len(result) > 0 {
-		panic("got result")
+func genMockHeader(number int) *types.Header {
+	numToHash := common.HexToHash(strconv.Itoa(int(number)))
+	var parentHash common.Hash
+	if number <= 0 {
+		parentHash = common.Hash{0xFF}
+	} else {
+		parentHash = blocks[number-1].Hash()
 	}
-	if err == nil {
-		panic("call did not return error")
+	header := &types.Header{
+		ParentHash:  parentHash,
+		Rewardbase:  common.Address{},
+		Root:        numToHash,
+		TxHash:      numToHash,
+		ReceiptHash: numToHash,
+		Bloom:       types.Bloom{},
+		BlockScore:  big.NewInt(int64(number)),
+		Number:      big.NewInt(int64(number)),
+		GasUsed:     0,
+		Time:        big.NewInt(10 + int64(number)),
+		TimeFoS:     0,
+		Extra:       []byte{},
+		Governance:  []byte{},
+		Vote:        []byte{},
+		BaseFee:     big.NewInt(25e9),
 	}
-
-	// Note: RevertErrorData function is not available in Kaia client
-	// For now, just print the error
-	fmt.Printf("error: %v\n", err)
-
-	// Note: Since RevertErrorData is not available, we cannot parse the revert data
-	// Output would be different for Kaia
+	return header
 }

@@ -152,7 +152,7 @@ func MockGetBalance(t *testing.T, address common.Address, blockNumber *big.Int) 
 		return map[string]interface{}{
 			"error": map[string]interface{}{
 				"code":    -32000,
-				"message": "header not found",
+				"message": kaia.NotFound.Error(),
 			},
 		}
 	}
@@ -176,7 +176,7 @@ func MockGetBlockByNumber(t *testing.T, blockNumberArg string) map[string]interf
 		block = blocks[0]
 	case "0x1":
 		block = blocks[1]
-	case "0x2", "latest":
+	case "0x2", "latest", "pending", "-0x2", "-0x1":
 		block = blocks[2]
 	default:
 		// Return null result for other blocks (will be converted to kaia.NotFound by client)
@@ -202,7 +202,7 @@ func MockGetBlockByHash(t *testing.T, blockHash string) map[string]interface{} {
 		return map[string]interface{}{
 			"error": map[string]interface{}{
 				"code":    -32000,
-				"message": "header not found",
+				"message": kaia.NotFound.Error(),
 			},
 		}
 	}
@@ -214,6 +214,26 @@ func MockGetBlockByHash(t *testing.T, blockHash string) map[string]interface{} {
 	}
 	return map[string]interface{}{
 		"result": rpcOutput,
+	}
+}
+
+func MockGetTransactionByBlockHashAndIndex(t *testing.T, blockHash string, transactionIndex uint64) map[string]interface{} {
+	blockNum := slices.IndexFunc(blocks, func(h *types.Block) bool {
+		return h.Hash().Hex() == blockHash
+	})
+	// only accept block number = 2
+	if blockNum < 2 || transactionIndex > 2 {
+		return map[string]interface{}{
+			"error": map[string]interface{}{
+				"code":    -32000,
+				"message": kaia.NotFound.Error(),
+			},
+		}
+	}
+
+	txs := []*types.Transaction{testTx1, testTx2}
+	return map[string]interface{}{
+		"result": txs[transactionIndex],
 	}
 }
 
@@ -269,6 +289,15 @@ func MockHttpServer(t *testing.T, quit chan struct{}) string {
 			response = map[string]interface{}{
 				"result": "0x2", // Block 2
 			}
+		case "kaia_getTransactionByBlockHashAndIndex":
+			params := reqData["params"].([]interface{})
+			blockHash := params[0].(string)
+			transactionIndexStr := params[1].(string)
+			txIdx, err := strconv.ParseUint(transactionIndexStr[2:], 16, 64)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", transactionIndexStr)
+			}
+			response = MockGetTransactionByBlockHashAndIndex(t, blockHash, txIdx)
 		default:
 			// Return method not found error
 			response = map[string]interface{}{
@@ -348,9 +377,9 @@ func TestEthClient(t *testing.T) {
 		"ChainID": {
 			func(t *testing.T) { testChainID(t, client) },
 		},
-		// "TxInBlockInterrupted": {
-		// 	func(t *testing.T) { testTransactionInBlock(t, client) },
-		// },
+		"TxInBlockInterrupted": {
+			func(t *testing.T) { testTransactionInBlock(t, client) },
+		},
 		"GetBlock": {
 			func(t *testing.T) { testGetBlock(t, client) },
 		},
@@ -443,7 +472,7 @@ func testBalanceAt(t *testing.T, client *Client) {
 			account: testAddr,
 			block:   big.NewInt(1000000000),
 			want:    big.NewInt(0),
-			wantErr: errors.New("header not found"),
+			wantErr: kaia.NotFound,
 		},
 	}
 	for name, tt := range tests {
@@ -471,7 +500,7 @@ func testTransactionInBlock(t *testing.T, c *Client) {
 	}
 
 	// Test tx in block not found.
-	if _, err := c.TransactionInBlock(context.Background(), block.Hash(), 20); err != kaia.NotFound {
+	if _, err := c.TransactionInBlock(context.Background(), block.Hash(), 20); err.Error() != kaia.NotFound.Error() {
 		t.Fatal("error should be kaia.NotFound")
 	}
 

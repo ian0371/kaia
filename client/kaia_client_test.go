@@ -33,6 +33,7 @@ import (
 	"os"
 	"slices"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -145,6 +146,77 @@ func init() {
 	}
 }
 
+func MockGetBalance(t *testing.T, address common.Address, blockNumber *big.Int) map[string]interface{} {
+	// Handle different test scenarios
+	if blockNumber.Cmp(big.NewInt(2)) > 0 {
+		return map[string]interface{}{
+			"error": map[string]interface{}{
+				"code":    -32000,
+				"message": "header not found",
+			},
+		}
+	}
+	if address == testAddr {
+		// testAddr - has balance (2000000000000000 wei)
+		return map[string]interface{}{
+			"result": "0x71afd498d0000", // 2000000000000000 wei
+		}
+	}
+
+	// Non-existent account - zero balance
+	return map[string]interface{}{
+		"result": "0x0",
+	}
+}
+
+func MockGetBlockByNumber(t *testing.T, blockNumberArg string) map[string]interface{} {
+	var block *types.Block
+	switch blockNumberArg {
+	case "0x0", "earliest":
+		block = blocks[0]
+	case "0x1":
+		block = blocks[1]
+	case "0x2", "latest":
+		block = blocks[2]
+	default:
+		// Return null result for other blocks (will be converted to kaia.NotFound by client)
+		return map[string]interface{}{
+			"result": nil,
+		}
+	}
+
+	rpcOutput, err := api.RpcOutputBlock(block, false, false, genesis.Config)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	return map[string]interface{}{
+		"result": rpcOutput,
+	}
+}
+
+func MockGetBlockByHash(t *testing.T, blockHash string) map[string]interface{} {
+	blockNum := slices.IndexFunc(blocks, func(h *types.Block) bool {
+		return h.Hash().Hex() == blockHash
+	})
+	if blockNum == -1 {
+		return map[string]interface{}{
+			"error": map[string]interface{}{
+				"code":    -32000,
+				"message": "header not found",
+			},
+		}
+	}
+
+	block := blocks[blockNum]
+	rpcOutput, err := api.RpcOutputBlock(block, false, false, genesis.Config)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	return map[string]interface{}{
+		"result": rpcOutput,
+	}
+}
+
 func MockHttpServer(t *testing.T, quit chan struct{}) string {
 	myHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
@@ -165,122 +237,37 @@ func MockHttpServer(t *testing.T, quit chan struct{}) string {
 		method, _ := reqData["method"].(string)
 		id := reqData["id"]
 
-		// Create proper JSON-RPC response based on method
 		var response map[string]interface{}
 
 		switch method {
 		case "kaia_chainID":
 			response = map[string]interface{}{
-				"jsonrpc": "2.0",
-				"id":      id,
-				"result":  "0x539", // 1337 in hex
+				"result": "0x539", // 1337 in hex
 			}
 		case "kaia_getBalance":
 			params := reqData["params"].([]interface{})
-			address := params[0].(string)
-			blockNumber := params[1].(string)
-
-			// Handle different test scenarios
-			if blockNumber == "0x3b9aca00" { // 1000000000 in hex - future block
-				// Return header not found error for future blocks
-				response = map[string]interface{}{
-					"jsonrpc": "2.0",
-					"id":      id,
-					"error": map[string]interface{}{
-						"code":    -32000,
-						"message": "header not found",
-					},
-				}
-			} else if address == "0x71562b71999873db5b286df957af199ec94617f7" {
-				// testAddr - has balance (2000000000000000 wei)
-				response = map[string]interface{}{
-					"jsonrpc": "2.0",
-					"id":      id,
-					"result":  "0x71afd498d0000", // 2000000000000000 wei
-				}
-			} else if address == "0x0100000000000000000000000000000000000000" {
-				// Non-existent account - zero balance
-				response = map[string]interface{}{
-					"jsonrpc": "2.0",
-					"id":      id,
-					"result":  "0x0",
-				}
-			} else {
-				// Default case
-				response = map[string]interface{}{
-					"jsonrpc": "2.0",
-					"id":      id,
-					"result":  "0x0",
-				}
+			addressStr := params[0].(string)
+			address := common.HexToAddress(addressStr)
+			blockNumberStr := params[1].(string)
+			if !strings.HasPrefix(blockNumberStr, "0x") {
+				t.Fatalf("blockNumberStr should start with 0x, but got %v", blockNumberStr)
 			}
+			blockNumber, ok := new(big.Int).SetString(blockNumberStr[2:], 16)
+			if !ok {
+				t.Fatalf("unexpected error: %v", blockNumberStr)
+			}
+			response = MockGetBalance(t, address, blockNumber)
 		case "kaia_getBlockByNumber":
 			params := reqData["params"].([]interface{})
 			blockNumber := params[0].(string)
-			t.Logf("kaia_getBlockByNumber blockNumber: %s", blockNumber)
-			var block *types.Block
-
-			switch blockNumber {
-			case "0x0", "earliest":
-				block = blocks[0]
-			case "0x1":
-				block = blocks[1]
-			case "0x2", "latest":
-				block = blocks[2]
-			default:
-				// Return not found for other blocks
-				response = map[string]interface{}{
-					"jsonrpc": "2.0",
-					"id":      id,
-					"error": map[string]interface{}{
-						"code":    -32000,
-						"message": "header not found",
-					},
-				}
-				goto ret
-			}
-
-			rpcOutput, err := api.RpcOutputBlock(block, false, false, genesis.Config)
-			if err != nil {
-				t.Fatalf("unexpected error: %v", err)
-			}
-			response = map[string]interface{}{
-				"jsonrpc": "2.0",
-				"id":      id,
-				"result":  rpcOutput,
-			}
+			response = MockGetBlockByNumber(t, blockNumber)
 		case "kaia_getBlockByHash":
 			params := reqData["params"].([]interface{})
 			blockHash := params[0].(string)
-			blockNum := slices.IndexFunc(blocks, func(h *types.Block) bool {
-				return h.Hash().Hex() == blockHash
-			})
-			if blockNum == -1 {
-				response = map[string]interface{}{
-					"jsonrpc": "2.0",
-					"id":      id,
-					"error": map[string]interface{}{
-						"code":    -32000,
-						"message": "header not found",
-					},
-				}
-				goto ret
-			}
-
-			block := blocks[blockNum]
-			rpcOutput, err := api.RpcOutputBlock(block, false, false, genesis.Config)
-			if err != nil {
-				t.Fatalf("unexpected error: %v", err)
-			}
-			response = map[string]interface{}{
-				"jsonrpc": "2.0",
-				"id":      id,
-				"result":  rpcOutput,
-			}
+			response = MockGetBlockByHash(t, blockHash)
 		case "kaia_blockNumber":
 			response = map[string]interface{}{
-				"jsonrpc": "2.0",
-				"id":      id,
-				"result":  "0x2", // Block 2
+				"result": "0x2", // Block 2
 			}
 		default:
 			// Return method not found error
@@ -293,8 +280,9 @@ func MockHttpServer(t *testing.T, quit chan struct{}) string {
 				},
 			}
 		}
+		response["id"] = id
+		response["jsonrpc"] = "2.0"
 
-	ret:
 		w.Header().Set("Content-Type", "application/json")
 		if err := json.NewEncoder(w).Encode(response); err != nil {
 			t.Errorf("Failed to encode response: %v", err)
@@ -351,15 +339,15 @@ func TestEthClient(t *testing.T) {
 	tests := map[string]struct {
 		test func(t *testing.T)
 	}{
-		// "Header": {
-		// 	func(t *testing.T) { testHeader(t, chain, client) },
-		// },
-		// "BalanceAt": {
-		// 	func(t *testing.T) { testBalanceAt(t, client) },
-		// },
-		// "ChainID": {
-		// 	func(t *testing.T) { testChainID(t, client) },
-		// },
+		"Header": {
+			func(t *testing.T) { testHeader(t, client) },
+		},
+		"BalanceAt": {
+			func(t *testing.T) { testBalanceAt(t, client) },
+		},
+		"ChainID": {
+			func(t *testing.T) { testChainID(t, client) },
+		},
 		// "TxInBlockInterrupted": {
 		// 	func(t *testing.T) { testTransactionInBlock(t, client) },
 		// },
@@ -389,7 +377,7 @@ func TestEthClient(t *testing.T) {
 	}
 }
 
-func testHeader(t *testing.T, chain []*types.Block, client *Client) {
+func testHeader(t *testing.T, client *Client) {
 	tests := map[string]struct {
 		block   *big.Int
 		want    *types.Header
@@ -397,11 +385,11 @@ func testHeader(t *testing.T, chain []*types.Block, client *Client) {
 	}{
 		"genesis": {
 			block: big.NewInt(0),
-			want:  chain[0].Header(),
+			want:  blocks[0].Header(),
 		},
 		"first_block": {
 			block: big.NewInt(1),
-			want:  chain[1].Header(),
+			want:  blocks[1].Header(),
 		},
 		"future_block": {
 			block:   big.NewInt(1000000000),
@@ -422,7 +410,7 @@ func testHeader(t *testing.T, chain []*types.Block, client *Client) {
 			if got != nil && got.Number != nil && got.Number.Sign() == 0 {
 				got.Number = big.NewInt(0) // hack to make DeepEqual work
 			}
-			if got.Hash() != tt.want.Hash() {
+			if got != nil && got.Hash() != tt.want.Hash() {
 				t.Fatalf("HeaderByNumber(%v) got = %v, want %v", tt.block, got, tt.want)
 			}
 		})

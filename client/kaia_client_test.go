@@ -289,6 +289,18 @@ func MockHttpServer(t *testing.T, quit chan struct{}) string {
 			response = map[string]interface{}{
 				"result": "0x2", // Block 2
 			}
+		case "kaia_syncing":
+			response = map[string]interface{}{
+				"result": false,
+			}
+		case "net_version":
+			response = map[string]interface{}{
+				"result": "1337",
+			}
+		case "kaia_gasPrice":
+			response = map[string]interface{}{
+				"result": "0x3b9aca00",
+			}
 		case "kaia_getTransactionByBlockHashAndIndex":
 			params := reqData["params"].([]interface{})
 			blockHash := params[0].(string)
@@ -383,9 +395,9 @@ func TestEthClient(t *testing.T) {
 		"GetBlock": {
 			func(t *testing.T) { testGetBlock(t, client) },
 		},
-		// "StatusFunctions": {
-		// 	func(t *testing.T) { testStatusFunctions(t, client) },
-		// },
+		"StatusFunctions": {
+			func(t *testing.T) { testStatusFunctions(t, client) },
+		},
 		// "CallContract": {
 		// 	func(t *testing.T) { testCallContract(t, client) },
 		// },

@@ -242,7 +242,7 @@ func MockGetTransactionByBlockHashAndIndex(t *testing.T, blockHash string, trans
 	}
 }
 
-func MockHttpServer(t *testing.T, quit chan struct{}) string {
+func launchMockServer(t *testing.T, quit chan struct{}) string {
 	myHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -376,7 +376,7 @@ func TestKaiaClient(t *testing.T) {
 	quitChan := make(chan struct{})
 	defer close(quitChan)
 
-	serverURL := MockHttpServer(t, quitChan)
+	serverURL := launchMockServer(t, quitChan)
 
 	// Give server time to start
 	time.Sleep(100 * time.Millisecond)
@@ -898,7 +898,7 @@ func TestKaiaClient_AnvilServer(t *testing.T) {
 		return
 	}
 
-	t.Log("Kaia client connected to anvil server")
+	t.Log("Eth client connected to anvil server", serverURL)
 
 	_, err = client.HeaderByNumber(context.Background(), big.NewInt(0))
 	assert.Equal(t, err.Error(), "Method not found")

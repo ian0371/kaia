@@ -18,7 +18,9 @@ package client
 
 import (
 	"context"
+	"fmt"
 	"math/big"
+	"math/rand"
 	"os/exec"
 	"strconv"
 	"sync"
@@ -34,7 +36,8 @@ import (
 )
 
 func launchAnvilServer(t *testing.T) (string, func()) {
-	serverURL := "http://127.0.0.1:8545"
+	randPort := rand.Intn(30000) + 20000
+	serverURL := fmt.Sprintf("http://127.0.0.1:%d", randPort)
 
 	// Check if anvil is installed
 	_, err := exec.LookPath("anvil")
@@ -43,7 +46,7 @@ func launchAnvilServer(t *testing.T) (string, func()) {
 	}
 
 	// Start anvil in background
-	cmd := exec.Command("anvil", "--chain-id", "1337", "--host", "127.0.0.1", "--port", "8545")
+	cmd := exec.Command("anvil", "--chain-id", "1337", "--host", "127.0.0.1", "--port", strconv.Itoa(randPort))
 	err = cmd.Start()
 	if err != nil {
 		t.Skipf("Failed to start anvil: %v, skipping test", err)
@@ -79,7 +82,7 @@ func TestEthClient_MockServer(t *testing.T) {
 	quitChan := make(chan struct{})
 	defer close(quitChan)
 
-	serverURL := MockHttpServer(t, quitChan)
+	serverURL := launchMockServer(t, quitChan)
 
 	client, err := DialContext(context.Background(), serverURL)
 	if err != nil {
@@ -127,7 +130,7 @@ func TestEthClient_AnvilServer(t *testing.T) {
 		return
 	}
 
-	t.Log("Eth client connected to anvil server")
+	t.Log("Eth client connected to anvil server", serverURL)
 
 	_, err = ethclient.BlockNumber(context.Background())
 	if err != nil {

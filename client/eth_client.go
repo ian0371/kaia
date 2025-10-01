@@ -25,6 +25,7 @@ package client
 import (
 	"context"
 	"encoding/binary"
+	"fmt"
 	"math/big"
 
 	"github.com/kaiachain/kaia"
@@ -161,6 +162,17 @@ func (ec *EthClient) SetHeader(key, value string) {
 	ec.c.SetHeader(key, value)
 }
 
+// HeaderByHash returns a block header from the current canonical chain. If number is
+// nil, the latest known header is returned.
+func (ec *EthClient) HeaderByHash(ctx context.Context, hash common.Hash) (*EthHeader, error) {
+	var head *EthHeader
+	err := ec.c.CallContext(ctx, &head, "eth_getBlockByHash", hash, false)
+	if err == nil && head == nil {
+		err = kaia.NotFound
+	}
+	return head, err
+}
+
 // HeaderByNumber returns a block header from the current canonical chain. If number is
 // nil, the latest known header is returned.
 func (ec *EthClient) HeaderByNumber(ctx context.Context, number *big.Int) (*EthHeader, error) {
@@ -170,6 +182,120 @@ func (ec *EthClient) HeaderByNumber(ctx context.Context, number *big.Int) (*EthH
 		err = kaia.NotFound
 	}
 	return head, err
+}
+
+// TransactionCount returns the total number of transactions in the given block.
+func (ec *EthClient) TransactionCount(ctx context.Context, blockHash common.Hash) (uint, error) {
+	var num hexutil.Uint
+	err := ec.c.CallContext(ctx, &num, "eth_getBlockTransactionCountByHash", blockHash)
+	return uint(num), err
+}
+
+// TransactionReceiptRpcOutput returns the receipt of a transaction by transaction hash as a rpc output.
+func (ec *EthClient) TransactionReceiptRpcOutput(ctx context.Context, txHash common.Hash) (r map[string]interface{}, err error) {
+	err = ec.c.CallContext(ctx, &r, "eth_getTransactionReceipt", txHash)
+	if err == nil && r == nil {
+		return nil, kaia.NotFound
+	}
+	return
+}
+
+// State Access
+
+// NetworkID returns the network ID (also known as the chain ID) for this chain.
+func (ec *EthClient) NetworkID(ctx context.Context) (*big.Int, error) {
+	version := new(big.Int)
+	var ver string
+	if err := ec.c.CallContext(ctx, &ver, "net_version"); err != nil {
+		return nil, err
+	}
+	if _, ok := version.SetString(ver, 10); !ok {
+		return nil, fmt.Errorf("invalid net_version result %q", ver)
+	}
+	return version, nil
+}
+
+// BalanceAt returns the kei balance of the given account.
+// The block number can be nil, in which case the balance is taken from the latest known block.
+func (ec *EthClient) BalanceAt(ctx context.Context, account common.Address, blockNumber *big.Int) (*big.Int, error) {
+	var result hexutil.Big
+	err := ec.c.CallContext(ctx, &result, "eth_getBalance", account, toBlockNumArg(blockNumber))
+	return (*big.Int)(&result), err
+}
+
+// StorageAt returns the value of key in the contract storage of the given account.
+// The block number can be nil, in which case the value is taken from the latest known block.
+func (ec *EthClient) StorageAt(ctx context.Context, account common.Address, key common.Hash, blockNumber *big.Int) ([]byte, error) {
+	var result hexutil.Bytes
+	err := ec.c.CallContext(ctx, &result, "eth_getStorageAt", account, key, toBlockNumArg(blockNumber))
+	return result, err
+}
+
+// CodeAt returns the contract code of the given account.
+// The block number can be nil, in which case the code is taken from the latest known block.
+func (ec *EthClient) CodeAt(ctx context.Context, account common.Address, blockNumber *big.Int) ([]byte, error) {
+	var result hexutil.Bytes
+	err := ec.c.CallContext(ctx, &result, "eth_getCode", account, toBlockNumArg(blockNumber))
+	return result, err
+}
+
+// NonceAt returns the account nonce of the given account.
+// The block number can be nil, in which case the nonce is taken from the latest known block.
+func (ec *EthClient) NonceAt(ctx context.Context, account common.Address, blockNumber *big.Int) (uint64, error) {
+	var result hexutil.Uint64
+	err := ec.c.CallContext(ctx, &result, "eth_getTransactionCount", account, toBlockNumArg(blockNumber))
+	return uint64(result), err
+}
+
+// Contract Calling
+
+// CallContract executes a message call transaction, which is directly executed in the VM
+// of the node, but never mined into the blockchain.
+//
+// blockNumber selects the block height at which the call runs. It can be nil, in which
+// case the code is taken from the latest known block. Note that state from very old
+// blocks might not be available.
+func (ec *EthClient) CallContract(ctx context.Context, msg kaia.CallMsg, blockNumber *big.Int) ([]byte, error) {
+	var hex hexutil.Bytes
+	err := ec.c.CallContext(ctx, &hex, "eth_call", toCallArg(msg), toBlockNumArg(blockNumber))
+	if err != nil {
+		return nil, err
+	}
+	return hex, nil
+}
+
+// PendingCallContract executes a message call transaction using the EVM.
+// The state seen by the contract call is the pending state.
+func (ec *EthClient) PendingCallContract(ctx context.Context, msg kaia.CallMsg) ([]byte, error) {
+	var hex hexutil.Bytes
+	err := ec.c.CallContext(ctx, &hex, "eth_call", toCallArg(msg), "pending")
+	if err != nil {
+		return nil, err
+	}
+	return hex, nil
+}
+
+// SuggestGasPrice retrieves the currently suggested gas price to allow a timely
+// execution of a transaction.
+func (ec *EthClient) SuggestGasPrice(ctx context.Context) (*big.Int, error) {
+	var hex hexutil.Big
+	if err := ec.c.CallContext(ctx, &hex, "eth_gasPrice"); err != nil {
+		return nil, err
+	}
+	return (*big.Int)(&hex), nil
+}
+
+// EstimateGas tries to estimate the gas needed to execute a specific transaction based on
+// the latest state of the backend blockchain. There is no guarantee that this is
+// the true gas limit requirement as other transactions may be added or removed by miners,
+// but it should provide a basis for setting a reasonable default.
+func (ec *EthClient) EstimateGas(ctx context.Context, msg kaia.CallMsg) (uint64, error) {
+	var hex hexutil.Uint64
+	err := ec.c.CallContext(ctx, &hex, "eth_estimateGas", toCallArg(msg))
+	if err != nil {
+		return 0, err
+	}
+	return uint64(hex), nil
 }
 
 // SendTransaction injects a signed transaction into the pending pool for execution.
@@ -200,19 +326,38 @@ func (ec *EthClient) SendRawTransaction(ctx context.Context, tx *types.Transacti
 	return hash, nil
 }
 
-// Contract Calling
+// BlockNumber can get the latest block number.
+func (ec *EthClient) BlockNumber(ctx context.Context) (*big.Int, error) {
+	var result hexutil.Big
+	err := ec.c.CallContext(ctx, &result, "eth_blockNumber")
+	return (*big.Int)(&result), err
+}
 
-// CallContract executes a message call transaction, which is directly executed in the VM
-// of the node, but never mined into the blockchain.
-//
-// blockNumber selects the block height at which the call runs. It can be nil, in which
-// case the code is taken from the latest known block. Note that state from very old
-// blocks might not be available.
-func (ec *EthClient) CallContract(ctx context.Context, msg kaia.CallMsg, blockNumber *big.Int) ([]byte, error) {
-	var hex hexutil.Bytes
-	err := ec.c.CallContext(ctx, &hex, "eth_call", toCallArg(msg), toBlockNumArg(blockNumber))
-	if err != nil {
-		return nil, err
+// ChainID can return the chain ID of the chain.
+func (ec *EthClient) ChainID(ctx context.Context) (*big.Int, error) {
+	if ec.chainID != nil {
+		return ec.chainID, nil
 	}
-	return hex, nil
+
+	var result hexutil.Big
+	err := ec.c.CallContext(ctx, &result, "eth_chainId")
+	if err == nil {
+		ec.chainID = (*big.Int)(&result)
+	}
+	return ec.chainID, err
+}
+
+// CreateAccessList tries to create an access list for a specific transaction based on the
+// current pending state of the blockchain.
+func (ec *EthClient) CreateAccessList(ctx context.Context, msg kaia.CallMsg) (*types.AccessList, uint64, string, error) {
+	type AccessListResult struct {
+		Accesslist *types.AccessList `json:"accessList"`
+		Error      string            `json:"error,omitempty"`
+		GasUsed    hexutil.Uint64    `json:"gasUsed"`
+	}
+	var result AccessListResult
+	if err := ec.c.CallContext(ctx, &result, "eth_createAccessList", toCallArg(msg)); err != nil {
+		return nil, 0, "", err
+	}
+	return result.Accesslist, uint64(result.GasUsed), result.Error, nil
 }

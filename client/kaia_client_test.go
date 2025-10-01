@@ -450,52 +450,6 @@ func TestKaiaClient(t *testing.T) {
 	}
 }
 
-func TestEthClient(t *testing.T) {
-	quitChan := make(chan struct{})
-	defer close(quitChan)
-
-	serverURL := MockHttpServer(t, quitChan)
-
-	client, err := DialContext(context.Background(), serverURL)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Log("Client connected to mock server")
-	defer client.Close()
-
-	kaiaHeader, err := client.HeaderByNumber(context.Background(), big.NewInt(0))
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	ethclient, err := DialContextEth(context.Background(), serverURL)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Log("Eth client connected to mock server")
-	ethHeader, err := ethclient.HeaderByNumber(context.Background(), big.NewInt(0))
-	if err != nil {
-		t.Fatal(err)
-	}
-	assert.Equal(t, "0x3b624db9bc6547b908e2e78460d2849047b6d28c0c078f09d6a0472ab0e57d0c", kaiaHeader.Hash().Hex())
-	assert.Equal(t, "0x1c6ef781e4f30626053500c374498f78e3138128603e6f9c92bff0292613c5bb", ethHeader.Hash().Hex())
-
-	/*
-		tests := map[string]struct {
-			test func(t *testing.T)
-		}{
-			"Header": {
-				func(t *testing.T) { testHeader(t, client) },
-			},
-		}
-
-		t.Parallel()
-		for name, tt := range tests {
-			t.Run(name, tt.test)
-		}
-	*/
-}
-
 func testHeader(t *testing.T, client *Client) {
 	tests := map[string]struct {
 		block   *big.Int
@@ -944,7 +898,7 @@ func genMockHeader(number int) *types.Header {
 	return header
 }
 
-func TestKaiaClient_EthServer(t *testing.T) {
+func TestKaiaClient_AnvilServer(t *testing.T) {
 	serverURL := "http://127.0.0.1:8545"
 	client, err := DialContext(context.Background(), serverURL)
 	if err != nil {
@@ -955,107 +909,17 @@ func TestKaiaClient_EthServer(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
-	var result interface{}
-	if err := client.c.CallContext(ctx, &result, "net_version"); err != nil {
-		t.Log("eth server is not responding:", err)
+	if chainId, err := client.ChainID(ctx); err != nil {
+		t.Log("anvil server is not responding:", err)
 		t.Skip("skip this test")
+		return
+	} else if chainId.Cmp(big.NewInt(1337)) != 0 {
+		t.Fatal("the server must have chain id 1337, but got", chainId)
 		return
 	}
 
-	t.Log("Eth client connected to mock server")
+	t.Log("Eth client connected to anvil server")
 
 	_, err = client.HeaderByNumber(context.Background(), big.NewInt(0))
 	assert.Equal(t, err.Error(), "Method not found")
-}
-
-func TestEthClient_EthServer(t *testing.T) {
-	serverURL := "http://127.0.0.1:8545"
-	ethclient, err := DialContextEth(context.Background(), serverURL)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// Test if server actually responds with a simple call
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-	defer cancel()
-
-	var result interface{}
-	if err := ethclient.c.CallContext(ctx, &result, "net_version"); err != nil {
-		t.Log("eth server is not responding:", err)
-		t.Skip("skip this test")
-		return
-	} else if result.(string) != "1337" {
-		t.Fatal("the server must have chain id 1337, but got", result)
-		return
-	}
-
-	t.Log("Eth client connected to mock server")
-
-	ethHeader, err := ethclient.HeaderByNumber(context.Background(), big.NewInt(0))
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	tx := func() *types.Transaction {
-		richKey, err := crypto.HexToECDSA("ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80")
-		if err != nil {
-			t.Fatal(err)
-		}
-		tx := types.NewTransaction(0, testAddr, big.NewInt(1e18), params.TxGas, new(big.Int).SetUint64(params.DefaultLowerBoundBaseFee), nil)
-		signer := types.LatestSignerForChainID(genesis.Config.ChainID)
-		signedTx, _ := types.SignTx(tx, signer, richKey)
-		return signedTx
-	}()
-	assert.Equal(t, ethHeader.ParentHash, common.Hash{})
-	assert.NotEqual(t, ethHeader.Hash(), common.Hash{})
-	_, err = ethclient.SendRawTransaction(context.Background(), tx)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	nonce := uint64(0)
-	dynamicTx := func() *types.Transaction {
-		tx := types.NewTx(&types.TxInternalDataEthereumDynamicFee{
-			ChainID:      genesis.Config.ChainID,
-			AccountNonce: nonce,
-			Recipient:    &testAddr,
-			Amount:       big.NewInt(10),
-			GasLimit:     25000,
-			GasFeeCap:    big.NewInt(50e9),
-			GasTipCap:    big.NewInt(25e9),
-		})
-		signer := types.LatestSignerForChainID(genesis.Config.ChainID)
-		signedTx, _ := types.SignTx(tx, signer, testKey)
-		return signedTx
-	}()
-	assert.Equal(t, ethHeader.ParentHash, common.Hash{})
-	assert.NotEqual(t, ethHeader.Hash(), common.Hash{})
-	hash, err := ethclient.SendRawTransaction(context.Background(), dynamicTx)
-	if err != nil {
-		t.Fatal(err)
-	}
-	assert.Equal(t, "0x51af9a688bc9b02c0a90dbe2724f2f1fe474643651447eea8b42bcd48e458080", hash.Hex())
-
-	nonce++
-	deployTx := func() *types.Transaction {
-		// contract Storage { uint256 number = 1337; * @dev Return value @return value of 'number' */ function retrieve() public view returns (uint256){ return number; } }
-		bytecode := common.Hex2Bytes("60806040526105395f553480156013575f5ffd5b5060af80601f5f395ff3fe6080604052348015600e575f5ffd5b50600436106026575f3560e01c80632e64cec114602a575b5f5ffd5b60306044565b604051603b91906062565b60405180910390f35b5f5f54905090565b5f819050919050565b605c81604c565b82525050565b5f60208201905060735f8301846055565b9291505056fea2646970667358221220bbed5c2a1719068dca0cf4da53d280029c147463a0b8f8319bc3494906ad27a964736f6c634300081e0033")
-		tx := types.NewContractCreation(nonce, big.NewInt(0), 1e6, big.NewInt(25e9), bytecode)
-		signer := types.LatestSignerForChainID(genesis.Config.ChainID)
-		signedTx, _ := types.SignTx(tx, signer, testKey)
-		return signedTx
-	}()
-	_, err = ethclient.SendRawTransaction(context.Background(), deployTx)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	deployAddr := crypto.CreateAddress(testAddr, nonce)
-	t.Log("deployAddr", deployAddr.Hex())
-	calldata := common.Hex2Bytes("2e64cec1") // retrieve()(uint256)
-	ret, err := ethclient.CallContract(context.Background(), kaia.CallMsg{To: &deployAddr, Data: calldata}, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	assert.Equal(t, "0000000000000000000000000000000000000000000000000000000000000539", common.Bytes2Hex(ret))
 }

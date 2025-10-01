@@ -38,13 +38,11 @@ import (
 
 	"github.com/kaiachain/kaia"
 	"github.com/kaiachain/kaia/api"
-	"github.com/kaiachain/kaia/blockchain"
 	"github.com/kaiachain/kaia/blockchain/types"
 	"github.com/kaiachain/kaia/common"
 	"github.com/kaiachain/kaia/crypto"
 	"github.com/kaiachain/kaia/networks/rpc"
 	"github.com/kaiachain/kaia/params"
-	"github.com/kaiachain/kaia/rlp"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -66,19 +64,10 @@ var (
 )
 
 var (
-	testKey, _         = crypto.HexToECDSA("b71c71a67e1177ad4e901695e1b4b9ee17ae16c6668d313eac2f96dbcda3f291")
-	testAddr           = crypto.PubkeyToAddress(testKey.PublicKey)
-	testBalance        = big.NewInt(2e15)
-	revertContractAddr = common.HexToAddress("290f1b36649a61e369c6276f6d29463335b4400c")
-	revertCode         = common.FromHex("7f08c379a0000000000000000000000000000000000000000000000000000000006000526020600452600a6024527f75736572206572726f7200000000000000000000000000000000000000000000604452604e6000fd")
+	testKey, _  = crypto.HexToECDSA("b71c71a67e1177ad4e901695e1b4b9ee17ae16c6668d313eac2f96dbcda3f291")
+	testAddr    = crypto.PubkeyToAddress(testKey.PublicKey)
+	testBalance = big.NewInt(2e15)
 )
-
-var vanity = make([]byte, types.IstanbulExtraVanity)
-var extra, _ = rlp.EncodeToBytes(&types.IstanbulExtra{
-	Validators:    []common.Address{testAddr},
-	Seal:          []byte{},
-	CommittedSeal: [][]byte{},
-})
 
 var genesisConfig = &params.ChainConfig{
 	ChainID:                  big.NewInt(1337),
@@ -113,26 +102,16 @@ var genesisConfig = &params.ChainConfig{
 	UnitPrice: 25000000000,
 }
 
-var genesis = &blockchain.Genesis{
-	Config: genesisConfig,
-	Alloc: blockchain.GenesisAlloc{
-		testAddr:           {Balance: testBalance},
-		revertContractAddr: {Balance: big.NewInt(0), Code: revertCode},
-	},
-	ExtraData: append(vanity, extra...),
-	Timestamp: 9000,
-}
-
 var testTx1 = func() *types.Transaction {
 	tx := types.NewTransaction(0, common.Address{2}, big.NewInt(12), params.TxGas, new(big.Int).SetUint64(params.DefaultLowerBoundBaseFee), nil)
-	signer := types.LatestSignerForChainID(genesis.Config.ChainID)
+	signer := types.LatestSignerForChainID(genesisConfig.ChainID)
 	signedTx, _ := types.SignTx(tx, signer, testKey)
 	return signedTx
 }()
 
 var testTx2 = func() *types.Transaction {
 	tx := types.NewTransaction(1, common.Address{2}, big.NewInt(8), params.TxGas, new(big.Int).SetUint64(params.DefaultLowerBoundBaseFee), nil)
-	signer := types.LatestSigner(genesis.Config)
+	signer := types.LatestSigner(genesisConfig)
 	signedTx, _ := types.SignTx(tx, signer, testKey)
 	return signedTx
 }()
@@ -185,7 +164,7 @@ func MockGetBlockByNumber(t *testing.T, blockNumberArg string) map[string]interf
 		}
 	}
 
-	rpcOutput, err := api.RpcOutputBlock(block, false, false, genesis.Config)
+	rpcOutput, err := api.RpcOutputBlock(block, false, false, genesisConfig)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -210,7 +189,7 @@ func MockGetBlockByNumberEth(t *testing.T, blockNumberArg string) map[string]int
 		}
 	}
 
-	rpcOutput, err := api.RpcMarshalEthBlock(block, nil, genesis.Config, false, false, false)
+	rpcOutput, err := api.RpcMarshalEthBlock(block, nil, genesisConfig, false, false, false)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -234,7 +213,7 @@ func MockGetBlockByHash(t *testing.T, blockHash string) map[string]interface{} {
 	}
 
 	block := blocks[blockNum]
-	rpcOutput, err := api.RpcOutputBlock(block, false, false, genesis.Config)
+	rpcOutput, err := api.RpcOutputBlock(block, false, false, genesisConfig)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -899,7 +878,8 @@ func genMockHeader(number int) *types.Header {
 }
 
 func TestKaiaClient_AnvilServer(t *testing.T) {
-	serverURL := "http://127.0.0.1:8545"
+	serverURL, cleanup := launchAnvilServer(t)
+	defer cleanup()
 	client, err := DialContext(context.Background(), serverURL)
 	if err != nil {
 		t.Fatal(err)
@@ -909,7 +889,7 @@ func TestKaiaClient_AnvilServer(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
-	if chainId, err := client.ChainID(ctx); err != nil {
+	if chainId, err := client.NetworkID(ctx); err != nil {
 		t.Log("anvil server is not responding:", err)
 		t.Skip("skip this test")
 		return
@@ -918,7 +898,7 @@ func TestKaiaClient_AnvilServer(t *testing.T) {
 		return
 	}
 
-	t.Log("Eth client connected to anvil server")
+	t.Log("Kaia client connected to anvil server")
 
 	_, err = client.HeaderByNumber(context.Background(), big.NewInt(0))
 	assert.Equal(t, err.Error(), "Method not found")

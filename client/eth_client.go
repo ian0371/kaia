@@ -171,3 +171,48 @@ func (ec *EthClient) HeaderByNumber(ctx context.Context, number *big.Int) (*EthH
 	}
 	return head, err
 }
+
+// SendTransaction injects a signed transaction into the pending pool for execution.
+//
+// If the transaction was a contract creation use the TransactionReceipt method to get the
+// contract address after the transaction has been mined.
+func (ec *EthClient) SendTransaction(ctx context.Context, tx *types.Transaction) error {
+	_, err := ec.SendRawTransaction(ctx, tx)
+	return err
+}
+
+// SendRawTransaction injects a signed transaction into the pending pool for execution.
+//
+// This function can return the transaction hash and error.
+func (ec *EthClient) SendRawTransaction(ctx context.Context, tx *types.Transaction) (common.Hash, error) {
+	var hex hexutil.Bytes
+	data, err := rlp.EncodeToBytes(tx)
+	if err != nil {
+		return common.Hash{}, err
+	}
+	if data[0] == byte(types.EthereumTxTypeEnvelope) {
+		data = data[1:]
+	}
+	if err := ec.c.CallContext(ctx, &hex, "eth_sendRawTransaction", hexutil.Encode(data)); err != nil {
+		return common.Hash{}, err
+	}
+	hash := common.BytesToHash(hex)
+	return hash, nil
+}
+
+// Contract Calling
+
+// CallContract executes a message call transaction, which is directly executed in the VM
+// of the node, but never mined into the blockchain.
+//
+// blockNumber selects the block height at which the call runs. It can be nil, in which
+// case the code is taken from the latest known block. Note that state from very old
+// blocks might not be available.
+func (ec *EthClient) CallContract(ctx context.Context, msg kaia.CallMsg, blockNumber *big.Int) ([]byte, error) {
+	var hex hexutil.Bytes
+	err := ec.c.CallContext(ctx, &hex, "eth_call", toCallArg(msg), toBlockNumArg(blockNumber))
+	if err != nil {
+		return nil, err
+	}
+	return hex, nil
+}

@@ -45,7 +45,7 @@ import (
 	"github.com/kaiachain/kaia/networks/rpc"
 	"github.com/kaiachain/kaia/params"
 	"github.com/kaiachain/kaia/rlp"
-	"gotest.tools/assert"
+	"github.com/stretchr/testify/assert"
 )
 
 // Verify that Client implements the Kaia interfaces.
@@ -133,6 +133,21 @@ var testTx1 = func() *types.Transaction {
 var testTx2 = func() *types.Transaction {
 	tx := types.NewTransaction(1, common.Address{2}, big.NewInt(8), params.TxGas, new(big.Int).SetUint64(params.DefaultLowerBoundBaseFee), nil)
 	signer := types.LatestSigner(genesis.Config)
+	signedTx, _ := types.SignTx(tx, signer, testKey)
+	return signedTx
+}()
+
+var testTx3 = func() *types.Transaction {
+	tx := types.NewTx(&types.TxInternalDataEthereumDynamicFee{
+		ChainID:      genesis.Config.ChainID,
+		AccountNonce: 0,
+		Recipient:    &testAddr,
+		Amount:       big.NewInt(10),
+		GasLimit:     25000,
+		GasFeeCap:    big.NewInt(50e9),
+		GasTipCap:    big.NewInt(25e9),
+	})
+	signer := types.LatestSignerForChainID(genesis.Config.ChainID)
 	signedTx, _ := types.SignTx(tx, signer, testKey)
 	return signedTx
 }()
@@ -467,6 +482,7 @@ func TestEthClient(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	ethclient, err := DialContextEth(context.Background(), serverURL)
 	if err != nil {
 		t.Fatal(err)
@@ -493,6 +509,39 @@ func TestEthClient(t *testing.T) {
 			t.Run(name, tt.test)
 		}
 	*/
+}
+
+func TestKaiaClient_EthServer(t *testing.T) {
+	serverURL := "http://127.0.0.1:8545"
+	client, err := DialContext(context.Background(), serverURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log("Eth client connected to mock server")
+
+	_, err = client.HeaderByNumber(context.Background(), big.NewInt(0))
+	assert.Equal(t, err.Error(), "Method not found")
+}
+
+func TestEthClient_EthServer(t *testing.T) {
+	serverURL := "http://127.0.0.1:8545"
+	ethclient, err := DialContextEth(context.Background(), serverURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log("Eth client connected to mock server")
+
+	ethHeader, err := ethclient.HeaderByNumber(context.Background(), big.NewInt(0))
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, ethHeader.ParentHash, common.Hash{})
+	assert.NotEqual(t, ethHeader.Hash(), common.Hash{})
+	hash, err := ethclient.SendRawTransaction(context.Background(), testTx3)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, testTx3.Hash().Hex(), hash.Hex())
 }
 
 func testHeader(t *testing.T, client *Client) {

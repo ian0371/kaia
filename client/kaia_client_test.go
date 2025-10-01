@@ -30,7 +30,6 @@ import (
 	"fmt"
 	"math/big"
 	"net/http"
-	"os"
 	"slices"
 	"strconv"
 	"strings"
@@ -46,6 +45,7 @@ import (
 	"github.com/kaiachain/kaia/networks/rpc"
 	"github.com/kaiachain/kaia/params"
 	"github.com/kaiachain/kaia/rlp"
+	"gotest.tools/assert"
 )
 
 // Verify that Client implements the Kaia interfaces.
@@ -194,6 +194,32 @@ func MockGetBlockByNumber(t *testing.T, blockNumberArg string) map[string]interf
 	}
 }
 
+func MockGetBlockByNumberEth(t *testing.T, blockNumberArg string) map[string]interface{} {
+	var block *types.Block
+	switch blockNumberArg {
+	case "0x0", "earliest":
+		block = blocks[0]
+	case "0x1":
+		block = blocks[1]
+	case "0x2", "latest", "pending", "-0x2", "-0x1":
+		block = blocks[2]
+	default:
+		// Return null result for other blocks (will be converted to kaia.NotFound by client)
+		return map[string]interface{}{
+			"result": nil,
+		}
+	}
+
+	rpcOutput, err := api.RpcMarshalEthBlock(block, nil, genesis.Config, false, false, false)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	t.Logf("RpcMarshalEthBlock nonce: %v", rpcOutput["nonce"])
+	return map[string]interface{}{
+		"result": rpcOutput,
+	}
+}
+
 func MockGetBlockByHash(t *testing.T, blockHash string) map[string]interface{} {
 	blockNum := slices.IndexFunc(blocks, func(h *types.Block) bool {
 		return h.Hash().Hex() == blockHash
@@ -281,6 +307,10 @@ func MockHttpServer(t *testing.T, quit chan struct{}) string {
 			params := reqData["params"].([]interface{})
 			blockNumber := params[0].(string)
 			response = MockGetBlockByNumber(t, blockNumber)
+		case "eth_getBlockByNumber":
+			params := reqData["params"].([]interface{})
+			blockNumber := params[0].(string)
+			response = MockGetBlockByNumberEth(t, blockNumber)
 		case "kaia_getBlockByHash":
 			params := reqData["params"].([]interface{})
 			blockHash := params[0].(string)
@@ -363,13 +393,7 @@ func MockHttpServer(t *testing.T, quit chan struct{}) string {
 	return "http://127.0.0.1:36000"
 }
 
-func TestEthClient(t *testing.T) {
-	workspace, err := os.MkdirTemp("", "kaia-client-tester-")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(workspace)
-
+func TestKaiaClient(t *testing.T) {
 	quitChan := make(chan struct{})
 	defer close(quitChan)
 
@@ -424,6 +448,51 @@ func TestEthClient(t *testing.T) {
 	for name, tt := range tests {
 		t.Run(name, tt.test)
 	}
+}
+
+func TestEthClient(t *testing.T) {
+	quitChan := make(chan struct{})
+	defer close(quitChan)
+
+	serverURL := MockHttpServer(t, quitChan)
+
+	client, err := DialContext(context.Background(), serverURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log("Client connected to mock server")
+	defer client.Close()
+
+	kaiaHeader, err := client.HeaderByNumber(context.Background(), big.NewInt(0))
+	if err != nil {
+		t.Fatal(err)
+	}
+	ethclient, err := DialContextEth(context.Background(), serverURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log("Eth client connected to mock server")
+	ethHeader, err := ethclient.HeaderByNumber(context.Background(), big.NewInt(0))
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, "0x3b624db9bc6547b908e2e78460d2849047b6d28c0c078f09d6a0472ab0e57d0c", kaiaHeader.Hash().Hex())
+	assert.Equal(t, "0x1c6ef781e4f30626053500c374498f78e3138128603e6f9c92bff0292613c5bb", ethHeader.Hash().Hex())
+
+	/*
+		tests := map[string]struct {
+			test func(t *testing.T)
+		}{
+			"Header": {
+				func(t *testing.T) { testHeader(t, client) },
+			},
+		}
+
+		t.Parallel()
+		for name, tt := range tests {
+			t.Run(name, tt.test)
+		}
+	*/
 }
 
 func testHeader(t *testing.T, client *Client) {

@@ -138,9 +138,11 @@ func TestValidationPoolInsertEthTxType(t *testing.T) {
 	}
 
 	prof := profile.NewProfiler()
+	config := Forks["EthTxType"].Copy()
+	config.UnitPrice = 25 * params.Gkei
 
 	// Initialize blockchain
-	bcdata, err := NewBCDataWithConfigs(6, 4, Forks["EthTxType"], nil)
+	bcdata, err := NewBCDataWithConfigs(6, 4, config, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -175,7 +177,7 @@ func TestValidationPoolInsertEthTxType(t *testing.T) {
 			types.TxValueKeyTo:            (*common.Address)(nil),
 			types.TxValueKeyAmount:        big.NewInt(0),
 			types.TxValueKeyGasLimit:      gasLimit,
-			types.TxValueKeyGasPrice:      big.NewInt(25 * params.Gkei),
+			types.TxValueKeyGasPrice:      big.NewInt(int64(config.UnitPrice)),
 			types.TxValueKeyHumanReadable: false,
 			types.TxValueKeyData:          common.FromHex(code),
 			types.TxValueKeyCodeFormat:    params.CodeFormatEVM,
@@ -264,9 +266,11 @@ func TestValidationPoolInsertMagma(t *testing.T) {
 	}
 
 	prof := profile.NewProfiler()
+	config := Forks["Magma"].Copy()
+	config.SetDefaults()
 
 	// Initialize blockchain
-	bcdata, err := NewBCDataWithConfigs(6, 4, Forks["Magma"], nil)
+	bcdata, err := NewBCDataWithConfigs(6, 4, config, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -391,9 +395,11 @@ func TestValidationPoolInsertPrague(t *testing.T) {
 	}
 
 	prof := profile.NewProfiler()
+	config := Forks["Prague"].Copy()
+	config.SetDefaults()
 
 	// Initialize blockchain
-	bcdata, err := NewBCDataWithConfigs(6, 4, Forks["Prague"], nil)
+	bcdata, err := NewBCDataWithConfigs(6, 4, config, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -549,9 +555,11 @@ func TestValidationBlockTx(t *testing.T) {
 	}
 
 	prof := profile.NewProfiler()
+	config := Forks["Osaka"].Copy()
+	config.SetDefaults()
 
 	// Initialize blockchain
-	bcdata, err := NewBCDataWithConfigs(6, 4, Forks["Osaka"], nil)
+	bcdata, err := NewBCDataWithConfigs(6, 4, config, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -682,7 +690,6 @@ func decreaseGasPrice(bcdata *BCData, txType types.TxType, values txValueMap, _a
 	} else {
 		(*big.Int).SetUint64(values[types.TxValueKeyGasPrice].(*big.Int), 12345678)
 		err = blockchain.ErrInvalidUnitPrice
-
 	}
 
 	return values, err
@@ -1051,9 +1058,11 @@ func TestInvalidBalance(t *testing.T) {
 	}
 
 	prof := profile.NewProfiler()
+	config := Forks["Osaka"].Copy()
+	config.SetDefaults()
 
 	// Initialize blockchain
-	bcdata, err := NewBCDataWithConfigs(6, 4, Forks["Osaka"], nil)
+	bcdata, err := NewBCDataWithConfigs(6, 4, config, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1445,9 +1454,11 @@ func TestInvalidBalanceBlockTx(t *testing.T) {
 	errInsufficientBalanceForGasFeePayer := errors.New("insufficient balance of the fee payer to pay for gas")
 
 	prof := profile.NewProfiler()
+	config := Forks["Osaka"].Copy()
+	config.SetDefaults()
 
 	// Initialize blockchain
-	bcdata, err := NewBCDataWithConfigs(6, 4, Forks["Osaka"], nil)
+	bcdata, err := NewBCDataWithConfigs(6, 4, config, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1855,9 +1866,11 @@ func TestValidationTxSizeAfterRLP(t *testing.T) {
 	}
 
 	prof := profile.NewProfiler()
+	config := Forks["Magma"].Copy()
+	config.SetDefaults()
 
 	// Initialize blockchain
-	bcdata, err := NewBCDataWithConfigs(6, 4, Forks["Magma"], nil)
+	bcdata, err := NewBCDataWithConfigs(6, 4, config, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2019,9 +2032,11 @@ func TestValidationTxSizeAfterRLPPrague(t *testing.T) {
 	}
 
 	prof := profile.NewProfiler()
+	config := Forks["Prague"].Copy()
+	config.SetDefaults()
 
 	// Initialize blockchain
-	bcdata, err := NewBCDataWithConfigs(6, 4, Forks["Prague"], nil)
+	bcdata, err := NewBCDataWithConfigs(6, 4, config, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2182,9 +2197,11 @@ func TestValidationPoolResetAfterSenderKeyChange(t *testing.T) {
 	}
 
 	prof := profile.NewProfiler()
+	config := Forks["Osaka"].Copy()
+	config.SetDefaults()
 
 	// Initialize blockchain
-	bcdata, err := NewBCDataWithConfigs(6, 4, Forks["Osaka"], nil)
+	bcdata, err := NewBCDataWithConfigs(6, 4, config, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

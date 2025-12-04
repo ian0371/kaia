@@ -131,7 +131,7 @@ func TestGasCalculation(t *testing.T) {
 	}
 
 	signer := types.LatestSignerForChainID(bcdata.bc.Config().ChainID)
-	gasPrice := new(big.Int).SetUint64(bcdata.bc.Config().UnitPrice)
+	gasPrice := new(big.Int).SetUint64(bcdata.bc.Config().Governance.KIP71.LowerBoundBaseFee)
 
 	// Preparing step. Send KAIA to a KaiaAcount.
 	{

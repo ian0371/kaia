@@ -443,6 +443,7 @@ func decodePrealloc(data string) GenesisAlloc {
 func commitGenesisState(genesis *Genesis, db database.DBManager) {
 	if genesis == nil {
 		genesis = DefaultGenesisBlock()
+		genesis.Governance = SetGenesisGovernance(genesis)
 	}
 	// Run genesis.ToBlock() to calls StateDB.Commit() which writes the state trie.
 	// But do not run genesis.Commit() which overwrites HeaderHash.

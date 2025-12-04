@@ -213,8 +213,6 @@ func newKaiaNode(t *testing.T, dir string, validator *TestAccountType, config *p
 		}
 	}
 
-	genesis.Governance = blockchain.SetGenesisGovernance(genesis)
-
 	cnConf := cn.GetDefaultConfig()
 	cnConf.Genesis = genesis
 	cnConf.Rewardbase = validator.Addr

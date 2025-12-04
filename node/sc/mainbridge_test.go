@@ -83,7 +83,6 @@ func testBlockChain(t *testing.T) *blockchain.BlockChain {
 	genesis.Config.Governance = params.GetDefaultGovernanceConfig()
 	genesis.Config.Istanbul = params.GetDefaultIstanbulConfig()
 	genesis.Config.UnitPrice = 25 * params.Gkei
-	genesis.Governance = blockchain.SetGenesisGovernance(genesis)
 
 	chainConfig, _, err := blockchain.SetupGenesisBlock(db, genesis)
 	if _, ok := err.(*params.ConfigCompatError); err != nil && !ok {

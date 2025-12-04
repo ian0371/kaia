@@ -193,6 +193,7 @@ func SetupGenesisBlock(db database.DBManager, genesis *Genesis) (*params.ChainCo
 		if genesis == nil {
 			logger.Info("Writing default Mainnet genesis block")
 			genesis = DefaultGenesisBlock()
+			genesis.Governance = SetGenesisGovernance(genesis)
 		} else {
 			logger.Info("Writing custom genesis block")
 		}

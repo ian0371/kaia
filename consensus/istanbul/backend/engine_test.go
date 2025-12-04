@@ -160,6 +160,7 @@ func newBlockChain(n int, items ...interface{}) (*blockchain.BlockChain, *backen
 	// generate a genesis block
 	genesis := blockchain.DefaultGenesisBlock()
 	genesis.Config = params.TestChainConfig.Copy()
+	genesis.Governance = blockchain.SetGenesisGovernance(genesis)
 	genesis.Timestamp = uint64(time.Now().Unix())
 
 	var (

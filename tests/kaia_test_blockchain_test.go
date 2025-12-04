@@ -609,6 +609,7 @@ func initBlockChain(db database.DBManager, cacheConfig *blockchain.CacheConfig, 
 		genesis.Config.UnitPrice = 25 * params.Gkei
 	}
 	genesis.Config = config.Copy()
+	genesis.Governance = blockchain.SetGenesisGovernance(genesis)
 
 	alloc := make(blockchain.GenesisAlloc)
 	for _, a := range coinbaseAddrs {

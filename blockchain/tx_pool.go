@@ -836,6 +836,7 @@ func (pool *TxPool) validateTx(tx *types.Transaction) error {
 		} else {
 			// Unitprice policy before magma hardfork
 			if pool.gasPrice.Cmp(tx.GasPrice()) != 0 {
+				logger.Trace("fail to validate unitprice", "unitPrice", pool.gasPrice, "txUnitPrice", tx.GasPrice())
 				return ErrInvalidUnitPrice
 			}
 		}

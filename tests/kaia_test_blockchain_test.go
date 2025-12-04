@@ -194,7 +194,9 @@ func NewBCDataWithConfigs(maxAccounts, numValidators int, chainCfg *params.Chain
 
 // NewBCData enables all hardforks except randao hardfork
 func NewBCData(maxAccounts, numValidators int) (*BCData, error) {
-	return NewBCDataWithConfigs(maxAccounts, numValidators, Forks["Byzantium"], nil)
+	chainCfg := Forks["Byzantium"].Copy()
+	chainCfg.UnitPrice = 25 * params.Gkei
+	return NewBCDataWithConfigs(maxAccounts, numValidators, chainCfg, nil)
 }
 
 func (bcdata *BCData) Shutdown() {

@@ -202,6 +202,7 @@ func SetupGenesisBlock(db database.DBManager, genesis *Genesis) (*params.ChainCo
 		if err != nil {
 			return genesis.Config, common.Hash{}, err
 		}
+		logger.Warn("[ian] config", "config", genesis.Config)
 		return genesis.Config, block.Hash(), err
 	}
 

@@ -842,9 +842,12 @@ func TestValidationInvalidSig(t *testing.T) {
 	}
 
 	prof := profile.NewProfiler()
+	config := Forks["Byzantium"].Copy()
+	config.SetDefaults()
+	config.UnitPrice = 25 * params.Gkei
 
 	// Initialize blockchain
-	bcdata, err := NewBCData(6, 4)
+	bcdata, err := NewBCDataWithConfigs(6, 4, config, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -987,9 +990,12 @@ func testInvalidFeePayerSig(t *testing.T, txType types.TxType, reservoir *TestAc
 // TestLegacyTxFromNonLegacyAcc generates legacy tx from non-legacy account, and it will be invalidated during txPool insert process.
 func TestLegacyTxFromNonLegacyAcc(t *testing.T) {
 	prof := profile.NewProfiler()
+	config := Forks["Byzantium"].Copy()
+	config.SetDefaults()
+	config.UnitPrice = 25 * params.Gkei
 
 	// Initialize blockchain
-	bcdata, err := NewBCData(6, 4)
+	bcdata, err := NewBCDataWithConfigs(6, 4, config, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2344,9 +2350,12 @@ func TestValidationPoolResetAfterFeePayerKeyChange(t *testing.T) {
 	}
 
 	prof := profile.NewProfiler()
+	config := Forks["Byzantium"].Copy()
+	config.SetDefaults()
+	config.UnitPrice = 25 * params.Gkei
 
 	// Initialize blockchain
-	bcdata, err := NewBCData(6, 4)
+	bcdata, err := NewBCDataWithConfigs(6, 4, config, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

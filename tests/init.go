@@ -36,50 +36,62 @@ import (
 // TODO-Kaia-RemoveLater Remove fork configs that are not meaningful for Kaia
 var Forks = map[string]*params.ChainConfig{
 	"Frontier": {
-		ChainID: big.NewInt(1),
+		ChainID:   big.NewInt(1),
+		UnitPrice: 25 * params.Gkei,
 	},
 	"Homestead": {
-		ChainID: big.NewInt(1),
+		ChainID:   big.NewInt(1),
+		UnitPrice: 25 * params.Gkei,
 	},
 	"Byzantium": {
-		ChainID: big.NewInt(1),
+		ChainID:   big.NewInt(1),
+		UnitPrice: 25 * params.Gkei,
 	},
 	"Constantinople": {
-		ChainID: big.NewInt(1),
+		ChainID:   big.NewInt(1),
+		UnitPrice: 25 * params.Gkei,
 	},
 	"ConstantinopleFix": {
-		ChainID: big.NewInt(1),
+		ChainID:   big.NewInt(1),
+		UnitPrice: 25 * params.Gkei,
 	},
 	"Istanbul": {
 		ChainID:                 big.NewInt(1),
+		UnitPrice:               25 * params.Gkei,
 		IstanbulCompatibleBlock: new(big.Int),
 	},
 	"Berlin": {
-		ChainID: big.NewInt(1),
+		ChainID:   big.NewInt(1),
+		UnitPrice: 25 * params.Gkei,
 	},
 	"London": {
 		ChainID:                 big.NewInt(1),
+		UnitPrice:               25 * params.Gkei,
 		IstanbulCompatibleBlock: new(big.Int),
 		LondonCompatibleBlock:   new(big.Int),
 	},
 	"EthTxType": {
 		ChainID:                  big.NewInt(1),
+		UnitPrice:                25 * params.Gkei,
 		IstanbulCompatibleBlock:  new(big.Int),
 		LondonCompatibleBlock:    new(big.Int),
 		EthTxTypeCompatibleBlock: new(big.Int),
 	},
 	"Magma": {
 		ChainID:                  big.NewInt(1),
+		UnitPrice:                25 * params.Gkei,
 		IstanbulCompatibleBlock:  new(big.Int),
 		LondonCompatibleBlock:    new(big.Int),
 		EthTxTypeCompatibleBlock: new(big.Int),
 		MagmaCompatibleBlock:     new(big.Int),
 	},
 	"Merge": {
-		ChainID: big.NewInt(1),
+		ChainID:   big.NewInt(1),
+		UnitPrice: 25 * params.Gkei,
 	},
 	"Shanghai": {
 		ChainID:                  big.NewInt(1),
+		UnitPrice:                25 * params.Gkei,
 		IstanbulCompatibleBlock:  new(big.Int),
 		LondonCompatibleBlock:    new(big.Int),
 		EthTxTypeCompatibleBlock: new(big.Int),
@@ -89,6 +101,7 @@ var Forks = map[string]*params.ChainConfig{
 	},
 	"Cancun": {
 		ChainID:                  big.NewInt(1),
+		UnitPrice:                25 * params.Gkei,
 		IstanbulCompatibleBlock:  new(big.Int),
 		LondonCompatibleBlock:    new(big.Int),
 		EthTxTypeCompatibleBlock: new(big.Int),
@@ -102,6 +115,7 @@ var Forks = map[string]*params.ChainConfig{
 	},
 	"Prague": {
 		ChainID:                  big.NewInt(1),
+		UnitPrice:                25 * params.Gkei,
 		IstanbulCompatibleBlock:  new(big.Int),
 		LondonCompatibleBlock:    new(big.Int),
 		EthTxTypeCompatibleBlock: new(big.Int),
@@ -116,6 +130,7 @@ var Forks = map[string]*params.ChainConfig{
 	},
 	"Osaka": {
 		ChainID:                  big.NewInt(1),
+		UnitPrice:                25 * params.Gkei,
 		IstanbulCompatibleBlock:  new(big.Int),
 		LondonCompatibleBlock:    new(big.Int),
 		EthTxTypeCompatibleBlock: new(big.Int),

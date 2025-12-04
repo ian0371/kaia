@@ -183,6 +183,7 @@ func newKaiaNode(t *testing.T, dir string, validator *TestAccountType, config *p
 		genesis.Config = config
 	}
 
+	genesis.Governance = blockchain.SetGenesisGovernance(genesis)
 	if genesis.Config.IsRandaoForkEnabled(big.NewInt(0)) {
 		infos := make(map[common.Address]system.BlsPublicKeyInfo)
 		nodeBlsKey, _ := bls.DeriveFromECDSA(validator.Keys[0])

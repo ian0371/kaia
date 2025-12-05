@@ -21,6 +21,7 @@ package tests
 import (
 	"bytes"
 	"crypto/ecdsa"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math/big"
@@ -85,7 +86,6 @@ func NewBCDataWithConfigs(maxAccounts, numValidators int, chainCfg *params.Chain
 	if chainCfg == nil {
 		return nil, errors.New("chainConfig is nil")
 	}
-	chainCfg.SetDefaults()
 
 	if numValidators > maxAccounts {
 		return nil, errors.New("maxAccounts should be bigger numValidators!!")
@@ -153,16 +153,11 @@ func NewBCDataWithConfigs(maxAccounts, numValidators int, chainCfg *params.Chain
 			Valset:      mValset,
 			NodeAddress: nodeAddr,
 		}),
-		mStaking.Init(&staking_impl.InitOpts{
-			ChainKv:     chainDb.GetMiscDB(),
-			ChainConfig: genesis.Config,
-			Chain:       bc,
-		}),
 		mReward.Init(&reward_impl.InitOpts{
 			ChainConfig:   genesis.Config,
 			Chain:         bc,
 			GovModule:     mGov,
-			StakingModule: mStaking,
+			StakingModule: mStaking, // Not used in "Simple" istanbul policy
 		}),
 		mValset.Init(&valset_impl.InitOpts{
 			Chain:         bc,
@@ -394,16 +389,11 @@ func (bcdata *BCData) GenABlockWithTxpool(accountMap *AccountMap, txpool *blockc
 			ChainKv:     bcdata.db.GetMiscDB(),
 			Chain:       bcdata.bc,
 		}),
-		mStaking.Init(&staking_impl.InitOpts{
-			ChainKv:     bcdata.db.GetMiscDB(),
-			ChainConfig: bcdata.bc.Config(),
-			Chain:       bcdata.bc,
-		}),
 		mReward.Init(&reward_impl.InitOpts{
 			ChainConfig:   bcdata.bc.Config(),
 			Chain:         bcdata.bc,
 			GovModule:     mGov,
-			StakingModule: mStaking,
+			StakingModule: mStaking, // Not used in "Simple" istanbul policy
 		}),
 	)
 	if err != nil {
@@ -507,16 +497,11 @@ func (bcdata *BCData) genABlockWithTransactionsWithBundle(accountMap *AccountMap
 			ChainKv:     bcdata.db.GetMiscDB(),
 			Chain:       bcdata.bc,
 		}),
-		mStaking.Init(&staking_impl.InitOpts{
-			ChainKv:     bcdata.db.GetMiscDB(),
-			ChainConfig: bcdata.bc.Config(),
-			Chain:       bcdata.bc,
-		}),
 		mReward.Init(&reward_impl.InitOpts{
 			ChainConfig:   bcdata.bc.Config(),
 			Chain:         bcdata.bc,
 			GovModule:     mGov,
-			StakingModule: mStaking,
+			StakingModule: mStaking, // Not used in "Simple" istanbul policy
 		}),
 	)
 	// Because we have AccountMap instead of StateDB, explicitly call AddBalance here.
@@ -586,30 +571,17 @@ func initBlockChain(db database.DBManager, cacheConfig *blockchain.CacheConfig, 
 	if config == nil {
 		return nil, nil, errors.New("config is nil")
 	}
-
-	/*
-		if config.Istanbul == nil {
-			config.Istanbul = params.GetDefaultIstanbulConfig()
-		}
-		if config.Governance == nil {
-			config.Governance = params.GetDefaultGovernanceConfig()
-		}
-	*/
+	extraData, err := prepareIstanbulExtra(validators)
 
 	if genesis == nil {
-		genesis = blockchain.DefaultGenesisBlock()
-		extraData, err := prepareIstanbulExtra(validators)
-		if err != nil {
-			return nil, nil, err
-		}
+		genesis = blockchain.DefaultTestGenesisBlock()
+		genesis.Config = config.Copy()
 		genesis.ExtraData = extraData
 		genesis.BlockScore = big.NewInt(1)
 		genesis.Config.Governance = params.GetDefaultGovernanceConfig()
 		genesis.Config.Istanbul = params.GetDefaultIstanbulConfig()
 		genesis.Config.UnitPrice = 25 * params.Gkei
 	}
-	genesis.Config = config.Copy()
-	genesis.Governance = blockchain.SetGenesisGovernance(genesis)
 
 	alloc := make(blockchain.GenesisAlloc)
 	for _, a := range coinbaseAddrs {
@@ -618,12 +590,27 @@ func initBlockChain(db database.DBManager, cacheConfig *blockchain.CacheConfig, 
 
 	genesis.Alloc = alloc
 
-	_, _, err := blockchain.SetupGenesisBlock(db, genesis)
+	chainConfig, _, err := blockchain.SetupGenesisBlock(db, genesis)
 	if _, ok := err.(*params.ConfigCompatError); err != nil && !ok {
 		return nil, nil, err
 	}
 
-	chain, err := blockchain.NewBlockChain(db, cacheConfig, config, engine, vm.Config{})
+	// The chainConfig value has been modified while executing test. (ex, The test included executing applyTransaction())
+	// Therefore, a deep copy is required to prevent the chainConfing value from being modified.
+	var cfg params.ChainConfig
+	b, err := json.Marshal(chainConfig)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	err = json.Unmarshal(b, &cfg)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	genesis.Config = &cfg
+
+	chain, err := blockchain.NewBlockChain(db, cacheConfig, genesis.Config, engine, vm.Config{})
 	if err != nil {
 		return nil, nil, err
 	}

@@ -168,7 +168,7 @@ func newKaiaNode(t *testing.T, dir string, validator *TestAccountType, config *p
 	}
 
 	if genesis == nil {
-		genesis = blockchain.DefaultGenesisBlock()
+		genesis = blockchain.DefaultTestGenesisBlock()
 		genesis.ExtraData = genesis.ExtraData[:types.IstanbulExtraVanity]
 		genesis.ExtraData = append(genesis.ExtraData, istanbulConfData...)
 		genesis.Alloc[validator.Addr] = blockchain.GenesisAccount{Balance: new(big.Int).Mul(big.NewInt(1000000000000000000), big.NewInt(params.KAIA))}
@@ -183,7 +183,6 @@ func newKaiaNode(t *testing.T, dir string, validator *TestAccountType, config *p
 		genesis.Config = config
 	}
 
-	genesis.Governance = blockchain.SetGenesisGovernance(genesis)
 	if genesis.Config.IsRandaoForkEnabled(big.NewInt(0)) {
 		infos := make(map[common.Address]system.BlsPublicKeyInfo)
 		nodeBlsKey, _ := bls.DeriveFromECDSA(validator.Keys[0])

@@ -635,10 +635,7 @@ func TestAccountUpdateMultiSigKeyMaxKey(t *testing.T) {
 
 	// Initialize blockchain
 	start := time.Now()
-	config := Forks["Byzantium"].Copy()
-	config.SetDefaults()
-	config.UnitPrice = 25 * params.Gkei
-	bcdata, err := NewBCDataWithConfigs(6, 4, config, nil)
+	bcdata, err := NewBCData(6, 4)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -761,10 +758,7 @@ func TestAccountUpdateMultiSigKeyBigThreshold(t *testing.T) {
 
 	// Initialize blockchain
 	start := time.Now()
-	config := Forks["Byzantium"].Copy()
-	config.SetDefaults()
-	config.UnitPrice = 25 * params.Gkei
-	bcdata, err := NewBCDataWithConfigs(6, 4, config, nil)
+	bcdata, err := NewBCData(6, 4)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -875,10 +869,7 @@ func TestAccountUpdateMultiSigKeyDupPrvKeys(t *testing.T) {
 
 	// Initialize blockchain
 	start := time.Now()
-	config := Forks["Byzantium"].Copy()
-	config.SetDefaults()
-	config.UnitPrice = 25 * params.Gkei
-	bcdata, err := NewBCDataWithConfigs(6, 4, config, nil)
+	bcdata, err := NewBCData(6, 4)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -988,10 +979,7 @@ func TestAccountUpdateMultiSigKeyWeightOverflow(t *testing.T) {
 
 	// Initialize blockchain
 	start := time.Now()
-	config := Forks["Byzantium"].Copy()
-	config.SetDefaults()
-	config.UnitPrice = 25 * params.Gkei
-	bcdata, err := NewBCDataWithConfigs(6, 4, config, nil)
+	bcdata, err := NewBCData(6, 4)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1109,10 +1097,7 @@ func TestAccountUpdateRoleBasedKeyInvalidNumKey(t *testing.T) {
 
 	// Initialize blockchain
 	start := time.Now()
-	config := Forks["Byzantium"].Copy()
-	config.SetDefaults()
-	config.UnitPrice = 25 * params.Gkei
-	bcdata, err := NewBCDataWithConfigs(6, 4, config, nil)
+	bcdata, err := NewBCData(6, 4)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1256,10 +1241,7 @@ func TestAccountUpdateRoleBasedKeyInvalidTypeKey(t *testing.T) {
 
 	// Initialize blockchain
 	start := time.Now()
-	config := Forks["Byzantium"].Copy()
-	config.SetDefaults()
-	config.UnitPrice = 25 * params.Gkei
-	bcdata, err := NewBCDataWithConfigs(6, 4, config, nil)
+	bcdata, err := NewBCData(6, 4)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1522,10 +1504,7 @@ func TestAccountUpdateRoleBasedKey(t *testing.T) {
 
 	// Initialize blockchain
 	start := time.Now()
-	config := Forks["Byzantium"].Copy()
-	config.SetDefaults()
-	config.UnitPrice = 25 * params.Gkei
-	bcdata, err := NewBCDataWithConfigs(6, 4, config, nil)
+	bcdata, err := NewBCData(6, 4)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1712,10 +1691,7 @@ func TestAccountUpdateRoleBasedKeyNested(t *testing.T) {
 
 	// Initialize blockchain
 	start := time.Now()
-	config := Forks["Byzantium"].Copy()
-	config.SetDefaults()
-	config.UnitPrice = 25 * params.Gkei
-	bcdata, err := NewBCDataWithConfigs(6, 4, config, nil)
+	bcdata, err := NewBCData(6, 4)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1848,10 +1824,7 @@ func TestRoleBasedKeySendTx(t *testing.T) {
 
 	// Initialize blockchain
 	start := time.Now()
-	config := Forks["Byzantium"].Copy()
-	config.SetDefaults()
-	config.UnitPrice = 25 * params.Gkei
-	bcdata, err := NewBCDataWithConfigs(6, 4, config, nil)
+	bcdata, err := NewBCData(6, 4)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2054,10 +2027,7 @@ func TestRoleBasedKeyFeeDelegation(t *testing.T) {
 
 	// Initialize blockchain
 	start := time.Now()
-	config := Forks["Byzantium"].Copy()
-	config.SetDefaults()
-	config.UnitPrice = 25 * params.Gkei
-	bcdata, err := NewBCDataWithConfigs(6, 4, config, nil)
+	bcdata, err := NewBCData(6, 4)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2254,10 +2224,7 @@ func TestAccountKeyUpdateLegacyToPublic(t *testing.T) {
 
 	// Initialize blockchain
 	start := time.Now()
-	config := Forks["Byzantium"].Copy()
-	config.SetDefaults()
-	config.UnitPrice = 25 * params.Gkei
-	bcdata, err := NewBCDataWithConfigs(6, 4, config, nil)
+	bcdata, err := NewBCData(6, 4)
 	if err != nil {
 		t.Fatal(err)
 	}

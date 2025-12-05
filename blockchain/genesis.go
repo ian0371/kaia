@@ -193,7 +193,6 @@ func SetupGenesisBlock(db database.DBManager, genesis *Genesis) (*params.ChainCo
 		if genesis == nil {
 			logger.Info("Writing default Mainnet genesis block")
 			genesis = DefaultGenesisBlock()
-			genesis.Governance = SetGenesisGovernance(genesis)
 		} else {
 			logger.Info("Writing custom genesis block")
 		}
@@ -202,7 +201,6 @@ func SetupGenesisBlock(db database.DBManager, genesis *Genesis) (*params.ChainCo
 		if err != nil {
 			return genesis.Config, common.Hash{}, err
 		}
-		logger.Warn("[ian] config", "config", genesis.Config)
 		return genesis.Config, block.Hash(), err
 	}
 
@@ -429,6 +427,12 @@ func DefaultKairosGenesisBlock() *Genesis {
 	return ret
 }
 
+func DefaultTestGenesisBlock() *Genesis {
+	ret := DefaultGenesisBlock()
+	ret.Governance = nil
+	return ret
+}
+
 func decodePrealloc(data string) GenesisAlloc {
 	var p []struct{ Addr, Balance *big.Int }
 	if err := rlp.NewStream(strings.NewReader(data), 0).Decode(&p); err != nil {
@@ -444,7 +448,6 @@ func decodePrealloc(data string) GenesisAlloc {
 func commitGenesisState(genesis *Genesis, db database.DBManager) {
 	if genesis == nil {
 		genesis = DefaultGenesisBlock()
-		genesis.Governance = SetGenesisGovernance(genesis)
 	}
 	// Run genesis.ToBlock() to calls StateDB.Commit() which writes the state trie.
 	// But do not run genesis.Commit() which overwrites HeaderHash.

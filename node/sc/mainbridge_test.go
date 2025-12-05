@@ -77,13 +77,12 @@ func testBlockChain(t *testing.T) *blockchain.BlockChain {
 		NodeType:       common.CONSENSUSNODE,
 	})
 
-	genesis := blockchain.DefaultGenesisBlock()
+	genesis := blockchain.DefaultTestGenesisBlock()
 	genesis.BlockScore = big.NewInt(1)
 	genesis.Config = params.MainnetChainConfig.Copy()
 	genesis.Config.Governance = params.GetDefaultGovernanceConfig()
 	genesis.Config.Istanbul = params.GetDefaultIstanbulConfig()
 	genesis.Config.UnitPrice = 25 * params.Gkei
-	genesis.Governance = blockchain.SetGenesisGovernance(genesis)
 
 	chainConfig, _, err := blockchain.SetupGenesisBlock(db, genesis)
 	if _, ok := err.(*params.ConfigCompatError); err != nil && !ok {

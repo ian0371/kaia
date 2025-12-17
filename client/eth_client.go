@@ -25,6 +25,8 @@ package client
 import (
 	"context"
 	"encoding/binary"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"math/big"
 
@@ -36,6 +38,58 @@ import (
 	"github.com/kaiachain/kaia/networks/rpc"
 	"github.com/kaiachain/kaia/rlp"
 )
+
+type IEthClient interface {
+	Close()
+	SetHeader(key, value string)
+	// BlockByHash(ctx context.Context, hash common.Hash) (*types.Block, error)
+	// BlockByNumber(ctx context.Context, number *big.Int) (*types.Block, error)
+	// HeaderByHash(ctx context.Context, hash common.Hash) (*types.Header, error)
+	// HeaderByNumber(ctx context.Context, number *big.Int) (*types.Header, error)
+	TransactionByHash(ctx context.Context, hash common.Hash) (tx *types.Transaction, isPending bool, err error)
+	TransactionSender(ctx context.Context, tx *types.Transaction, block common.Hash, index uint) (common.Address, error)
+	TransactionCount(ctx context.Context, blockHash common.Hash) (uint, error)
+	TransactionInBlock(ctx context.Context, blockHash common.Hash, index uint) (*types.Transaction, error)
+	TransactionReceipt(ctx context.Context, txHash common.Hash) (*types.Receipt, error)
+	TransactionReceiptRpcOutput(ctx context.Context, txHash common.Hash) (r map[string]interface{}, err error)
+	// SyncProgress(ctx context.Context) (*kaia.SyncProgress, error)
+	SubscribeNewHead(ctx context.Context, ch chan<- *types.Header) (kaia.Subscription, error)
+	// AuctionSubscribeNewHead(ctx context.Context, ch chan<- *types.Header)
+	NetworkID(ctx context.Context) (*big.Int, error)
+	BalanceAt(ctx context.Context, account common.Address, blockNumber *big.Int) (*big.Int, error)
+	StorageAt(ctx context.Context, account common.Address, key common.Hash, blockNumber *big.Int) ([]byte, error)
+	CodeAt(ctx context.Context, account common.Address, blockNumber *big.Int) ([]byte, error)
+	NonceAt(ctx context.Context, account common.Address, blockNumber *big.Int) (uint64, error)
+	FilterLogs(ctx context.Context, q kaia.FilterQuery) ([]types.Log, error)
+	SubscribeFilterLogs(ctx context.Context, q kaia.FilterQuery, ch chan<- types.Log) (kaia.Subscription, error)
+	// AuctionSubscribeFilterLogs(ctx context.Context, q kaia.FilterQuery, ch chan<- types.Log)
+	PendingBalanceAt(ctx context.Context, account common.Address) (*big.Int, error)
+	PendingStorageAt(ctx context.Context, account common.Address, key common.Hash) ([]byte, error)
+	PendingCodeAt(ctx context.Context, account common.Address) ([]byte, error)
+	PendingNonceAt(ctx context.Context, account common.Address) (uint64, error)
+	PendingTransactionCount(ctx context.Context) (uint, error)
+	// AuctionSubscribeFullPendingTransactions(ctx context.Context, ch chan<- *types.Transaction)
+	// AuctionSubscribeFullPendingTransactionsRaw(ctx context.Context, ch chan<- map[string]any)
+	// AuctionSubscribePendingTransactions(ctx context.Context, ch chan<- common.Hash)
+	CallContract(ctx context.Context, msg kaia.CallMsg, blockNumber *big.Int) ([]byte, error)
+	// AuctionCallContract(ctx context.Context, msg kaia.CallMsg, blockNumber *big.Int)
+	PendingCallContract(ctx context.Context, msg kaia.CallMsg) ([]byte, error)
+	SuggestGasPrice(ctx context.Context) (*big.Int, error)
+	EstimateGas(ctx context.Context, msg kaia.CallMsg) (uint64, error)
+	SendTransaction(ctx context.Context, tx *types.Transaction) error
+	// SendAuctionTx(ctx context.Context, bidInput auction_impl.BidInput)
+	SendRawTransaction(ctx context.Context, tx *types.Transaction) (common.Hash, error)
+	// SendUnsignedTransaction(ctx context.Context, unsignedTx api.SendTxArgs) (common.Hash, error)
+	// ImportRawKey(ctx context.Context, key string, password string) (common.Address, error)
+	// UnlockAccount(ctx context.Context, address common.Address, password string, time uint)
+	BlockNumber(ctx context.Context) (*big.Int, error)
+	ChainID(ctx context.Context) (*big.Int, error)
+	// AddPeer(ctx context.Context, url string) (bool, error)
+	// RemovePeer(ctx context.Context, url string) (bool, error)
+	CreateAccessList(ctx context.Context, msg kaia.CallMsg) (*types.AccessList, uint64, string, error)
+}
+
+var _ (IEthClient) = &EthClient{}
 
 // A BlockNonce is a 64-bit hash which proves (combined with the
 // mix-hash) that a sufficient amount of computation has been carried
@@ -104,6 +158,19 @@ type EthHeader struct {
 	RequestsHash *common.Hash `json:"requestsHash" rlp:"optional"`
 }
 
+type EthBlock struct {
+	header       *EthHeader
+	transactions []*types.Transaction
+}
+
+func (b *EthBlock) Header() *EthHeader {
+	return b.header
+}
+
+func (b *EthBlock) Transactions() []*types.Transaction {
+	return b.transactions
+}
+
 // field type overrides for gencodec
 type headerMarshaling struct {
 	Difficulty    *hexutil.Big
@@ -162,6 +229,53 @@ func (ec *EthClient) SetHeader(key, value string) {
 	ec.c.SetHeader(key, value)
 }
 
+func (ec *EthClient) BlockByHash(ctx context.Context, hash common.Hash) (*EthBlock, error) {
+	return ec.getBlock(ctx, "eth_getBlockByHash", hash, true)
+}
+
+func (ec *EthClient) BlockByNumber(ctx context.Context, number *big.Int) (*EthBlock, error) {
+	return ec.getBlock(ctx, "eth_getBlockByNumber", toBlockNumArg(number), true)
+}
+
+func (ec *EthClient) getBlock(ctx context.Context, method string, args ...interface{}) (*EthBlock, error) {
+	var raw json.RawMessage
+	err := ec.c.CallContext(ctx, &raw, method, args...)
+	if err != nil {
+		return nil, err
+	} else if len(raw) == 0 {
+		return nil, kaia.NotFound
+	}
+	// Decode header and transactions.
+	var head *EthHeader
+	var body rpcBlock
+	if err := json.Unmarshal(raw, &head); err != nil {
+		return nil, err
+	}
+	if err := json.Unmarshal(raw, &body); err != nil {
+		return nil, err
+	}
+	// TODO-Kaia Enable the below error checks after having a way to get the correct EmptyRootHash
+	// Quick-verify transaction lists. This mostly helps with debugging the server.
+	//if head.TxHash == types.EmptyRootHash && len(body.Transactions) > 0 {
+	//	return nil, fmt.Errorf("server returned non-empty transaction list but block header indicates no transactions")
+	//}
+	//if head.TxHash != types.EmptyRootHash && len(body.Transactions) == 0 {
+	//	return nil, fmt.Errorf("server returned empty transaction list but block header indicates transactions")
+	//}
+	// Fill the sender cache of transactions in the block.
+	txs := make([]*types.Transaction, len(body.Transactions))
+	for i, tx := range body.Transactions {
+		if tx.From != nil {
+			setSenderFromServer(tx.tx, *tx.From, body.Hash)
+		}
+		txs[i] = tx.tx
+	}
+	return &EthBlock{
+		header:       head,
+		transactions: txs,
+	}, nil
+}
+
 // HeaderByHash returns a block header from the current canonical chain. If number is
 // nil, the latest known header is returned.
 func (ec *EthClient) HeaderByHash(ctx context.Context, hash common.Hash) (*EthHeader, error) {
@@ -184,11 +298,78 @@ func (ec *EthClient) HeaderByNumber(ctx context.Context, number *big.Int) (*EthH
 	return head, err
 }
 
+// TransactionByHash returns the transaction with the given hash.
+func (ec *EthClient) TransactionByHash(ctx context.Context, hash common.Hash) (tx *types.Transaction, isPending bool, err error) {
+	var json *rpcTransaction
+	err = ec.c.CallContext(ctx, &json, "eth_getTransactionByHash", hash)
+	if err != nil {
+		return nil, false, err
+	} else if json == nil {
+		return nil, false, kaia.NotFound
+	} else if sigs := json.tx.RawSignatureValues(); sigs[0].V == nil {
+		return nil, false, fmt.Errorf("server returned transaction without signature")
+	}
+	if json.From != nil && json.BlockHash != nil {
+		setSenderFromServer(json.tx, *json.From, *json.BlockHash)
+	}
+	return json.tx, json.BlockNumber == nil, nil
+}
+
+func (ec *EthClient) TransactionSender(ctx context.Context, tx *types.Transaction, block common.Hash, index uint) (common.Address, error) {
+	if tx == nil {
+		return common.Address{}, errors.New("Transaction must not be nil")
+	}
+	// Try to load the address from the cache.
+	sender, err := types.Sender(&senderFromServer{blockhash: block}, tx)
+	if err == nil {
+		return sender, nil
+	}
+	var meta struct {
+		Hash common.Hash
+		From common.Address
+	}
+	if err = ec.c.CallContext(ctx, &meta, "eth_getTransactionByBlockHashAndIndex", block, hexutil.Uint64(index)); err != nil {
+		return common.Address{}, err
+	}
+	if meta.Hash == (common.Hash{}) || meta.Hash != tx.Hash() {
+		return common.Address{}, errors.New("wrong inclusion block/index")
+	}
+	return meta.From, nil
+}
+
 // TransactionCount returns the total number of transactions in the given block.
 func (ec *EthClient) TransactionCount(ctx context.Context, blockHash common.Hash) (uint, error) {
 	var num hexutil.Uint
 	err := ec.c.CallContext(ctx, &num, "eth_getBlockTransactionCountByHash", blockHash)
 	return uint(num), err
+}
+
+func (ec *EthClient) TransactionInBlock(ctx context.Context, blockHash common.Hash, index uint) (*types.Transaction, error) {
+	var json *rpcTransaction
+	err := ec.c.CallContext(ctx, &json, "eth_getTransactionByBlockHashAndIndex", blockHash, hexutil.Uint64(index))
+	if err != nil {
+		return nil, err
+	}
+	if json == nil {
+		return nil, kaia.NotFound
+	} else if sigs := json.tx.RawSignatureValues(); sigs[0].V == nil {
+		return nil, fmt.Errorf("server returned transaction without signature")
+	}
+	if json.From != nil && json.BlockHash != nil {
+		setSenderFromServer(json.tx, *json.From, *json.BlockHash)
+	}
+	return json.tx, err
+}
+
+func (ec *EthClient) TransactionReceipt(ctx context.Context, txHash common.Hash) (*types.Receipt, error) {
+	var r *types.Receipt
+	err := ec.c.CallContext(ctx, &r, "eth_getTransactionReceipt", txHash)
+	if err == nil {
+		if r == nil {
+			return nil, kaia.NotFound
+		}
+	}
+	return r, err
 }
 
 // TransactionReceiptRpcOutput returns the receipt of a transaction by transaction hash as a rpc output.
@@ -198,6 +379,12 @@ func (ec *EthClient) TransactionReceiptRpcOutput(ctx context.Context, txHash com
 		return nil, kaia.NotFound
 	}
 	return
+}
+
+// SubscribeNewHead subscribes to notifications about the current blockchain head
+// on the given channel.
+func (ec *EthClient) SubscribeNewHead(ctx context.Context, ch chan<- *types.Header) (kaia.Subscription, error) {
+	return ec.c.EthSubscribe(ctx, ch, "newHeads")
 }
 
 // State Access

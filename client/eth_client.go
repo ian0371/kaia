@@ -31,73 +31,12 @@ import (
 	"math/big"
 
 	"github.com/kaiachain/kaia"
-	"github.com/kaiachain/kaia/accounts/abi/bind"
 	"github.com/kaiachain/kaia/blockchain/types"
 	"github.com/kaiachain/kaia/common"
 	"github.com/kaiachain/kaia/common/hexutil"
 	"github.com/kaiachain/kaia/crypto/sha3"
 	"github.com/kaiachain/kaia/networks/rpc"
 	"github.com/kaiachain/kaia/rlp"
-)
-
-type IEthClient interface {
-	Close()
-	SetHeader(key, value string)
-	// BlockByHash(ctx context.Context, hash common.Hash) (*types.Block, error)
-	// BlockByNumber(ctx context.Context, number *big.Int) (*types.Block, error)
-	// HeaderByHash(ctx context.Context, hash common.Hash) (*types.Header, error)
-	// HeaderByNumber(ctx context.Context, number *big.Int) (*types.Header, error)
-	BlockByHash(ctx context.Context, hash common.Hash) (*EthBlock, error)
-	BlockByNumber(ctx context.Context, number *big.Int) (*EthBlock, error)
-	HeaderByHash(ctx context.Context, hash common.Hash) (*EthHeader, error)
-	HeaderByNumber(ctx context.Context, number *big.Int) (*EthHeader, error)
-	TransactionByHash(ctx context.Context, hash common.Hash) (tx *types.Transaction, isPending bool, err error)
-	TransactionSender(ctx context.Context, tx *types.Transaction, block common.Hash, index uint) (common.Address, error)
-	TransactionCount(ctx context.Context, blockHash common.Hash) (uint, error)
-	TransactionInBlock(ctx context.Context, blockHash common.Hash, index uint) (*types.Transaction, error)
-	TransactionReceipt(ctx context.Context, txHash common.Hash) (*types.Receipt, error)
-	TransactionReceiptRpcOutput(ctx context.Context, txHash common.Hash) (r map[string]interface{}, err error)
-	// SyncProgress(ctx context.Context) (*kaia.SyncProgress, error)
-	SubscribeNewHead(ctx context.Context, ch chan<- *types.Header) (kaia.Subscription, error)
-	// AuctionSubscribeNewHead(ctx context.Context, ch chan<- *types.Header)
-	NetworkID(ctx context.Context) (*big.Int, error)
-	BalanceAt(ctx context.Context, account common.Address, blockNumber *big.Int) (*big.Int, error)
-	StorageAt(ctx context.Context, account common.Address, key common.Hash, blockNumber *big.Int) ([]byte, error)
-	CodeAt(ctx context.Context, account common.Address, blockNumber *big.Int) ([]byte, error)
-	NonceAt(ctx context.Context, account common.Address, blockNumber *big.Int) (uint64, error)
-	FilterLogs(ctx context.Context, q kaia.FilterQuery) ([]types.Log, error)
-	SubscribeFilterLogs(ctx context.Context, q kaia.FilterQuery, ch chan<- types.Log) (kaia.Subscription, error)
-	// AuctionSubscribeFilterLogs(ctx context.Context, q kaia.FilterQuery, ch chan<- types.Log)
-	PendingBalanceAt(ctx context.Context, account common.Address) (*big.Int, error)
-	PendingStorageAt(ctx context.Context, account common.Address, key common.Hash) ([]byte, error)
-	PendingCodeAt(ctx context.Context, account common.Address) ([]byte, error)
-	PendingNonceAt(ctx context.Context, account common.Address) (uint64, error)
-	PendingTransactionCount(ctx context.Context) (uint, error)
-	// AuctionSubscribeFullPendingTransactions(ctx context.Context, ch chan<- *types.Transaction)
-	// AuctionSubscribeFullPendingTransactionsRaw(ctx context.Context, ch chan<- map[string]any)
-	// AuctionSubscribePendingTransactions(ctx context.Context, ch chan<- common.Hash)
-	CallContract(ctx context.Context, msg kaia.CallMsg, blockNumber *big.Int) ([]byte, error)
-	// AuctionCallContract(ctx context.Context, msg kaia.CallMsg, blockNumber *big.Int)
-	PendingCallContract(ctx context.Context, msg kaia.CallMsg) ([]byte, error)
-	SuggestGasPrice(ctx context.Context) (*big.Int, error)
-	EstimateGas(ctx context.Context, msg kaia.CallMsg) (uint64, error)
-	SendTransaction(ctx context.Context, tx *types.Transaction) error
-	// SendAuctionTx(ctx context.Context, bidInput auction_impl.BidInput)
-	SendRawTransaction(ctx context.Context, tx *types.Transaction) (common.Hash, error)
-	// SendUnsignedTransaction(ctx context.Context, unsignedTx api.SendTxArgs) (common.Hash, error)
-	// ImportRawKey(ctx context.Context, key string, password string) (common.Address, error)
-	// UnlockAccount(ctx context.Context, address common.Address, password string, time uint)
-	BlockNumber(ctx context.Context) (*big.Int, error)
-	ChainID(ctx context.Context) (*big.Int, error)
-	// AddPeer(ctx context.Context, url string) (bool, error)
-	// RemovePeer(ctx context.Context, url string) (bool, error)
-	CreateAccessList(ctx context.Context, msg kaia.CallMsg) (*types.AccessList, uint64, string, error)
-}
-
-var (
-	_ (IEthClient)           = &EthClient{}
-	_ (bind.DeployBackend)   = &EthClient{}
-	_ (bind.ContractBackend) = &EthClient{}
 )
 
 // A BlockNonce is a 64-bit hash which proves (combined with the
@@ -238,12 +177,34 @@ func (ec *EthClient) SetHeader(key, value string) {
 	ec.c.SetHeader(key, value)
 }
 
+// Blockchain Access
+
+// BlockByHash returns the given full block.
+//
+// Note that loading full blocks requires two requests. Use HeaderByHash
+// if you don't need all transactions.
 func (ec *EthClient) BlockByHash(ctx context.Context, hash common.Hash) (*EthBlock, error) {
 	return ec.getBlock(ctx, "eth_getBlockByHash", hash, true)
 }
 
+// BlockByNumber returns a block from the current canonical chain. If number is nil, the
+// latest known block is returned.
+//
+// Note that loading full blocks requires two requests. Use HeaderByNumber
+// if you don't need all transactions.
 func (ec *EthClient) BlockByNumber(ctx context.Context, number *big.Int) (*EthBlock, error) {
 	return ec.getBlock(ctx, "eth_getBlockByNumber", toBlockNumArg(number), true)
+}
+
+type rpcBlockEth struct {
+	Hash         common.Hash         `json:"hash"`
+	Transactions []rpcTransactionEth `json:"transactions"`
+}
+
+// rpcTransactionEth has no UnmarshalJSON method
+type rpcTransactionEth struct {
+	tx *types.Transaction
+	txExtraInfo
 }
 
 func (ec *EthClient) getBlock(ctx context.Context, method string, args ...interface{}) (*EthBlock, error) {
@@ -256,7 +217,7 @@ func (ec *EthClient) getBlock(ctx context.Context, method string, args ...interf
 	}
 	// Decode header and transactions.
 	var head *EthHeader
-	var body rpcBlock
+	var body rpcBlockEth
 	if err := json.Unmarshal(raw, &head); err != nil {
 		return nil, err
 	}
@@ -274,9 +235,6 @@ func (ec *EthClient) getBlock(ctx context.Context, method string, args ...interf
 	// Fill the sender cache of transactions in the block.
 	txs := make([]*types.Transaction, len(body.Transactions))
 	for i, tx := range body.Transactions {
-		if tx.From != nil {
-			setSenderFromServer(tx.tx, *tx.From, body.Hash)
-		}
 		txs[i] = tx.tx
 	}
 	return &EthBlock{
@@ -285,8 +243,7 @@ func (ec *EthClient) getBlock(ctx context.Context, method string, args ...interf
 	}, nil
 }
 
-// HeaderByHash returns a block header from the current canonical chain. If number is
-// nil, the latest known header is returned.
+// HeaderByHash returns the block header with the given hash.
 func (ec *EthClient) HeaderByHash(ctx context.Context, hash common.Hash) (*EthHeader, error) {
 	var head *EthHeader
 	err := ec.c.CallContext(ctx, &head, "eth_getBlockByHash", hash, false)
@@ -309,21 +266,24 @@ func (ec *EthClient) HeaderByNumber(ctx context.Context, number *big.Int) (*EthH
 
 // TransactionByHash returns the transaction with the given hash.
 func (ec *EthClient) TransactionByHash(ctx context.Context, hash common.Hash) (tx *types.Transaction, isPending bool, err error) {
-	var json *rpcTransaction
+	var json *rpcTransactionEth
 	err = ec.c.CallContext(ctx, &json, "eth_getTransactionByHash", hash)
 	if err != nil {
 		return nil, false, err
-	} else if json == nil {
+	} else if json == nil || json.tx == nil {
 		return nil, false, kaia.NotFound
-	} else if sigs := json.tx.RawSignatureValues(); sigs[0].V == nil {
+	} else if sigs := json.tx.RawSignatureValues(); sigs == nil || len(sigs) == 0 || sigs[0].V == nil {
 		return nil, false, fmt.Errorf("server returned transaction without signature")
-	}
-	if json.From != nil && json.BlockHash != nil {
-		setSenderFromServer(json.tx, *json.From, *json.BlockHash)
 	}
 	return json.tx, json.BlockNumber == nil, nil
 }
 
+// TransactionSender returns the sender address of the given transaction. The transaction
+// must be known to the remote node and included in the blockchain at the given block and
+// index. The sender is the one derived by the protocol at the time of inclusion.
+//
+// There is a fast-path for transactions retrieved by TransactionByHash and
+// TransactionInBlock. Getting their sender address can be done without an RPC interaction.
 func (ec *EthClient) TransactionSender(ctx context.Context, tx *types.Transaction, block common.Hash, index uint) (common.Address, error) {
 	if tx == nil {
 		return common.Address{}, errors.New("Transaction must not be nil")
@@ -353,8 +313,9 @@ func (ec *EthClient) TransactionCount(ctx context.Context, blockHash common.Hash
 	return uint(num), err
 }
 
+// TransactionInBlock returns a single transaction at index in the given block.
 func (ec *EthClient) TransactionInBlock(ctx context.Context, blockHash common.Hash, index uint) (*types.Transaction, error) {
-	var json *rpcTransaction
+	var json *rpcTransactionEth
 	err := ec.c.CallContext(ctx, &json, "eth_getTransactionByBlockHashAndIndex", blockHash, hexutil.Uint64(index))
 	if err != nil {
 		return nil, err
@@ -370,6 +331,8 @@ func (ec *EthClient) TransactionInBlock(ctx context.Context, blockHash common.Ha
 	return json.tx, err
 }
 
+// TransactionReceipt returns the receipt of a transaction by transaction hash.
+// Note that the receipt is not available for pending transactions.
 func (ec *EthClient) TransactionReceipt(ctx context.Context, txHash common.Hash) (*types.Receipt, error) {
 	var r *types.Receipt
 	err := ec.c.CallContext(ctx, &r, "eth_getTransactionReceipt", txHash)

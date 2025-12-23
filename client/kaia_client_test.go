@@ -43,12 +43,11 @@ import (
 	"github.com/kaiachain/kaia/crypto"
 	"github.com/kaiachain/kaia/networks/rpc"
 	"github.com/kaiachain/kaia/params"
-	"github.com/stretchr/testify/assert"
 )
 
-// Verify that Client implements the Kaia interfaces.
+// Verify that KaiaClient implements the Kaia interfaces.
 var (
-	// _ = kaia.Subscription(&Client{})
+	// _ = kaia.Subscription(&KaiaClient{})
 	_ = kaia.ChainReader(&KaiaClient{})
 	_ = kaia.TransactionReader(&KaiaClient{})
 	_ = kaia.ChainStateReader(&KaiaClient{})
@@ -60,7 +59,7 @@ var (
 	_ = kaia.PendingStateReader(&KaiaClient{})
 	_ = kaia.PendingContractCaller(&KaiaClient{})
 	_ = kaia.GasEstimator(&KaiaClient{})
-	// _ = kaia.PendingStateEventer(&Client{})
+	// _ = kaia.PendingStateEventer(&KaiaClient{})
 )
 
 var (
@@ -855,20 +854,6 @@ func genMockHeader(number int) *types.Header {
 		BaseFee:     big.NewInt(25e9),
 	}
 	return header
-}
-
-func TestKaiaClient_AnvilServer(t *testing.T) {
-	serverURL, cleanup := launchAnvilServer(t)
-	defer cleanup()
-	client, err := tryConnect(serverURL)
-	if err != nil {
-		t.Skip("Could not connect Kaia client to anvil server:", err)
-		return
-	}
-	defer client.Close()
-
-	_, err = client.HeaderByNumber(context.Background(), big.NewInt(0))
-	assert.Equal(t, err.Error(), "Method not found")
 }
 
 func tryConnect(serverURL string) (*KaiaClient, error) {

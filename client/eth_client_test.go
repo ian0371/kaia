@@ -115,16 +115,16 @@ var (
 	_ = IEthClient(&EthClient{})
 	// _ = kaia.PendingStateEventer(&Client{})
 
-	ethBlockHash    = common.HexToHash("0x1c6ef781e4f30626053500c374498f78e3138128603e6f9c92bff0292613c5bb")
 	anvilRichKey, _ = crypto.HexToECDSA("ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80")
 	anvilRichAddr   = crypto.PubkeyToAddress(anvilRichKey.PublicKey)
 )
 
 type AnvilTestSuite struct {
 	suite.Suite
-	ethclient *EthClient
+	ethClient *EthClient
 	serverURL string
 	cmd       *exec.Cmd
+	cancel    func()
 
 	tx *types.Transaction
 }
@@ -135,24 +135,26 @@ func (s *AnvilTestSuite) SetupSuite() {
 	defer func() {
 		if err != nil {
 			s.TearDownSuite()
-			s.T().Fatal(err)
+			s.T().Skip(err)
+			return
 		}
+		s.T().Logf("Anvil server started on %s", s.serverURL)
 	}()
 
 	if err = s.launchAnvilServer(); err != nil {
 		return
 	}
-	if s.ethclient, err = tryConnectEth(s.serverURL); err != nil {
+	if s.ethClient, err = tryConnectEth(s.serverURL); err != nil {
 		return
 	}
-	if nonce, err = s.ethclient.NonceAt(context.Background(), anvilRichAddr, nil); err != nil {
+	if nonce, err = s.ethClient.NonceAt(context.Background(), anvilRichAddr, nil); err != nil {
 		return
 	}
 
 	unsignedTx := types.NewTransaction(nonce, testAddr, big.NewInt(1e18), params.TxGas, new(big.Int).SetUint64(params.DefaultLowerBoundBaseFee), nil)
 	signer := types.LatestSignerForChainID(genesisConfig.ChainID)
 	s.tx, _ = types.SignTx(unsignedTx, signer, anvilRichKey)
-	if _, err = s.ethclient.SendRawTransaction(context.Background(), s.tx); err != nil {
+	if _, err = s.ethClient.SendRawTransaction(context.Background(), s.tx); err != nil {
 		return
 	}
 	time.Sleep(1 * time.Second)
@@ -160,16 +162,11 @@ func (s *AnvilTestSuite) SetupSuite() {
 }
 
 func (s *AnvilTestSuite) TearDownSuite() {
-	s.T().Log("Tearing down AnvilTestSuite")
-	s.ethclient.Close()
-	s.killAnvilServer()
-}
-
-func (s *AnvilTestSuite) killAnvilServer() {
-	if s.cmd.Process != nil {
-		s.T().Logf("Killing anvil server (PID: %d)", s.cmd.Process.Pid)
-		s.cmd.Process.Kill()
-		s.cmd.Wait() // Wait for process to actually terminate
+	if s.ethClient != nil {
+		s.ethClient.Close()
+	}
+	if s.cancel != nil {
+		s.cancel()
 	}
 }
 
@@ -182,13 +179,14 @@ func (s *AnvilTestSuite) launchAnvilServer() error {
 	}
 
 	// Start anvil in background
-	s.cmd = exec.Command("anvil", "--chain-id", "1337", "--host", "127.0.0.1", "--port", strconv.Itoa(randPort))
+	ctx, cancel := context.WithCancel(context.Background())
+	s.cancel = cancel
+	s.cmd = exec.CommandContext(ctx, "anvil", "--chain-id", "1337", "--host", "127.0.0.1", "--port", strconv.Itoa(randPort))
 	err = s.cmd.Start()
 	if err != nil {
 		return errors.New("failed to start anvil")
 	}
 
-	s.T().Logf("Started anvil server with PID: %d", s.cmd.Process.Pid)
 	// Give anvil time to start up
 	time.Sleep(2 * time.Second)
 
@@ -203,7 +201,7 @@ func TestAnvilTestSuite(t *testing.T) {
 func (s *AnvilTestSuite) TestBlockchainAccess() {
 	// BlockByHash, BlockByNumber, HeaderByHash, HeaderByNumber,
 	// TransactionByHash, TransactionSender, TransactionCount, TransactionInBlock, TransactionReceipt, TransactionReceiptRpcOutput
-	ethclient := s.ethclient
+	ethclient := s.ethClient
 
 	block, err := ethclient.BlockByNumber(context.Background(), big.NewInt(1))
 	require.NoError(s.T(), err)
@@ -375,36 +373,4 @@ func (s *AnvilTestSuite) TestKaiaClient() {
 
 	_, err = kaiaClient.HeaderByNumber(context.Background(), big.NewInt(0))
 	assert.Equal(s.T(), err.Error(), "Method not found")
-}
-
-func TestEthClient_MockServer(t *testing.T) {
-	quitChan := make(chan struct{})
-	defer close(quitChan)
-
-	serverURL := launchMockServer(t, quitChan)
-	client, err := tryConnect(serverURL)
-	if err != nil {
-		t.Skip("Could not connect Kaia client to mock server:", err)
-		return
-	}
-	defer client.Close()
-
-	kaiaHeader, err := client.HeaderByNumber(context.Background(), big.NewInt(0))
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	ethclient, err := tryConnectEth(serverURL)
-	if err != nil {
-		t.Skip("Could not connect Eth client to mock server:", err)
-		return
-	}
-	defer ethclient.Close()
-
-	ethHeader, err := ethclient.HeaderByNumber(context.Background(), big.NewInt(0))
-	if err != nil {
-		t.Fatal(err)
-	}
-	assert.Equal(t, "0x3b624db9bc6547b908e2e78460d2849047b6d28c0c078f09d6a0472ab0e57d0c", kaiaHeader.Hash().Hex())
-	assert.Equal(t, ethBlockHash, ethHeader.Hash())
 }

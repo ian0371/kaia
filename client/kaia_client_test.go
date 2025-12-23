@@ -43,6 +43,8 @@ import (
 	"github.com/kaiachain/kaia/crypto"
 	"github.com/kaiachain/kaia/networks/rpc"
 	"github.com/kaiachain/kaia/params"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/suite"
 )
 
 // Verify that KaiaClient implements the Kaia interfaces.
@@ -63,9 +65,11 @@ var (
 )
 
 var (
-	testKey, _  = crypto.HexToECDSA("b71c71a67e1177ad4e901695e1b4b9ee17ae16c6668d313eac2f96dbcda3f291")
-	testAddr    = crypto.PubkeyToAddress(testKey.PublicKey)
-	testBalance = big.NewInt(2e15)
+	testKey, _           = crypto.HexToECDSA("b71c71a67e1177ad4e901695e1b4b9ee17ae16c6668d313eac2f96dbcda3f291")
+	testAddr             = crypto.PubkeyToAddress(testKey.PublicKey)
+	testBalance          = big.NewInt(2e15)
+	ethGenesisBlockHash  = common.HexToHash("0x1c6ef781e4f30626053500c374498f78e3138128603e6f9c92bff0292613c5bb")
+	kaiaGenesisBlockHash = common.HexToHash("0x3b624db9bc6547b908e2e78460d2849047b6d28c0c078f09d6a0472ab0e57d0c")
 )
 
 var genesisConfig = &params.ChainConfig{
@@ -222,7 +226,45 @@ func MockGetTransactionByBlockHashAndIndex(t *testing.T, blockHash string, trans
 	}
 }
 
-func launchMockServer(t *testing.T, quit chan struct{}) string {
+type MockHttpServerTestSuite struct {
+	suite.Suite
+	kaiaClient *KaiaClient
+	server     *http.Server
+	serverURL  string
+}
+
+func (s *MockHttpServerTestSuite) SetupSuite() {
+	var err error
+
+	defer func() {
+		if err != nil {
+			s.TearDownSuite()
+			s.T().Skip(err)
+			return
+		}
+		s.T().Logf("MockHttpServer started on %s", s.serverURL)
+	}()
+
+	if err = s.launchMockServer(); err != nil {
+		return
+	}
+	if s.kaiaClient, err = tryConnect(s.serverURL); err != nil {
+		return
+	}
+}
+
+func (s *MockHttpServerTestSuite) TearDownSuite() {
+	if s.kaiaClient != nil {
+		s.kaiaClient.Close()
+	}
+	if s.server != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		s.server.Shutdown(ctx)
+	}
+}
+
+func (s *MockHttpServerTestSuite) launchMockServer() error {
 	myHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -236,7 +278,7 @@ func launchMockServer(t *testing.T, quit chan struct{}) string {
 			return
 		}
 
-		t.Logf("MockHttpServer received request: %+v", reqData)
+		s.T().Logf("MockHttpServer received request: %+v", reqData)
 
 		// Extract method and id from JSON-RPC request
 		method, _ := reqData["method"].(string)
@@ -255,25 +297,25 @@ func launchMockServer(t *testing.T, quit chan struct{}) string {
 			address := common.HexToAddress(addressStr)
 			blockNumberStr := params[1].(string)
 			if !strings.HasPrefix(blockNumberStr, "0x") {
-				t.Fatalf("blockNumberStr should start with 0x, but got %v", blockNumberStr)
+				s.T().Fatalf("blockNumberStr should start with 0x, but got %v", blockNumberStr)
 			}
 			blockNumber, ok := new(big.Int).SetString(blockNumberStr[2:], 16)
 			if !ok {
-				t.Fatalf("unexpected error: %v", blockNumberStr)
+				s.T().Fatalf("unexpected error: %v", blockNumberStr)
 			}
-			response = MockGetBalance(t, address, blockNumber)
+			response = MockGetBalance(s.T(), address, blockNumber)
 		case "kaia_getBlockByNumber":
 			params := reqData["params"].([]interface{})
 			blockNumber := params[0].(string)
-			response = MockGetBlockByNumber(t, blockNumber)
+			response = MockGetBlockByNumber(s.T(), blockNumber)
 		case "eth_getBlockByNumber":
 			params := reqData["params"].([]interface{})
 			blockNumber := params[0].(string)
-			response = MockGetBlockByNumberEth(t, blockNumber)
+			response = MockGetBlockByNumberEth(s.T(), blockNumber)
 		case "kaia_getBlockByHash":
 			params := reqData["params"].([]interface{})
 			blockHash := params[0].(string)
-			response = MockGetBlockByHash(t, blockHash)
+			response = MockGetBlockByHash(s.T(), blockHash)
 		case "kaia_blockNumber":
 			response = map[string]interface{}{
 				"result": "0x2", // Block 2
@@ -304,9 +346,9 @@ func launchMockServer(t *testing.T, quit chan struct{}) string {
 			transactionIndexStr := params[1].(string)
 			txIdx, err := strconv.ParseUint(transactionIndexStr[2:], 16, 64)
 			if err != nil {
-				t.Fatalf("unexpected error: %v", transactionIndexStr)
+				s.T().Fatalf("unexpected error: %v", transactionIndexStr)
 			}
-			response = MockGetTransactionByBlockHashAndIndex(t, blockHash, txIdx)
+			response = MockGetTransactionByBlockHashAndIndex(s.T(), blockHash, txIdx)
 		default:
 			// Return method not found error
 			response = map[string]interface{}{
@@ -323,49 +365,37 @@ func launchMockServer(t *testing.T, quit chan struct{}) string {
 
 		w.Header().Set("Content-Type", "application/json")
 		if err := json.NewEncoder(w).Encode(response); err != nil {
-			t.Errorf("Failed to encode response: %v", err)
+			s.T().Errorf("Failed to encode response: %v", err)
 		}
-		t.Logf("MockHttpServer sent response: %+v", response)
+		s.T().Logf("MockHttpServer sent response: %+v", response)
 	})
 
-	s := &http.Server{
-		Addr:    "127.0.0.1:36000",
+	s.serverURL = "http://127.0.0.1:36000"
+	s.server = &http.Server{
+		Addr:    strings.TrimPrefix(s.serverURL, "http://"),
 		Handler: myHandler,
 	}
 
+	errChan := make(chan error, 1)
 	go func() {
-		if err := s.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			t.Errorf("Server failed: %v", err)
-		}
+		errChan <- s.server.ListenAndServe()
 	}()
 
-	t.Log("MockHttpServer started on 127.0.0.1:36000")
-
-	go func() {
-		<-quit
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-		s.Shutdown(ctx)
-	}()
-
-	return "http://127.0.0.1:36000"
+	select {
+	case err := <-errChan:
+		return errors.Join(err, errors.New("http server startup failed"))
+	case <-time.After(2 * time.Second):
+		s.T().Logf("MockHttpServer started on %s", s.serverURL)
+		return nil
+	}
 }
 
-func TestKaiaClient(t *testing.T) {
-	quitChan := make(chan struct{})
-	defer close(quitChan)
+func TestMockKaiaRpcServerTestSuite(t *testing.T) {
+	suite.Run(t, new(MockHttpServerTestSuite))
+}
 
-	serverURL := launchMockServer(t, quitChan)
-
-	// Give server time to start
-	time.Sleep(100 * time.Millisecond)
-
-	client, err := tryConnect(serverURL)
-	if err != nil {
-		t.Skip("Could not connect Kaia client to mock server:", err)
-		return
-	}
-	defer client.Close()
+func (s *MockHttpServerTestSuite) TestKaiaClient() {
+	client := s.kaiaClient
 
 	tests := map[string]struct {
 		test func(t *testing.T)
@@ -402,10 +432,30 @@ func TestKaiaClient(t *testing.T) {
 		},
 	}
 
-	t.Parallel()
 	for name, tt := range tests {
-		t.Run(name, tt.test)
+		s.T().Run(name, tt.test)
 	}
+}
+
+func (s *MockHttpServerTestSuite) TestBothClients() {
+	kaiaHeader, err := s.kaiaClient.HeaderByNumber(context.Background(), big.NewInt(0))
+	if err != nil {
+		s.T().Fatal(err)
+	}
+
+	ethclient, err := tryConnectEth(s.serverURL)
+	if err != nil {
+		s.T().Skip("Could not connect Eth client to mock server:", err)
+		return
+	}
+	defer ethclient.Close()
+
+	ethHeader, err := ethclient.HeaderByNumber(context.Background(), big.NewInt(0))
+	if err != nil {
+		s.T().Fatal(err)
+	}
+	assert.Equal(s.T(), kaiaGenesisBlockHash, kaiaHeader.Hash())
+	assert.Equal(s.T(), ethGenesisBlockHash, ethHeader.Hash())
 }
 
 func testHeader(t *testing.T, client *KaiaClient) {

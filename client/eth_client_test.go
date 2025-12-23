@@ -126,7 +126,8 @@ type AnvilTestSuite struct {
 	cmd       *exec.Cmd
 	cancel    func()
 
-	tx *types.Transaction
+	testerBalance *big.Int
+	tx            *types.Transaction
 }
 
 func (s *AnvilTestSuite) SetupSuite() {
@@ -151,7 +152,8 @@ func (s *AnvilTestSuite) SetupSuite() {
 		return
 	}
 
-	unsignedTx := types.NewTransaction(nonce, testAddr, big.NewInt(1e18), params.TxGas, new(big.Int).SetUint64(params.DefaultLowerBoundBaseFee), nil)
+	s.testerBalance = big.NewInt(1e18)
+	unsignedTx := types.NewTransaction(nonce, testAddr, s.testerBalance, params.TxGas, new(big.Int).SetUint64(params.DefaultLowerBoundBaseFee), nil)
 	signer := types.LatestSignerForChainID(genesisConfig.ChainID)
 	s.tx, _ = types.SignTx(unsignedTx, signer, anvilRichKey)
 	if _, err = s.ethClient.SendRawTransaction(context.Background(), s.tx); err != nil {
@@ -245,123 +247,97 @@ func (s *AnvilTestSuite) TestBlockchainAccess() {
 	assert.Equal(s.T(), types.ReceiptStatusSuccessful, uint(status), "tx %s failed", s.tx.Hash().Hex())
 }
 
-func (s *AnvilTestSuite) TestBalanceAt() {
-	// balance, err := ethclient.BalanceAt(context.Background(), testAddr, nil)
-	// if err != nil {
-	// 	t.Fatal(err)
-	// }
-	// assert.True(t, balance.Cmp(testAddrInitialBalance) >= 0)
+func (s *AnvilTestSuite) TestStateAccess() {
+	// covers ContractBackend{ContractCaller, ContractTransactor, ContractFilterer} and DeployBackend{TransactionReceipt, CodeAt}
+	// NetworkID, BalanceAt, StorageAt, CodeAt, NonceAt
+	networkID, err := s.ethClient.NetworkID(context.Background())
+	require.NoError(s.T(), err)
+	assert.Equal(s.T(), uint64(1337), networkID.Uint64())
 
-	// nonce, err := ethclient.NonceAt(context.Background(), testAddr, nil)
-	// if err != nil {
-	// 	t.Fatal(err)
-	// }
-	// dynamicTx := func() *types.Transaction {
-	// 	tx := types.NewTx(&types.TxInternalDataEthereumDynamicFee{
-	// 		ChainID:      genesisConfig.ChainID,
-	// 		AccountNonce: nonce,
-	// 		Recipient:    &testAddr,
-	// 		Amount:       big.NewInt(10),
-	// 		GasLimit:     25000,
-	// 		GasFeeCap:    big.NewInt(50e9),
-	// 		GasTipCap:    big.NewInt(25e9),
-	// 	})
-	// 	signer := types.LatestSignerForChainID(genesisConfig.ChainID)
-	// 	signedTx, _ := types.SignTx(tx, signer, testKey)
-	// 	return signedTx
-	// }()
-	// assert.Equal(t, header.ParentHash, common.Hash{})
-	// assert.NotEqual(t, header.Hash(), common.Hash{})
-	// _, err = ethclient.SendRawTransaction(context.Background(), dynamicTx)
-	// if err != nil {
-	// 	t.Fatal(err)
-	// }
+	chainID, err := s.ethClient.ChainID(context.Background())
+	require.NoError(s.T(), err)
+	assert.Equal(s.T(), uint64(1337), chainID.Uint64())
 
-	// nonce++
-	// deployTx := func() *types.Transaction {
-	// 	// contract Storage { uint256 number = 1337; * @dev Return value @return value of 'number' */ function retrieve() public view returns (uint256){ return number; } }
-	// 	bytecode := common.Hex2Bytes("60806040526105395f553480156013575f5ffd5b5060af80601f5f395ff3fe6080604052348015600e575f5ffd5b50600436106026575f3560e01c80632e64cec114602a575b5f5ffd5b60306044565b604051603b91906062565b60405180910390f35b5f5f54905090565b5f819050919050565b605c81604c565b82525050565b5f60208201905060735f8301846055565b9291505056fea2646970667358221220bbed5c2a1719068dca0cf4da53d280029c147463a0b8f8319bc3494906ad27a964736f6c634300081e0033")
-	// 	tx := types.NewContractCreation(nonce, big.NewInt(0), 1e6, big.NewInt(25e9), bytecode)
-	// 	signer := types.LatestSignerForChainID(genesisConfig.ChainID)
-	// 	signedTx, _ := types.SignTx(tx, signer, testKey)
-	// 	return signedTx
-	// }()
-	// hash, err = ethclient.SendRawTransaction(context.Background(), deployTx)
-	// if err != nil {
-	// 	t.Fatal(err)
-	// }
-	// time.Sleep(1 * time.Second)
-	// receipt, err = ethclient.TransactionReceiptRpcOutput(context.Background(), hash)
-	// if err != nil {
-	// 	t.Fatal(err)
-	// }
-	// status, err = strconv.ParseUint(receipt["status"].(string), 0, 64)
-	// if err != nil {
-	// 	t.Fatal(err)
-	// }
-	// assert.Equal(t, types.ReceiptStatusSuccessful, uint(status), "tx %s failed", hash.Hex())
+	balance, err := s.ethClient.BalanceAt(context.Background(), testAddr, nil)
+	require.NoError(s.T(), err)
+	assert.True(s.T(), balance.Cmp(s.testerBalance) >= 0)
 
-	// contractAddr := crypto.CreateAddress(testAddr, nonce)
-	// calldata := common.Hex2Bytes("2e64cec1") // retrieve()(uint256)
-	// ret, err := ethclient.CallContract(context.Background(), kaia.CallMsg{To: &contractAddr, Data: calldata}, nil)
-	// if err != nil {
-	// 	t.Fatal(err)
-	// }
-	// assert.Equal(t, "0000000000000000000000000000000000000000000000000000000000000539", common.Bytes2Hex(ret))
+	nonce, err := s.ethClient.NonceAt(context.Background(), testAddr, nil)
+	require.NoError(s.T(), err)
 
-	// accesslist, _, _, err := ethclient.CreateAccessList(context.Background(), kaia.CallMsg{To: &contractAddr, Data: calldata})
-	// if err != nil {
-	// 	t.Fatal(err)
-	// }
-	// assert.Equal(t, 1, accesslist.StorageKeys())
+	header, err := s.ethClient.HeaderByNumber(context.Background(), nil)
+	require.NoError(s.T(), err)
+	assert.NotEqual(s.T(), header.Hash(), common.Hash{})
 
-	// storage, err := ethclient.StorageAt(context.Background(), contractAddr, (*accesslist)[0].StorageKeys[0], nil)
-	// if err != nil {
-	// 	t.Fatal(err)
-	// }
-	// assert.Equal(t, "0000000000000000000000000000000000000000000000000000000000000539", common.Bytes2Hex(storage))
+	dynamicTx := func() *types.Transaction {
+		tx := types.NewTx(&types.TxInternalDataEthereumDynamicFee{
+			ChainID:      genesisConfig.ChainID,
+			AccountNonce: nonce,
+			Recipient:    &testAddr,
+			Amount:       big.NewInt(10),
+			GasLimit:     21000,
+			GasFeeCap:    big.NewInt(50e9),
+			GasTipCap:    big.NewInt(25e9),
+		})
+		gas, err := s.ethClient.EstimateGas(context.Background(), kaia.CallMsg{To: &testAddr, Data: tx.Data()})
+		require.NoError(s.T(), err)
+		assert.Equal(s.T(), uint64(21000), gas)
+		signer := types.LatestSignerForChainID(genesisConfig.ChainID)
+		signedTx, _ := types.SignTx(tx, signer, testKey)
+		return signedTx
+	}()
+
+	_, err = s.ethClient.SendRawTransaction(context.Background(), dynamicTx)
+	require.NoError(s.T(), err)
+
+	nonce++
+	deployTx := func() *types.Transaction {
+		// contract Storage { uint256 number = 1337; * @dev Return value @return value of 'number' */ function retrieve() public view returns (uint256){ return number; } }
+		bytecode := common.Hex2Bytes("60806040526105395f553480156013575f5ffd5b5060af80601f5f395ff3fe6080604052348015600e575f5ffd5b50600436106026575f3560e01c80632e64cec114602a575b5f5ffd5b60306044565b604051603b91906062565b60405180910390f35b5f5f54905090565b5f819050919050565b605c81604c565b82525050565b5f60208201905060735f8301846055565b9291505056fea2646970667358221220bbed5c2a1719068dca0cf4da53d280029c147463a0b8f8319bc3494906ad27a964736f6c634300081e0033")
+		tx := types.NewContractCreation(nonce, big.NewInt(0), 1e6, big.NewInt(25e9), bytecode)
+		gas, err := s.ethClient.EstimateGas(context.Background(), kaia.CallMsg{Data: tx.Data()})
+		require.NoError(s.T(), err)
+		assert.Equal(s.T(), uint64(113476), gas)
+		signer := types.LatestSignerForChainID(genesisConfig.ChainID)
+		signedTx, _ := types.SignTx(tx, signer, testKey)
+		return signedTx
+	}()
+
+	txhash, err := s.ethClient.SendRawTransaction(context.Background(), deployTx)
+	require.NoError(s.T(), err)
+	time.Sleep(1 * time.Second)
+
+	receipt, err := s.ethClient.TransactionReceipt(context.Background(), txhash)
+	require.NoError(s.T(), err)
+	assert.Equal(s.T(), types.ReceiptStatusSuccessful, receipt.Status)
+
+	contractAddr := crypto.CreateAddress(testAddr, nonce)
+	calldata := common.Hex2Bytes("2e64cec1") // retrieve()(uint256)
+	ret, err := s.ethClient.CallContract(context.Background(), kaia.CallMsg{To: &contractAddr, Data: calldata}, nil)
+	require.NoError(s.T(), err)
+	assert.Equal(s.T(), "0000000000000000000000000000000000000000000000000000000000000539", common.Bytes2Hex(ret))
+
+	accesslist, _, _, err := s.ethClient.CreateAccessList(context.Background(), kaia.CallMsg{To: &contractAddr, Data: calldata})
+	require.NoError(s.T(), err)
+	assert.Equal(s.T(), 1, accesslist.StorageKeys())
+
+	code, err := s.ethClient.CodeAt(context.Background(), contractAddr, nil)
+	require.NoError(s.T(), err)
+	assert.Equal(s.T(), 175, len(code))
+
+	storage, err := s.ethClient.StorageAt(context.Background(), contractAddr, (*accesslist)[0].StorageKeys[0], nil)
+	require.NoError(s.T(), err)
+	assert.Equal(s.T(), "0000000000000000000000000000000000000000000000000000000000000539", common.Bytes2Hex(storage))
+
+	bn, _ := s.ethClient.BlockNumber(context.Background())
+	logs, err := s.ethClient.FilterLogs(context.Background(), kaia.FilterQuery{
+		FromBlock: big.NewInt(0),
+		ToBlock:   bn,
+		Addresses: []common.Address{contractAddr},
+	})
+	require.NoError(s.T(), err)
+	assert.Equal(s.T(), 0, len(logs))
 }
-
-// func TestEthClient_AnvilServerWithCleanup(t *testing.T) {
-// 	// Launch anvil server with 30s timeout
-// 	serverURL, cleanup := launchAnvilServer(t)
-// 	defer cleanup() // Ensure cleanup happens when test ends
-
-// 	// Connect to anvil server
-// 	ethclient, err := tryConnectEth(serverURL)
-// 	if err != nil {
-// 		t.Skip("Could not connect Eth client to anvil server:", err)
-// 		return
-// 	}
-// 	defer ethclient.Close()
-
-// 	// Test basic functionality
-// 	ethHeader, err := ethclient.HeaderByNumber(context.Background(), big.NewInt(0))
-// 	if err != nil {
-// 		t.Fatal("Failed to get genesis block:", err)
-// 	}
-
-// 	t.Log("Genesis block hash:", ethHeader.Hash().Hex())
-// 	assert.Equal(t, uint64(0), ethHeader.Number.Uint64())
-
-// 	// Test contract deployment
-// 	bytecode := common.Hex2Bytes("608060405234801561001057600080fd5b506101de806100206000396000f3006080604052600436106100615763ffffffff7c01000000000000000000000000000000000000000000000000000000006000350416631a39d8ef81146100805780636353586b146100a757806370a08231146100ca578063fd6b7ef8146100f8575b3360009081526001602052604081208054349081019091558154019055005b34801561008c57600080fd5b5061009561010d565b60408051918252519081900360200190f35b6100c873ffffffffffffffffffffffffffffffffffffffff60043516610113565b005b3480156100d657600080fd5b5061009573ffffffffffffffffffffffffffffffffffffffff60043516610147565b34801561010457600080fd5b506100c8610159565b60005481565b73ffffffffffffffffffffffffffffffffffffffff1660009081526001602052604081208054349081019091558154019055565b60016020526000908152604090205481565b336000908152600160205260408120805490829055908111156101af57604051339082156108fc029083906000818181858888f193505050501561019c576101af565b3360009081526001602052604090208190555b505600a165627a7a72305820627ca46bb09478a015762806cc00c431230501118c7c26c30ac58c4e09e51c4f0029")
-
-// 	// Use anvil's default funded account
-// 	deployTx := types.NewContractCreation(0, big.NewInt(0), 1000000, big.NewInt(1e9), bytecode)
-// 	signer := types.LatestSignerForChainID(big.NewInt(1337))
-// 	signedDeployTx, err := types.SignTx(deployTx, signer, anvilRichKey)
-// 	if err != nil {
-// 		t.Fatal("Failed to sign deploy tx:", err)
-// 	}
-
-// 	hash, err := ethclient.SendRawTransaction(context.Background(), signedDeployTx)
-// 	if err != nil {
-// 		t.Fatal("Failed to deploy contract:", err)
-// 	}
-
-// 	t.Log("Contract deployed with tx hash:", hash.Hex())
-// }
 
 func (s *AnvilTestSuite) TestKaiaClient() {
 	kaiaClient, err := tryConnect(s.serverURL)

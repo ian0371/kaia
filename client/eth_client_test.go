@@ -29,6 +29,7 @@ import (
 
 	"github.com/kaiachain/kaia"
 	"github.com/kaiachain/kaia/accounts/abi/bind"
+	"github.com/kaiachain/kaia/api"
 	"github.com/kaiachain/kaia/blockchain/types"
 
 	"github.com/kaiachain/kaia/common"
@@ -39,11 +40,67 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
+type IEthClient interface {
+	Close()
+	SetHeader(key, value string)
+	// BlockByHash(ctx context.Context, hash common.Hash) (*types.Block, error)
+	// BlockByNumber(ctx context.Context, number *big.Int) (*types.Block, error)
+	// HeaderByHash(ctx context.Context, hash common.Hash) (*types.Header, error)
+	// HeaderByNumber(ctx context.Context, number *big.Int) (*types.Header, error)
+	BlockByHash(ctx context.Context, hash common.Hash) (*EthBlock, error)
+	BlockByNumber(ctx context.Context, number *big.Int) (*EthBlock, error)
+	HeaderByHash(ctx context.Context, hash common.Hash) (*EthHeader, error)
+	HeaderByNumber(ctx context.Context, number *big.Int) (*EthHeader, error)
+	// TransactionByHash(ctx context.Context, hash common.Hash) (tx *types.Transaction, isPending bool, err error)
+	TransactionByHash(ctx context.Context, hash common.Hash) (tx *api.EthRPCTransaction, isPending bool, err error)
+	TransactionSender(ctx context.Context, tx *types.Transaction, block common.Hash, index uint) (common.Address, error)
+	TransactionCount(ctx context.Context, blockHash common.Hash) (uint, error)
+	// TransactionInBlock(ctx context.Context, blockHash common.Hash, index uint) (*types.Transaction, error)
+	TransactionInBlock(ctx context.Context, blockHash common.Hash, index uint) (*api.EthRPCTransaction, error)
+	TransactionReceipt(ctx context.Context, txHash common.Hash) (*types.Receipt, error)
+	TransactionReceiptRpcOutput(ctx context.Context, txHash common.Hash) (r map[string]interface{}, err error)
+	// SyncProgress(ctx context.Context) (*kaia.SyncProgress, error)
+	SubscribeNewHead(ctx context.Context, ch chan<- *types.Header) (kaia.Subscription, error)
+	// AuctionSubscribeNewHead(ctx context.Context, ch chan<- *types.Header)
+	NetworkID(ctx context.Context) (*big.Int, error)
+	BalanceAt(ctx context.Context, account common.Address, blockNumber *big.Int) (*big.Int, error)
+	StorageAt(ctx context.Context, account common.Address, key common.Hash, blockNumber *big.Int) ([]byte, error)
+	CodeAt(ctx context.Context, account common.Address, blockNumber *big.Int) ([]byte, error)
+	NonceAt(ctx context.Context, account common.Address, blockNumber *big.Int) (uint64, error)
+	FilterLogs(ctx context.Context, q kaia.FilterQuery) ([]types.Log, error)
+	SubscribeFilterLogs(ctx context.Context, q kaia.FilterQuery, ch chan<- types.Log) (kaia.Subscription, error)
+	// AuctionSubscribeFilterLogs(ctx context.Context, q kaia.FilterQuery, ch chan<- types.Log)
+	PendingBalanceAt(ctx context.Context, account common.Address) (*big.Int, error)
+	PendingStorageAt(ctx context.Context, account common.Address, key common.Hash) ([]byte, error)
+	PendingCodeAt(ctx context.Context, account common.Address) ([]byte, error)
+	PendingNonceAt(ctx context.Context, account common.Address) (uint64, error)
+	PendingTransactionCount(ctx context.Context) (uint, error)
+	// AuctionSubscribeFullPendingTransactions(ctx context.Context, ch chan<- *types.Transaction)
+	// AuctionSubscribeFullPendingTransactionsRaw(ctx context.Context, ch chan<- map[string]any)
+	// AuctionSubscribePendingTransactions(ctx context.Context, ch chan<- common.Hash)
+	CallContract(ctx context.Context, msg kaia.CallMsg, blockNumber *big.Int) ([]byte, error)
+	// AuctionCallContract(ctx context.Context, msg kaia.CallMsg, blockNumber *big.Int)
+	PendingCallContract(ctx context.Context, msg kaia.CallMsg) ([]byte, error)
+	SuggestGasPrice(ctx context.Context) (*big.Int, error)
+	EstimateGas(ctx context.Context, msg kaia.CallMsg) (uint64, error)
+	SendTransaction(ctx context.Context, tx *types.Transaction) error
+	// SendAuctionTx(ctx context.Context, bidInput auction_impl.BidInput)
+	SendRawTransaction(ctx context.Context, tx *types.Transaction) (common.Hash, error)
+	// SendUnsignedTransaction(ctx context.Context, unsignedTx api.SendTxArgs) (common.Hash, error)
+	// ImportRawKey(ctx context.Context, key string, password string) (common.Address, error)
+	// UnlockAccount(ctx context.Context, address common.Address, password string, time uint)
+	BlockNumber(ctx context.Context) (*big.Int, error)
+	ChainID(ctx context.Context) (*big.Int, error)
+	// AddPeer(ctx context.Context, url string) (bool, error)
+	// RemovePeer(ctx context.Context, url string) (bool, error)
+	CreateAccessList(ctx context.Context, msg kaia.CallMsg) (*types.AccessList, uint64, string, error)
+}
+
 // Verify that EthClient implements the Kaia interfaces.
 var (
 	// _ = kaia.Subscription(&EthClient{})
 	// _ = kaia.ChainReader(&EthClient{}) // returns EthBlock thus not compatible
-	_ = kaia.TransactionReader(&EthClient{})
+	// _ = kaia.TransactionReader(&EthClient{})
 	_ = kaia.ChainStateReader(&EthClient{})
 	// _ = kaia.ChainSyncReader(&EthClient{})
 	_ = kaia.ContractCaller(&EthClient{})
@@ -55,6 +112,7 @@ var (
 	_ = kaia.GasEstimator(&EthClient{})
 	_ = bind.ContractBackend(&EthClient{})
 	_ = bind.DeployBackend(&EthClient{})
+	_ = IEthClient(&EthClient{})
 	// _ = kaia.PendingStateEventer(&Client{})
 
 	ethBlockHash    = common.HexToHash("0x1c6ef781e4f30626053500c374498f78e3138128603e6f9c92bff0292613c5bb")
@@ -72,21 +130,33 @@ type AnvilTestSuite struct {
 }
 
 func (s *AnvilTestSuite) SetupSuite() {
-	s.launchAnvilServer()
+	var err error
+	var nonce uint64
+	defer func() {
+		if err != nil {
+			s.TearDownSuite()
+			s.T().Fatal(err)
+		}
+	}()
 
-	nonce, err := s.ethclient.NonceAt(context.Background(), anvilRichAddr, nil)
-	if err != nil {
-		s.T().Fatal(err)
+	if err = s.launchAnvilServer(); err != nil {
+		return
 	}
+	if s.ethclient, err = tryConnectEth(s.serverURL); err != nil {
+		return
+	}
+	if nonce, err = s.ethclient.NonceAt(context.Background(), anvilRichAddr, nil); err != nil {
+		return
+	}
+
 	unsignedTx := types.NewTransaction(nonce, testAddr, big.NewInt(1e18), params.TxGas, new(big.Int).SetUint64(params.DefaultLowerBoundBaseFee), nil)
 	signer := types.LatestSignerForChainID(genesisConfig.ChainID)
 	s.tx, _ = types.SignTx(unsignedTx, signer, anvilRichKey)
-	_, err = s.ethclient.SendRawTransaction(context.Background(), s.tx)
-	if err != nil {
-		s.T().Fatal(err)
+	if _, err = s.ethclient.SendRawTransaction(context.Background(), s.tx); err != nil {
+		return
 	}
-	assert.Equal(s.T(), s.tx.Hash(), unsignedTx.Hash())
 	time.Sleep(1 * time.Second)
+	s.T().Logf("Signed transaction: %s", s.tx.Hash().Hex())
 }
 
 func (s *AnvilTestSuite) TearDownSuite() {
@@ -103,32 +173,19 @@ func (s *AnvilTestSuite) killAnvilServer() {
 	}
 }
 
-func (s *AnvilTestSuite) launchAnvilServer() {
-	var err error
-	skipTest := false
-	defer func() {
-		if skipTest {
-			s.killAnvilServer()
-			s.T().Skipf("Failed to start anvil: %v, skipping test", err)
-		}
-	}()
-
+func (s *AnvilTestSuite) launchAnvilServer() error {
 	randPort := rand.Intn(30000) + 20000
 	// Check if anvil is installed
-	_, err = exec.LookPath("anvil")
+	_, err := exec.LookPath("anvil")
 	if err != nil {
-		skipTest = true
-		err = errors.Join(err, errors.New("anvil not found in PATH"))
-		return
+		return errors.New("anvil not found in PATH")
 	}
 
 	// Start anvil in background
 	s.cmd = exec.Command("anvil", "--chain-id", "1337", "--host", "127.0.0.1", "--port", strconv.Itoa(randPort))
 	err = s.cmd.Start()
 	if err != nil {
-		skipTest = true
-		err = errors.Join(err, errors.New("failed to start anvil"))
-		return
+		return errors.New("failed to start anvil")
 	}
 
 	s.T().Logf("Started anvil server with PID: %d", s.cmd.Process.Pid)
@@ -136,12 +193,7 @@ func (s *AnvilTestSuite) launchAnvilServer() {
 	time.Sleep(2 * time.Second)
 
 	s.serverURL = fmt.Sprintf("http://127.0.0.1:%d", randPort)
-	s.ethclient, err = tryConnectEth(s.serverURL)
-	if err != nil {
-		skipTest = true
-		err = errors.Join(err, errors.New("failed to connect Eth client to anvil server"))
-		return
-	}
+	return nil
 }
 
 func TestAnvilTestSuite(t *testing.T) {
@@ -171,34 +223,28 @@ func (s *AnvilTestSuite) TestBlockchainAccess() {
 
 	apiTx, _, err := ethclient.TransactionByHash(context.Background(), s.tx.Hash())
 	require.NoError(s.T(), err)
-	assert.Equal(s.T(), s.tx.Hash(), apiTx.Hash())
+	assert.Equal(s.T(), s.tx.Hash(), apiTx.Hash)
 
-	/*
-		sender, err := ethclient.TransactionSender(context.Background(), s.tx, s.tx.Hash(), 0)
-		require.NoError(s.T(), err)
-		assert.Equal(s.T(), sender, anvilRichAddr)
+	cnt, err := ethclient.TransactionCount(context.Background(), header.Hash())
+	require.NoError(s.T(), err)
+	assert.Equal(s.T(), uint(1), cnt)
 
-		cnt, err := ethclient.TransactionCount(context.Background(), header.Hash())
-		require.NoError(s.T(), err)
-		assert.Equal(s.T(), uint(0), cnt)
+	apiTx, err = ethclient.TransactionInBlock(context.Background(), header.Hash(), 0)
+	require.NoError(s.T(), err)
+	assert.Equal(s.T(), apiTx.Hash, apiTx.Hash)
 
-		apiTx, err = ethclient.TransactionInBlock(context.Background(), header.Hash(), 0)
-		require.NoError(s.T(), err)
-		assert.Equal(s.T(), apiTx.Hash(), apiTx.Hash())
+	receipt, err := ethclient.TransactionReceipt(context.Background(), s.tx.Hash())
+	require.NoError(s.T(), err)
+	assert.Equal(s.T(), types.ReceiptStatusSuccessful, receipt.Status)
 
-		receipt, err := ethclient.TransactionReceipt(context.Background(), s.tx.Hash())
-		require.NoError(s.T(), err)
-		assert.Equal(s.T(), types.ReceiptStatusSuccessful, receipt.Status)
+	receiptMap, err := ethclient.TransactionReceiptRpcOutput(context.Background(), s.tx.Hash())
+	require.NoError(s.T(), err)
 
-		receiptMap, err := ethclient.TransactionReceiptRpcOutput(context.Background(), s.tx.Hash())
-		require.NoError(s.T(), err)
-
-		status, err := strconv.ParseUint(receiptMap["status"].(string), 0, 64)
-		if err != nil {
-			s.T().Fatal(err)
-		}
-		assert.Equal(s.T(), types.ReceiptStatusSuccessful, uint(status), "tx %s failed", s.tx.Hash().Hex())
-	*/
+	status, err := strconv.ParseUint(receiptMap["status"].(string), 0, 64)
+	if err != nil {
+		s.T().Fatal(err)
+	}
+	assert.Equal(s.T(), types.ReceiptStatusSuccessful, uint(status), "tx %s failed", s.tx.Hash().Hex())
 }
 
 func (s *AnvilTestSuite) TestBalanceAt() {

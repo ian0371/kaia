@@ -31,6 +31,7 @@ import (
 	"math/big"
 
 	"github.com/kaiachain/kaia"
+	"github.com/kaiachain/kaia/api"
 	"github.com/kaiachain/kaia/blockchain/types"
 	"github.com/kaiachain/kaia/common"
 	"github.com/kaiachain/kaia/common/hexutil"
@@ -108,14 +109,14 @@ type EthHeader struct {
 
 type EthBlock struct {
 	header       *EthHeader
-	transactions []*types.Transaction
+	transactions []*api.EthRPCTransaction
 }
 
 func (b *EthBlock) Header() *EthHeader {
 	return b.header
 }
 
-func (b *EthBlock) Transactions() []*types.Transaction {
+func (b *EthBlock) Transactions() []*api.EthRPCTransaction {
 	return b.transactions
 }
 
@@ -196,15 +197,10 @@ func (ec *EthClient) BlockByNumber(ctx context.Context, number *big.Int) (*EthBl
 	return ec.getBlock(ctx, "eth_getBlockByNumber", toBlockNumArg(number), true)
 }
 
+// rpcBlockEth is used for eth_getBlockBy* responses
 type rpcBlockEth struct {
-	Hash         common.Hash         `json:"hash"`
-	Transactions []rpcTransactionEth `json:"transactions"`
-}
-
-// rpcTransactionEth has no UnmarshalJSON method
-type rpcTransactionEth struct {
-	tx *types.Transaction
-	txExtraInfo
+	Hash         common.Hash             `json:"hash"`
+	Transactions []api.EthRPCTransaction `json:"transactions"`
 }
 
 func (ec *EthClient) getBlock(ctx context.Context, method string, args ...interface{}) (*EthBlock, error) {
@@ -233,9 +229,9 @@ func (ec *EthClient) getBlock(ctx context.Context, method string, args ...interf
 	//	return nil, fmt.Errorf("server returned empty transaction list but block header indicates transactions")
 	//}
 	// Fill the sender cache of transactions in the block.
-	txs := make([]*types.Transaction, len(body.Transactions))
+	txs := make([]*api.EthRPCTransaction, len(body.Transactions))
 	for i, tx := range body.Transactions {
-		txs[i] = tx.tx
+		txs[i] = &tx
 	}
 	return &EthBlock{
 		header:       head,
@@ -265,17 +261,17 @@ func (ec *EthClient) HeaderByNumber(ctx context.Context, number *big.Int) (*EthH
 }
 
 // TransactionByHash returns the transaction with the given hash.
-func (ec *EthClient) TransactionByHash(ctx context.Context, hash common.Hash) (tx *types.Transaction, isPending bool, err error) {
-	var json *rpcTransactionEth
+func (ec *EthClient) TransactionByHash(ctx context.Context, hash common.Hash) (tx *api.EthRPCTransaction, isPending bool, err error) {
+	var json *api.EthRPCTransaction
 	err = ec.c.CallContext(ctx, &json, "eth_getTransactionByHash", hash)
 	if err != nil {
 		return nil, false, err
-	} else if json == nil || json.tx == nil {
+	} else if json == nil {
 		return nil, false, kaia.NotFound
-	} else if sigs := json.tx.RawSignatureValues(); sigs == nil || len(sigs) == 0 || sigs[0].V == nil {
+	} else if json.V == nil {
 		return nil, false, fmt.Errorf("server returned transaction without signature")
 	}
-	return json.tx, json.BlockNumber == nil, nil
+	return json, json.BlockNumber == nil, nil
 }
 
 // TransactionSender returns the sender address of the given transaction. The transaction
@@ -314,21 +310,18 @@ func (ec *EthClient) TransactionCount(ctx context.Context, blockHash common.Hash
 }
 
 // TransactionInBlock returns a single transaction at index in the given block.
-func (ec *EthClient) TransactionInBlock(ctx context.Context, blockHash common.Hash, index uint) (*types.Transaction, error) {
-	var json *rpcTransactionEth
+func (ec *EthClient) TransactionInBlock(ctx context.Context, blockHash common.Hash, index uint) (*api.EthRPCTransaction, error) {
+	var json *api.EthRPCTransaction
 	err := ec.c.CallContext(ctx, &json, "eth_getTransactionByBlockHashAndIndex", blockHash, hexutil.Uint64(index))
 	if err != nil {
 		return nil, err
 	}
 	if json == nil {
 		return nil, kaia.NotFound
-	} else if sigs := json.tx.RawSignatureValues(); sigs[0].V == nil {
+	} else if json.V == nil {
 		return nil, fmt.Errorf("server returned transaction without signature")
 	}
-	if json.From != nil && json.BlockHash != nil {
-		setSenderFromServer(json.tx, *json.From, *json.BlockHash)
-	}
-	return json.tx, err
+	return json, err
 }
 
 // TransactionReceipt returns the receipt of a transaction by transaction hash.

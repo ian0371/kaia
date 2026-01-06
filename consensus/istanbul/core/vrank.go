@@ -33,7 +33,6 @@ type Vrank struct {
 	startTime            time.Time
 	view                 istanbul.View
 	committee            []common.Address
-	threshold            time.Duration
 	commitArrivalTimeMap map[common.Address]time.Duration
 
 	// metrics
@@ -49,8 +48,6 @@ var (
 	vrankQuorumCommitArrivalTimeGauge          = metrics.NewRegisteredGauge("vrank/quorum_commit", nil)
 	vrankAvgCommitArrivalTimeWithinQuorumGauge = metrics.NewRegisteredGauge("vrank/avg_commit_within_quorum", nil)
 	vrankLastCommitArrivalTimeGauge            = metrics.NewRegisteredGauge("vrank/last_commit", nil)
-
-	vrankDefaultThreshold = "300ms" // the time to receive 2f+1 commits in an ideal network
 
 	VRankLogFrequency = uint64(0) // Will be set to the value of VRankLogFrequencyFlag in SetKaiaConfig()
 
@@ -68,12 +65,10 @@ const (
 )
 
 func NewVrank(view istanbul.View, committee []common.Address) *Vrank {
-	threshold, _ := time.ParseDuration(vrankDefaultThreshold)
 	return &Vrank{
 		startTime:             time.Now(),
 		view:                  view,
 		committee:             committee,
-		threshold:             threshold,
 		firstCommit:           int64(0),
 		quorumCommit:          int64(0),
 		avgCommitWithinQuorum: int64(0),
@@ -115,10 +110,6 @@ func (v *Vrank) HandleCommitted(blockNum *big.Int) {
 		v.avgCommitWithinQuorum = avg
 		v.firstCommit = int64(firstCommitTime)
 		v.quorumCommit = int64(quorumCommitTime)
-
-		if quorumCommitTime != time.Duration(0) && v.threshold > quorumCommitTime {
-			v.threshold = quorumCommitTime
-		}
 	}
 }
 

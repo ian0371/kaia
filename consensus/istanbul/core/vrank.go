@@ -19,7 +19,6 @@
 package core
 
 import (
-	"encoding/hex"
 	"fmt"
 	"math"
 	"math/big"
@@ -27,28 +26,39 @@ import (
 
 	"github.com/kaiachain/kaia/common"
 	"github.com/kaiachain/kaia/consensus/istanbul"
-	"github.com/kaiachain/kaia/kaiax/valset"
 	"github.com/rcrowley/go-metrics"
 )
 
 type Vrank struct {
-	startTime             time.Time
-	view                  istanbul.View
-	committee             []common.Address
-	threshold             time.Duration
-	firstCommit           int64
-	quorumCommit          int64
-	avgCommitWithinQuorum int64
-	lastCommit            int64
-	commitArrivalTimeMap  map[common.Address]time.Duration
+	startTime time.Time
+	view      istanbul.View
+	committee []common.Address
+	threshold time.Duration
+
+	preprepareArrivalTimeMap map[common.Address]time.Duration
+	commitArrivalTimeMap     map[common.Address]time.Duration
+
+	// metrics
+	firstPreprepare           int64
+	quorumPreprepare          int64
+	avgPreprepareWithinQuorum int64
+	lastPreprepare            int64
+	firstCommit               int64
+	quorumCommit              int64
+	avgCommitWithinQuorum     int64
+	lastCommit                int64
 }
 
 var (
 	// VRank metrics
-	vrankFirstCommitArrivalTimeGauge           = metrics.NewRegisteredGauge("vrank/first_commit", nil)
-	vrankQuorumCommitArrivalTimeGauge          = metrics.NewRegisteredGauge("vrank/quorum_commit", nil)
-	vrankAvgCommitArrivalTimeWithinQuorumGauge = metrics.NewRegisteredGauge("vrank/avg_commit_within_quorum", nil)
-	vrankLastCommitArrivalTimeGauge            = metrics.NewRegisteredGauge("vrank/last_commit", nil)
+	vrankFirstPreprepareArrivalTimeGauge           = metrics.NewRegisteredGauge("vrank/first_preprepare", nil)
+	vrankQuorumPreprepareArrivalTimeGauge          = metrics.NewRegisteredGauge("vrank/quorum_preprepare", nil)
+	vrankAvgPreprepareArrivalTimeWithinQuorumGauge = metrics.NewRegisteredGauge("vrank/avg_preprepare_within_quorum", nil)
+	vrankLastPreprepareArrivalTimeGauge            = metrics.NewRegisteredGauge("vrank/last_preprepare", nil)
+	vrankFirstCommitArrivalTimeGauge               = metrics.NewRegisteredGauge("vrank/first_commit", nil)
+	vrankQuorumCommitArrivalTimeGauge              = metrics.NewRegisteredGauge("vrank/quorum_commit", nil)
+	vrankAvgCommitArrivalTimeWithinQuorumGauge     = metrics.NewRegisteredGauge("vrank/avg_commit_within_quorum", nil)
+	vrankLastCommitArrivalTimeGauge                = metrics.NewRegisteredGauge("vrank/last_commit", nil)
 
 	vrankDefaultThreshold = "300ms" // the time to receive 2f+1 commits in an ideal network
 
@@ -84,6 +94,9 @@ func NewVrank(view istanbul.View, committee []common.Address) *Vrank {
 
 func (v *Vrank) TimeSinceStart() time.Duration {
 	return time.Now().Sub(v.startTime)
+}
+
+func (v *Vrank) AddPreprepare(msg *istanbul.Subject, src common.Address) {
 }
 
 func (v *Vrank) AddCommit(msg *istanbul.Subject, src common.Address) {
@@ -122,39 +135,8 @@ func (v *Vrank) HandleCommitted(blockNum *big.Int) {
 	}
 }
 
-func (v *Vrank) Bitmap() string {
-	serialized := serialize(v.committee, v.commitArrivalTimeMap)
-	assessed := assessBatch(serialized, v.threshold)
-	compressed := compress(assessed)
-	return hex.EncodeToString(compressed)
-}
-
-func (v *Vrank) LateCommits() []time.Duration {
-	serialized := serialize(v.committee, v.commitArrivalTimeMap)
-	lateCommits := make([]time.Duration, 0)
-	for _, t := range serialized {
-		if assess(t, v.threshold) == vrankArrivedLate {
-			lateCommits = append(lateCommits, t)
-		}
-	}
-	return lateCommits
-}
-
 // Log logs accumulated data in a compressed form
 func (v *Vrank) Log() {
-	var (
-		lastCommit  = time.Duration(0)
-		lateCommits = v.LateCommits()
-	)
-
-	// lastCommit = max(lateCommits)
-	for _, t := range lateCommits {
-		if lastCommit < t {
-			lastCommit = t
-		}
-	}
-	v.lastCommit = int64(lastCommit)
-
 	v.updateMetrics()
 
 	// Skip logging if VRankLogFrequency is 0 or not in the logging frequency
@@ -162,10 +144,8 @@ func (v *Vrank) Log() {
 		return
 	}
 
-	logger.Info("VRank", "seq", v.view.Sequence.Int64(),
+	logger.Warn("VRank", "seq", v.view.Sequence.Int64(),
 		"round", v.view.Round.Int64(),
-		"bitmap", v.Bitmap(),
-		"late", encodeDurationBatch(lateCommits),
 	)
 }
 
@@ -184,7 +164,7 @@ func (v *Vrank) updateMetrics() {
 	}
 }
 
-func (v *Vrank) isTargetCommit(msg *istanbul.Subject, src common.Address) bool {
+func (v *Vrank) isTargetPreprepare(msg *istanbul.Subject, src common.Address) bool {
 	if msg.View == nil || msg.View.Sequence == nil || msg.View.Round == nil {
 		return false
 	}
@@ -198,69 +178,18 @@ func (v *Vrank) isTargetCommit(msg *istanbul.Subject, src common.Address) bool {
 	return true
 }
 
-// assess determines if given time is early, late, or not arrived
-func assess(t, threshold time.Duration) uint8 {
-	if t == vrankNotArrivedPlaceholder {
-		return vrankNotArrived
+func (v *Vrank) isTargetCommit(msg *istanbul.Subject, src common.Address) bool {
+	if msg.View == nil || msg.View.Sequence == nil || msg.View.Round == nil {
+		return false
 	}
-
-	if t > threshold {
-		return vrankArrivedLate
-	} else {
-		return vrankArrivedEarly
+	if msg.View.Cmp(&v.view) != 0 {
+		return false
 	}
-}
-
-func assessBatch(ts []time.Duration, threshold time.Duration) []uint8 {
-	ret := make([]uint8, len(ts))
-	for i, t := range ts {
-		ret[i] = assess(t, threshold)
+	_, ok := v.commitArrivalTimeMap[src]
+	if ok {
+		return false
 	}
-	return ret
-}
-
-// serialize serializes arrivalTime hashmap into array.
-// If committee is sorted, we can simply figure out the validator position in the output array
-// by sorting the output of `kaia.getCommittee()`
-func serialize(committee []common.Address, arrivalTimeMap map[common.Address]time.Duration) []time.Duration {
-	sortedCommittee := valset.NewAddressSet(committee).List()
-
-	serialized := make([]time.Duration, len(sortedCommittee))
-	for i, v := range sortedCommittee {
-		val, ok := arrivalTimeMap[v]
-		if ok {
-			serialized[i] = val
-		} else {
-			serialized[i] = vrankNotArrivedPlaceholder
-		}
-
-	}
-	return serialized
-}
-
-// compress compresses data into 2-bit bitmap
-// e.g., [1, 0, 2] => [0b01_00_10_00]
-func compress(arr []uint8) []byte {
-	zip := func(a, b, c, d uint8) byte {
-		a &= 0b11
-		b &= 0b11
-		c &= 0b11
-		d &= 0b11
-		return byte(a<<6 | b<<4 | c<<2 | d<<0)
-	}
-
-	// pad zero to make len(arr)%4 == 0
-	for len(arr)%4 != 0 {
-		arr = append(arr, 0)
-	}
-
-	ret := make([]byte, len(arr)/4)
-
-	for i := 0; i < len(arr)/4; i++ {
-		chunk := arr[4*i : 4*(i+1)]
-		ret[i] = zip(chunk[0], chunk[1], chunk[2], chunk[3])
-	}
-	return ret
+	return true
 }
 
 // encodeDuration encodes given duration into string

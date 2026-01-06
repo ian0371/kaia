@@ -30,15 +30,17 @@ import (
 )
 
 type Vrank struct {
-	startTime             time.Time
-	view                  istanbul.View
-	committee             []common.Address
-	threshold             time.Duration
+	startTime            time.Time
+	view                 istanbul.View
+	committee            []common.Address
+	threshold            time.Duration
+	commitArrivalTimeMap map[common.Address]time.Duration
+
+	// metrics
 	firstCommit           int64
 	quorumCommit          int64
 	avgCommitWithinQuorum int64
 	lastCommit            int64
-	commitArrivalTimeMap  map[common.Address]time.Duration
 }
 
 var (

@@ -43,11 +43,12 @@ type Validator struct {
 	ParentChainId  int
 	NodeType       string
 	AddPrivKey     bool
+	Candidate      bool // KIP-227: run as candidate (VrankStatus CandTesting)
 }
 
 func NewValidator(identity int, genesis, scGenesis string, nodeAddress string, nodeKey string, staticNodes, bridgeNodes string, port int, rpcPort int,
 	prometheusPort int, ethStats string, ip string, dockerImageId string, useFastHttp bool, networkId, parentChainId int,
-	namePrefix string, nodeType string, addPrivKey bool,
+	namePrefix string, nodeType string, addPrivKey bool, candidate bool,
 ) *Validator {
 	return &Validator{
 		Identity:       identity,
@@ -67,6 +68,7 @@ func NewValidator(identity int, genesis, scGenesis string, nodeAddress string, n
 		ParentChainId:  parentChainId,
 		NodeType:       nodeType,
 		AddPrivKey:     addPrivKey,
+		Candidate:      candidate,
 		StaticNodes:    staticNodes,
 		BridgeNodes:    bridgeNodes,
 	}
@@ -151,6 +153,9 @@ var validatorTemplate = `{{ .Name }}:
 {{- end}}
 {{- if eq .NodeType "cn" }}
         echo 'REWARDBASE={{ .Address }}' >> /klaytn-docker-pkg/conf/k{{ .NodeType }}d.conf
+{{- if .Candidate }}
+        echo 'ADDITIONAL="$$ADDITIONAL --candidate"' >> /klaytn-docker-pkg/conf/k{{ .NodeType }}d.conf
+{{- end }}
 {{- else if eq .NodeType "pn" }}
         echo 'ADDITIONAL="$$ADDITIONAL --txpool.nolocals"' >> /klaytn-docker-pkg/conf/k{{ .NodeType }}d.conf
 {{- else if eq .Name "EN-0" }}

@@ -229,6 +229,7 @@ var FlagGroups = []FlagGroup{
 		Flags: []cli.Flag{
 			ServiceChainSignerFlag,
 			RewardbaseFlag,
+			CandidateFlag,
 		},
 	},
 	{

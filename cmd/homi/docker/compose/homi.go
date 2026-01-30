@@ -43,7 +43,7 @@ func New(ipPrefix string, number int, secret string, addresses, nodeKeys []strin
 	genesis, scGenesis, staticCNNodes, staticPNNodes, staticENNodes, staticSCNNodes, staticSPNNodes, staticSENNodes,
 	bridgeNodes, dockerImageId string, useFastHttp bool, networkId, parentChainId int,
 	useGrafana bool, proxyNodeKeys, enNodeKeys, scnNodeKeys, spnNodeKeys, senNodeKeys []string, useTxGen bool,
-	txGenOpt service.TxGenOption,
+	txGenOpt service.TxGenOption, cnCandidates []bool,
 ) *Homi {
 	ist := &Homi{
 		IPPrefix:   ipPrefix,
@@ -53,16 +53,21 @@ func New(ipPrefix string, number int, secret string, addresses, nodeKeys []strin
 	}
 	ist.init(number, addresses, nodeKeys, genesis, scGenesis, staticCNNodes, staticPNNodes, staticENNodes,
 		staticSCNNodes, staticSPNNodes, staticSENNodes, bridgeNodes, dockerImageId, useFastHttp, networkId,
-		parentChainId, proxyNodeKeys, enNodeKeys, scnNodeKeys, spnNodeKeys, senNodeKeys, txGenOpt)
+		parentChainId, proxyNodeKeys, enNodeKeys, scnNodeKeys, spnNodeKeys, senNodeKeys, txGenOpt, cnCandidates)
 	return ist
 }
 
 func (ist *Homi) init(number int, addresses, nodeKeys []string, genesis, scGenesis, staticCNNodes, staticPNNodes,
 	staticENNodes, staticSCNNodes, staticSPNNodes, staticSENNodes, bridgeNodes, dockerImageId string, useFastHttp bool,
 	networkId, parentChainId int, proxyNodeKeys, enNodeKeys, scnNodeKeys, spnNodeKeys, senNodeKeys []string, txGenOpt service.TxGenOption,
+	cnCandidates []bool,
 ) {
 	var validatorNames []string
+	candidate := false
 	for i := 0; i < number; i++ {
+		if i < len(cnCandidates) {
+			candidate = cnCandidates[i]
+		}
 		s := service.NewValidator(i,
 			genesis,
 			"",
@@ -83,6 +88,7 @@ func (ist *Homi) init(number int, addresses, nodeKeys []string, genesis, scGenes
 			"CN",
 			"cn",
 			false,
+			candidate,
 		)
 
 		staticCNNodes = strings.Replace(staticCNNodes, "0.0.0.0", s.IP, 1)
@@ -112,6 +118,7 @@ func (ist *Homi) init(number int, addresses, nodeKeys []string, genesis, scGenes
 			"PN",
 			"pn",
 			false,
+			false,
 		)
 
 		staticPNNodes = strings.Replace(staticPNNodes, "0.0.0.0", s.IP, 1)
@@ -140,6 +147,7 @@ func (ist *Homi) init(number int, addresses, nodeKeys []string, genesis, scGenes
 			0,
 			"EN",
 			"en",
+			false,
 			false,
 		)
 		if i == 0 {
@@ -179,6 +187,7 @@ func (ist *Homi) init(number int, addresses, nodeKeys []string, genesis, scGenes
 			"SCN",
 			"scn",
 			false,
+			false,
 		)
 
 		staticSCNNodes = strings.Replace(staticSCNNodes, "0.0.0.0", s.IP, 1)
@@ -214,6 +223,7 @@ func (ist *Homi) init(number int, addresses, nodeKeys []string, genesis, scGenes
 			"SPN",
 			"spn",
 			false,
+			false,
 		)
 
 		staticSPNNodes = strings.Replace(staticSPNNodes, "0.0.0.0", s.IP, 1)
@@ -241,6 +251,7 @@ func (ist *Homi) init(number int, addresses, nodeKeys []string, genesis, scGenes
 			parentChainId,
 			"SEN",
 			"sen",
+			false,
 			false,
 		)
 

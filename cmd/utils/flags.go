@@ -2055,6 +2055,16 @@ var (
 		Category: "VRANK",
 	}
 
+	// KIP-227: run this CN as candidate (VrankStatus CandTesting)
+	CandidateFlag = &cli.BoolFlag{
+		Name:     "candidate",
+		Usage:    "Run as candidate node (KIP-227). Candidate nodes send CandidatePrepare and do not participate in consensus as validators",
+		Value:    false,
+		Aliases:  []string{"common.candidate"},
+		EnvVars:  []string{"KLAYTN_CANDIDATE", "KAIA_CANDIDATE"},
+		Category: "CONSENSUS",
+	}
+
 	// TODO-Kaia-Bootnode: Add bootnode's metric options
 	// TODO-Kaia-Bootnode: Implements bootnode's RPC
 )

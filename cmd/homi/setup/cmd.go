@@ -52,9 +52,10 @@ import (
 )
 
 type ValidatorInfo struct {
-	Address  common.Address
-	Nodekey  string
-	NodeInfo string
+	Address   common.Address
+	Nodekey   string
+	NodeInfo  string
+	Candidate bool // true if this node is a candidate (VrankStatus CandTesting, KIP-227)
 }
 
 type GrafanaFile struct {
@@ -73,6 +74,7 @@ var HomiFlags = []cli.Flag{
 	altsrc.NewBoolFlag(serviceChainTestFlag),
 	altsrc.NewIntFlag(numOfCNsFlag),
 	altsrc.NewIntFlag(numOfValidatorsFlag),
+	altsrc.NewIntFlag(numOfCandidatesFlag),
 	altsrc.NewIntFlag(numOfPNsFlag),
 	altsrc.NewIntFlag(numOfENsFlag),
 	altsrc.NewIntFlag(numOfSCNsFlag),
@@ -672,12 +674,22 @@ func Gen(ctx *cli.Context) error {
 		return fmt.Errorf("needed at least one consensus node (--cn-num 1) or one service chain consensus node (--scn-num 1) ")
 	}
 
+	candidateNum := ctx.Int(numOfCandidatesFlag.Name)
+	if candidateNum < 0 {
+		return fmt.Errorf("candidate-num(%d) cannot be negative", candidateNum)
+	}
+	if candidateNum > 0 && ctx.String(mnemonicFlag.Name) == "" && ctx.String(cnNodeKeyDirFlag.Name) == "" {
+		return fmt.Errorf("candidate-num requires mnemonic (--mnemonic) or pre-generated keys (--cn-nodekey-dir with cn-num+candidate-num keys)")
+	}
+
 	if numValidators == 0 {
 		numValidators = cnNum
 	}
 	if numValidators > cnNum {
 		return fmt.Errorf("validators-num(%d) cannot be greater than num(%d)", numValidators, cnNum)
 	}
+
+	totalCNKeys := cnNum + candidateNum
 
 	var (
 		privKeys  []*ecdsa.PrivateKey
@@ -687,8 +699,8 @@ func Gen(ctx *cli.Context) error {
 
 	if keydir := ctx.String(cnNodeKeyDirFlag.Name); len(keydir) > 0 {
 		privKeys, nodeKeys, nodeAddrs = istcommon.LoadNodekey(keydir)
-		if len(nodeKeys) != cnNum {
-			log.Fatalf("The number of nodekey files (%d) does not match the given CN num (%d)", len(nodeKeys), cnNum)
+		if len(nodeKeys) != totalCNKeys {
+			log.Fatalf("The number of nodekey files (%d) does not match the given CN num + candidate-num (%d)", len(nodeKeys), totalCNKeys)
 		}
 	} else if mnemonic := ctx.String(mnemonicFlag.Name); len(mnemonic) > 0 {
 		mnemonic = strings.ReplaceAll(mnemonic, ",", " ")
@@ -707,8 +719,12 @@ func Gen(ctx *cli.Context) error {
 				return fmt.Errorf("invalid mnemonic path (format: m/44'/60'/0'/0/)")
 			}
 		}
-		privKeys, nodeKeys, nodeAddrs = istcommon.GenerateKeysFromMnemonic(cnNum, mnemonic, path)
+		// HD path 0..cnNum-1 = CNs (validators in genesis), cnNum..totalCNKeys-1 = candidates (excluded from genesis)
+		privKeys, nodeKeys, nodeAddrs = istcommon.GenerateKeysFromMnemonic(totalCNKeys, mnemonic, path)
 	} else {
+		if candidateNum > 0 {
+			return fmt.Errorf("candidate-num requires mnemonic or cn-nodekey-dir")
+		}
 		privKeys, nodeKeys, nodeAddrs = istcommon.GenerateKeys(cnNum)
 	}
 
@@ -720,8 +736,15 @@ func Gen(ctx *cli.Context) error {
 		genesisJsonBytes []byte
 	)
 
-	validatorNodeAddrs := make([]common.Address, numValidators)
-	copy(validatorNodeAddrs, nodeAddrs[:numValidators])
+	// Genesis Extra contains only CNs (ValActive), not candidates. When candidateNum > 0, use first cnNum addrs only.
+	var validatorNodeAddrs []common.Address
+	if candidateNum > 0 {
+		validatorNodeAddrs = make([]common.Address, cnNum)
+		copy(validatorNodeAddrs, nodeAddrs[:cnNum])
+	} else {
+		validatorNodeAddrs = make([]common.Address, numValidators)
+		copy(validatorNodeAddrs, nodeAddrs[:numValidators])
+	}
 
 	if mainnetTest {
 		genesisJson = genMainnetTestGenesis(validatorNodeAddrs, testAddrs)
@@ -777,7 +800,11 @@ func Gen(ctx *cli.Context) error {
 
 	switch genType {
 	case TypeDocker:
-		validators := makeValidators(cnNum, false, nodeAddrs, nodeKeys, privKeys)
+		validators := makeValidators(cnNum, candidateNum, false, nodeAddrs, nodeKeys, privKeys)
+		cnCandidates := make([]bool, len(validators))
+		for i := range validators {
+			cnCandidates[i] = validators[i].Candidate
+		}
 		pnValidators, proxyNodeKeys := makeProxys(ctx, pnNum, false)
 		nodeInfos := filterNodeInfo(validators)
 		staticNodesJsonBytes, _ := json.MarshalIndent(nodeInfos, "", "\t")
@@ -811,7 +838,7 @@ func Gen(ctx *cli.Context) error {
 
 		compose := compose.New(
 			"172.16.239",
-			cnNum,
+			totalCNKeys,
 			"bb98a0b6442386d0cdf8a31b267892c1",
 			address,
 			nodeKeys,
@@ -840,7 +867,8 @@ func Gen(ctx *cli.Context) error {
 				TxGenThreadSize: ctx.Int(txGenThFlag.Name),
 				TxGenConnSize:   ctx.Int(txGenConnFlag.Name),
 				TxGenDuration:   ctx.String(txGenDurFlag.Name),
-			})
+			},
+			cnCandidates)
 		os.MkdirAll(outputPath, os.ModePerm)
 		os.WriteFile(path.Join(outputPath, "docker-compose.yml"), []byte(compose.String()), os.ModePerm)
 		fmt.Println("Created : ", path.Join(outputPath, "docker-compose.yml"))
@@ -848,15 +876,15 @@ func Gen(ctx *cli.Context) error {
 		fmt.Println("Created : ", path.Join(outputPath, "prometheus.yml"))
 		downLoadGrafanaJson()
 	case TypeLocal:
-		writeNodeFiles(ctx, true, cnNum, pnNum, nodeAddrs, nodeKeys, privKeys, genesisJsonBytes)
+		writeNodeFiles(ctx, true, cnNum, candidateNum, pnNum, nodeAddrs, nodeKeys, privKeys, genesisJsonBytes)
 		writeTestKeys(DirTestKeys, testPrivKeys, testKeys)
 		downLoadGrafanaJson()
 	case TypeRemote:
-		writeNodeFiles(ctx, false, cnNum, pnNum, nodeAddrs, nodeKeys, privKeys, genesisJsonBytes)
+		writeNodeFiles(ctx, false, cnNum, candidateNum, pnNum, nodeAddrs, nodeKeys, privKeys, genesisJsonBytes)
 		writeTestKeys(DirTestKeys, testPrivKeys, testKeys)
 		downLoadGrafanaJson()
 	case TypeDeploy:
-		writeCNInfoKey(cnNum, nodeAddrs, nodeKeys, privKeys, genesisJsonBytes)
+		writeCNInfoKey(cnNum, candidateNum, nodeAddrs, nodeKeys, privKeys, genesisJsonBytes)
 		writeKaiaConfig(ctx.Int(networkIdFlag.Name), ctx.Int(rpcPortFlag.Name), ctx.Int(wsPortFlag.Name), ctx.Int(p2pPortFlag.Name),
 			ctx.String(dataDirFlag.Name), ctx.String(logDirFlag.Name), "CN")
 		writeKaiaConfig(ctx.Int(networkIdFlag.Name), ctx.Int(rpcPortFlag.Name), ctx.Int(wsPortFlag.Name), ctx.Int(p2pPortFlag.Name),
@@ -889,13 +917,13 @@ func downLoadGrafanaJson() {
 	}
 }
 
-func writeCNInfoKey(num int, nodeAddrs []common.Address, nodeKeys []string, privKeys []*ecdsa.PrivateKey,
+func writeCNInfoKey(cnNum, candidateNum int, nodeAddrs []common.Address, nodeKeys []string, privKeys []*ecdsa.PrivateKey,
 	genesisJsonBytes []byte,
 ) {
 	const DirCommon = "common"
 	WriteFile(genesisJsonBytes, DirCommon, "genesis.json")
 
-	validators := makeValidatorsWithIp(num, false, nodeAddrs, nodeKeys, privKeys, []string{CNIpNetwork})
+	validators := makeValidatorsWithIp(cnNum, candidateNum, false, nodeAddrs, nodeKeys, privKeys, []string{CNIpNetwork})
 	staticNodesJsonBytes, _ := json.MarshalIndent(filterNodeInfo(validators), "", "\t")
 	WriteFile(staticNodesJsonBytes, DirCommon, "static-nodes.json")
 
@@ -909,7 +937,7 @@ func writeCNInfoKey(num int, nodeAddrs []common.Address, nodeKeys []string, priv
 
 func writePNInfoKey(num int) {
 	privKeys, nodeKeys, nodeAddrs := istcommon.GenerateKeys(num)
-	validators := makeValidatorsWithIp(num, false, nodeAddrs, nodeKeys, privKeys, []string{PNIpNetwork1, PNIpNetwork2})
+	validators := makeValidatorsWithIp(num, 0, false, nodeAddrs, nodeKeys, privKeys, []string{PNIpNetwork1, PNIpNetwork2})
 	for i, v := range validators {
 		parentDir := fmt.Sprintf("pn%02d", i+1)
 		WriteFile([]byte(nodeKeys[i]), parentDir, "nodekey")
@@ -928,12 +956,12 @@ func writePrometheusConfig(cnNum int, pnNum int) {
 	WriteFile([]byte(pConf.String()), "monitoring", "prometheus.yml")
 }
 
-func writeNodeFiles(ctx *cli.Context, isWorkOnSingleHost bool, num int, pnum int, nodeAddrs []common.Address, nodeKeys []string,
+func writeNodeFiles(ctx *cli.Context, isWorkOnSingleHost bool, cnNum, candidateNum int, pnum int, nodeAddrs []common.Address, nodeKeys []string,
 	privKeys []*ecdsa.PrivateKey, genesisJsonBytes []byte,
 ) {
 	WriteFile(genesisJsonBytes, DirScript, "genesis.json")
 
-	validators := makeValidators(num, isWorkOnSingleHost, nodeAddrs, nodeKeys, privKeys)
+	validators := makeValidators(cnNum, candidateNum, isWorkOnSingleHost, nodeAddrs, nodeKeys, privKeys)
 	nodeInfos := filterNodeInfo(validators)
 	staticNodesJsonBytes, _ := json.MarshalIndent(nodeInfos, "", "\t")
 	writeValidatorsAndNodesToFile(validators, DirKeys, nodeKeys)
@@ -972,12 +1000,15 @@ func filterNodeInfo(validatorInfos []*ValidatorInfo) []string {
 	return nodes
 }
 
-func makeValidators(num int, isWorkOnSingleHost bool, nodeAddrs []common.Address, nodeKeys []string,
+// makeValidators builds ValidatorInfo for cnNum CNs and optionally numCandidates candidate nodes.
+// When numCandidates > 0, nodeAddrs/nodeKeys/keys must have length cnNum+numCandidates; candidates (indices >= cnNum) get Candidate=true.
+func makeValidators(cnNum, numCandidates int, isWorkOnSingleHost bool, nodeAddrs []common.Address, nodeKeys []string,
 	keys []*ecdsa.PrivateKey,
 ) []*ValidatorInfo {
+	total := cnNum + numCandidates
 	var validatorPort uint16
 	var validators []*ValidatorInfo
-	for i := 0; i < num; i++ {
+	for i := 0; i < total; i++ {
 		if isWorkOnSingleHost {
 			validatorPort = lastIssuedPortNum
 			lastIssuedPortNum++
@@ -995,18 +1026,21 @@ func makeValidators(num int, isWorkOnSingleHost bool, nodeAddrs []common.Address
 				validatorPort,
 				nil,
 				discover.NodeTypeCN).String(),
+			Candidate: i >= cnNum,
 		}
 		validators = append(validators, v)
 	}
 	return validators
 }
 
-func makeValidatorsWithIp(num int, isWorkOnSingleHost bool, nodeAddrs []common.Address, nodeKeys []string,
+// makeValidatorsWithIp builds ValidatorInfo for cnNum CNs and optionally numCandidates candidate nodes (same semantics as makeValidators).
+func makeValidatorsWithIp(cnNum, numCandidates int, isWorkOnSingleHost bool, nodeAddrs []common.Address, nodeKeys []string,
 	keys []*ecdsa.PrivateKey, networkIds []string,
 ) []*ValidatorInfo {
+	total := cnNum + numCandidates
 	var validatorPort uint16
 	var validators []*ValidatorInfo
-	for i := 0; i < num; i++ {
+	for i := 0; i < total; i++ {
 		if isWorkOnSingleHost {
 			validatorPort = lastIssuedPortNum
 			lastIssuedPortNum++
@@ -1033,6 +1067,7 @@ func makeValidatorsWithIp(num int, isWorkOnSingleHost bool, nodeAddrs []common.A
 				validatorPort,
 				nil,
 				discover.NodeTypeCN).String(),
+			Candidate: i >= cnNum,
 		}
 		validators = append(validators, v)
 	}

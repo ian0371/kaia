@@ -84,6 +84,12 @@ var (
 		Value:   0,
 		Aliases: []string{"topology.validators-num"},
 	}
+	numOfCandidatesFlag = &cli.IntFlag{
+		Name:    "candidate-num",
+		Usage:   "Number of candidate nodes (KIP-227). With mnemonic, HD path 0..cn-num-1 are CNs, cn-num..cn-num+candidate-num-1 are candidates. Candidates are excluded from genesis Extra and added to static-nodes.json",
+		Value:   0,
+		Aliases: []string{"topology.candidate-num"},
+	}
 	numOfPNsFlag = &cli.IntFlag{
 		Name:    "pn-num",
 		Usage:   "Number of proxy node",

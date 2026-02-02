@@ -31,30 +31,10 @@ import (
 	"github.com/kaiachain/kaia/consensus/istanbul"
 )
 
-// KIP-227 PR 4: mock Vrank data for MVP (pfReport and cfReport with fixed test addresses).
-var (
-	mockVrankPfAddrs = []common.Address{
-		common.HexToAddress("0x1111111111111111111111111111111111111111"),
-		common.HexToAddress("0x2222222222222222222222222222222222222222"),
-	}
-	mockVrankCfAddrs = []common.Address{
-		common.HexToAddress("0x3333333333333333333333333333333333333333"),
-		common.HexToAddress("0x4444444444444444444444444444444444444444"),
-	}
-)
-
 func (c *core) sendPreprepare(request *istanbul.Request) {
 	logger := c.logger.NewWith("state", c.state)
 
 	header := types.SetRoundToHeader(request.Proposal.Header(), c.currentView().Round.Int64())
-	// Only set header.Vrank when the permissionless fork is active (PermissionlessCompatibleBlock non-nil and block >= fork).
-	// When nil, old logic is unaffected: no Vrank field is set.
-	if c.backend.IsPermissionlessCompatible(request.Proposal.Number()) {
-		// TODO: later PRs use real pfReport/cfReport
-		if enc, err := types.EncodeVrankPayload(&types.VrankPayload{PfReport: mockVrankPfAddrs, CfReport: mockVrankCfAddrs}); err == nil {
-			header.Vrank = enc
-		}
-	}
 	request.Proposal = request.Proposal.WithSeal(header)
 
 	// If I'm the proposer and I have the same sequence with the proposal

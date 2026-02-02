@@ -11,7 +11,7 @@ import (
 )
 
 func TestEncodeDecodeVrankPayload_Empty(t *testing.T) {
-	// Empty payload: RLP([[], []])
+	// Empty payload: RLP([])
 	p := &VrankPayload{}
 	enc, err := EncodeVrankPayload(p)
 	assert.NoError(t, err)
@@ -20,7 +20,6 @@ func TestEncodeDecodeVrankPayload_Empty(t *testing.T) {
 	dec, err := DecodeVrankPayload(enc)
 	assert.NoError(t, err)
 	assert.NotNil(t, dec)
-	assert.Empty(t, dec.PfReport)
 	assert.Empty(t, dec.CfReport)
 }
 
@@ -32,26 +31,6 @@ func TestEncodeDecodeVrankPayload_Nil(t *testing.T) {
 	dec, err := DecodeVrankPayload(enc)
 	assert.NoError(t, err)
 	assert.NotNil(t, dec)
-	assert.Empty(t, dec.PfReport)
-	assert.Empty(t, dec.CfReport)
-}
-
-func TestEncodeDecodeVrankPayload_PfReportOnly(t *testing.T) {
-	addrs := []common.Address{
-		common.HexToAddress("0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"),
-		common.HexToAddress("0x70997970C51812dc3A010C7d01b50e0d17dc79C8"),
-	}
-	p := &VrankPayload{PfReport: addrs}
-	enc, err := EncodeVrankPayload(p)
-	assert.NoError(t, err)
-	assert.NotEmpty(t, enc)
-
-	dec, err := DecodeVrankPayload(enc)
-	assert.NoError(t, err)
-	assert.NotNil(t, dec)
-	assert.Len(t, dec.PfReport, 2)
-	assert.Equal(t, addrs[0], dec.PfReport[0])
-	assert.Equal(t, addrs[1], dec.PfReport[1])
 	assert.Empty(t, dec.CfReport)
 }
 
@@ -69,40 +48,20 @@ func TestEncodeDecodeVrankPayload_CfReportOnly(t *testing.T) {
 	dec, err := DecodeVrankPayload(enc)
 	assert.NoError(t, err)
 	assert.NotNil(t, dec)
-	assert.Empty(t, dec.PfReport)
 	assert.Len(t, dec.CfReport, 2)
 	assert.Equal(t, addrs[0], dec.CfReport[0])
 	assert.Equal(t, addrs[1], dec.CfReport[1])
-}
-
-func TestEncodeDecodeVrankPayload_Full(t *testing.T) {
-	pfAddrs := []common.Address{common.HexToAddress("0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266")}
-	cfAddrs := []common.Address{common.HexToAddress("0x9965507D1a55bcC2695C58ba16FB37d819D0A4DC")}
-	p := &VrankPayload{PfReport: pfAddrs, CfReport: cfAddrs}
-	enc, err := EncodeVrankPayload(p)
-	assert.NoError(t, err)
-	assert.NotEmpty(t, enc)
-
-	dec, err := DecodeVrankPayload(enc)
-	assert.NoError(t, err)
-	assert.NotNil(t, dec)
-	assert.Len(t, dec.PfReport, 1)
-	assert.Equal(t, pfAddrs[0], dec.PfReport[0])
-	assert.Len(t, dec.CfReport, 1)
-	assert.Equal(t, cfAddrs[0], dec.CfReport[0])
 }
 
 func TestDecodeVrankPayload_EmptyBytes(t *testing.T) {
 	dec, err := DecodeVrankPayload(nil)
 	assert.NoError(t, err)
 	assert.NotNil(t, dec)
-	assert.Empty(t, dec.PfReport)
 	assert.Empty(t, dec.CfReport)
 
 	dec, err = DecodeVrankPayload([]byte{})
 	assert.NoError(t, err)
 	assert.NotNil(t, dec)
-	assert.Empty(t, dec.PfReport)
 	assert.Empty(t, dec.CfReport)
 }
 

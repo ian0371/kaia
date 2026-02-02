@@ -106,11 +106,20 @@ func (sb *backend) ValidatePeerType(addr common.Address) error {
 	for sb.chain == nil {
 		return errNoChainReader
 	}
-	valSet, err := sb.GetValidatorSet(sb.chain.CurrentHeader().Number.Uint64() + 1)
+	num := sb.chain.CurrentHeader().Number.Uint64() + 1
+	valSet, err := sb.GetValidatorSet(num)
 	if err != nil {
 		return errInvalidPeerAddress
 	}
 	if valSet.Council().Contains(addr) {
+		return nil
+	}
+	// KIP-227: accept candidates (CandTesting) so they can connect for VRankPreprepare/VRankCandidate P2P
+	candidates, err := sb.valsetModule.GetCandidates(num)
+	if err != nil {
+		return errInvalidPeerAddress
+	}
+	if candidates != nil && candidates.Contains(addr) {
 		return nil
 	}
 	return errInvalidPeerAddress

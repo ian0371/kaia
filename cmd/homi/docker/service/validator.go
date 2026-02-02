@@ -43,7 +43,7 @@ type Validator struct {
 	ParentChainId  int
 	NodeType       string
 	AddPrivKey     bool
-	Candidate      bool // KIP-227: run as candidate (VrankStatus CandTesting)
+	Candidate      bool // KIP-227: run as candidate (VRankStatus CandTesting)
 }
 
 func NewValidator(identity int, genesis, scGenesis string, nodeAddress string, nodeKey string, staticNodes, bridgeNodes string, port int, rpcPort int,

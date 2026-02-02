@@ -604,6 +604,18 @@ func (sb *backend) Seal(chain consensus.ChainReader, block *types.Block, stop <-
 	header := block.Header()
 	number := header.Number.Uint64()
 
+	// Only set header.VRank when the permissionless fork is active (PermissionlessCompatibleBlock non-nil and block >= fork).
+	// When nil, old logic is unaffected: no VRank field is set.
+	if sb.IsPermissionlessForkEnabled(header.Number) {
+		mockVRankCfAddrs := []common.Address{
+			// common.HexToAddress("0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65"),
+			common.HexToAddress("0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc"),
+		}
+		if enc, err := types.EncodeVRankPayload(&types.VRankPayload{CfReport: mockVRankCfAddrs}); err == nil {
+			header.VRank = enc
+		}
+	}
+
 	// Bail out if we're unauthorized to sign a block
 	valSet, err := sb.GetValidatorSet(number)
 	if err != nil {

@@ -55,7 +55,7 @@ type ValidatorInfo struct {
 	Address   common.Address
 	Nodekey   string
 	NodeInfo  string
-	Candidate bool // true if this node is a candidate (VrankStatus CandTesting, KIP-227)
+	Candidate bool // true if this node is a candidate (VRankStatus CandTesting, KIP-227)
 }
 
 type GrafanaFile struct {

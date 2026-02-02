@@ -597,6 +597,18 @@ func (self *worker) commitNewWork() {
 	if self.config.IsMagmaForkEnabled(nextBlockNum) {
 		header.BaseFee = nextBaseFee
 	}
+	if self.config.IsPermissionlessForkEnabled(nextBlockNum) {
+		mockVRankCfAddrs := []common.Address{
+			// common.HexToAddress("0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65"),
+			common.HexToAddress("0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc"),
+		}
+		if enc, err := types.EncodeVRankPayload(&types.VRankPayload{CfReport: mockVRankCfAddrs}); err != nil {
+			logger.Error("Error encoding VRank", "blockNum", header.Number.Uint64(), "cfReport", mockVRankCfAddrs)
+		} else {
+			header.VRank = enc
+		}
+	}
+
 	if err := self.engine.Prepare(self.chain, header); err != nil {
 		logger.Error("Failed to prepare header for mining", "err", err)
 		return

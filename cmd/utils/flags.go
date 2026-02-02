@@ -2055,7 +2055,7 @@ var (
 		Category: "VRANK",
 	}
 
-	// KIP-227: run this CN as candidate (VrankStatus CandTesting)
+	// KIP-227: run this CN as candidate (VRankStatus CandTesting)
 	CandidateFlag = &cli.BoolFlag{
 		Name:     "candidate",
 		Usage:    "Run as candidate node (KIP-227). Candidate nodes send CandidatePrepare and do not participate in consensus as validators",

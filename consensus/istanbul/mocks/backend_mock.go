@@ -250,6 +250,20 @@ func (mr *MockBackendMockRecorder) HasPropsal(arg0, arg1 interface{}) *gomock.Ca
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HasPropsal", reflect.TypeOf((*MockBackend)(nil).HasPropsal), arg0, arg1)
 }
 
+// IsPermissionlessCompatibleAt mocks base method.
+func (m *MockBackend) IsPermissionlessCompatibleAt(arg0 *big.Int) bool {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "IsPermissionlessCompatibleAt", arg0)
+	ret0, _ := ret[0].(bool)
+	return ret0
+}
+
+// IsPermissionlessCompatibleAt indicates an expected call of IsPermissionlessCompatibleAt.
+func (mr *MockBackendMockRecorder) IsPermissionlessCompatibleAt(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsPermissionlessCompatibleAt", reflect.TypeOf((*MockBackend)(nil).IsPermissionlessCompatibleAt), arg0)
+}
+
 // LastProposal mocks base method.
 func (m *MockBackend) LastProposal() (istanbul.Proposal, common.Address) {
 	m.ctrl.T.Helper()

@@ -88,4 +88,6 @@ type Backend interface {
 	GetCommitteeStateByRound(num uint64, round uint64) (*RoundCommitteeState, error)
 
 	GetProposerByRound(num uint64, round uint64) (common.Address, error)
+
+	IsPermissionlessCompatible(num *big.Int) bool
 }

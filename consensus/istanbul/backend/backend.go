@@ -483,3 +483,7 @@ func (sb *backend) GetRewardAddress(num uint64, nodeId common.Address) common.Ad
 	}
 	return common.Address{}
 }
+
+func (sb *backend) IsPermissionlessCompatible(num *big.Int) bool {
+	return sb.chain.Config().IsPermissionlessCompatible(num)
+}

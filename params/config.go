@@ -212,6 +212,10 @@ func TestKaiaConfig(maxHardfork string) *ChainConfig {
 	if maxHardfork == "osaka" {
 		return chainConfig
 	}
+	chainConfig.PermissionlessCompatibleBlock = big.NewInt(0)
+	if maxHardfork == "permissionless" {
+		return chainConfig
+	}
 
 	return chainConfig
 }

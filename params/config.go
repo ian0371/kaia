@@ -268,16 +268,17 @@ type ChainConfig struct {
 
 	// "Compatible" means that it is EVM compatible(the opcode and precompiled contracts are the same as Ethereum EVM).
 	// In other words, not all the hard fork items are included.
-	IstanbulCompatibleBlock  *big.Int `json:"istanbulCompatibleBlock,omitempty"`  // IstanbulCompatibleBlock switch block (nil = no fork, 0 = already on istanbul)
-	LondonCompatibleBlock    *big.Int `json:"londonCompatibleBlock,omitempty"`    // LondonCompatibleBlock switch block (nil = no fork, 0 = already on london)
-	EthTxTypeCompatibleBlock *big.Int `json:"ethTxTypeCompatibleBlock,omitempty"` // EthTxTypeCompatibleBlock switch block (nil = no fork, 0 = already on ethTxType)
-	MagmaCompatibleBlock     *big.Int `json:"magmaCompatibleBlock,omitempty"`     // MagmaCompatible switch block (nil = no fork, 0 already on Magma)
-	KoreCompatibleBlock      *big.Int `json:"koreCompatibleBlock,omitempty"`      // KoreCompatible switch block (nil = no fork, 0 already on Kore)
-	ShanghaiCompatibleBlock  *big.Int `json:"shanghaiCompatibleBlock,omitempty"`  // ShanghaiCompatible switch block (nil = no fork, 0 already on shanghai)
-	CancunCompatibleBlock    *big.Int `json:"cancunCompatibleBlock,omitempty"`    // CancunCompatible switch block (nil = no fork, 0 already on Cancun)
-	KaiaCompatibleBlock      *big.Int `json:"kaiaCompatibleBlock,omitempty"`      // KaiaCompatible switch block (nil = no fork, 0 already on Kaia)
-	PragueCompatibleBlock    *big.Int `json:"pragueCompatibleBlock,omitempty"`    // PragueCompatible switch block (nil = no fork)
-	OsakaCompatibleBlock     *big.Int `json:"osakaCompatibleBlock,omitempty"`     // OsakaCompatible switch block (nil = no fork)
+	IstanbulCompatibleBlock       *big.Int `json:"istanbulCompatibleBlock,omitempty"`       // IstanbulCompatibleBlock switch block (nil = no fork, 0 = already on istanbul)
+	LondonCompatibleBlock         *big.Int `json:"londonCompatibleBlock,omitempty"`         // LondonCompatibleBlock switch block (nil = no fork, 0 = already on london)
+	EthTxTypeCompatibleBlock      *big.Int `json:"ethTxTypeCompatibleBlock,omitempty"`      // EthTxTypeCompatibleBlock switch block (nil = no fork, 0 = already on ethTxType)
+	MagmaCompatibleBlock          *big.Int `json:"magmaCompatibleBlock,omitempty"`          // MagmaCompatible switch block (nil = no fork, 0 already on Magma)
+	KoreCompatibleBlock           *big.Int `json:"koreCompatibleBlock,omitempty"`           // KoreCompatible switch block (nil = no fork, 0 already on Kore)
+	ShanghaiCompatibleBlock       *big.Int `json:"shanghaiCompatibleBlock,omitempty"`       // ShanghaiCompatible switch block (nil = no fork, 0 already on shanghai)
+	CancunCompatibleBlock         *big.Int `json:"cancunCompatibleBlock,omitempty"`         // CancunCompatible switch block (nil = no fork, 0 already on Cancun)
+	KaiaCompatibleBlock           *big.Int `json:"kaiaCompatibleBlock,omitempty"`           // KaiaCompatible switch block (nil = no fork, 0 already on Kaia)
+	PragueCompatibleBlock         *big.Int `json:"pragueCompatibleBlock,omitempty"`         // PragueCompatible switch block (nil = no fork)
+	OsakaCompatibleBlock          *big.Int `json:"osakaCompatibleBlock,omitempty"`          // OsakaCompatible switch block (nil = no fork)
+	PermissionlessCompatibleBlock *big.Int `json:"permissionlessCompatibleBlock,omitempty"` // KIP-227 permissionless validator/candidate fork (nil = no fork)
 
 	// Kip103 is a special purpose hardfork feature that can be executed only once
 	// Both Kip103CompatibleBlock and Kip103ContractAddress should be specified to enable KIP103
@@ -417,6 +418,7 @@ func (c *ChainConfig) String() string {
 		" RandaoCompatibleBlock: %v"+
 		" PragueCompatibleBlock: %v"+
 		" OsakaCompatibleBlock: %v"+
+		" PermissionlessCompatibleBlock: %v"+
 		"%s%s%s"+
 		" UnitPrice: %d"+
 		" DeriveShaImpl: %d"+
@@ -433,6 +435,7 @@ func (c *ChainConfig) String() string {
 		c.RandaoCompatibleBlock,
 		c.PragueCompatibleBlock,
 		c.OsakaCompatibleBlock,
+		c.PermissionlessCompatibleBlock,
 		kip103, kip160, subGroupSize,
 		c.UnitPrice,
 		c.DeriveShaImpl,
@@ -540,6 +543,11 @@ func (c *ChainConfig) IsOsakaForkEnabled(num *big.Int) bool {
 	return isForked(c.OsakaCompatibleBlock, num)
 }
 
+// IsPermissionlessCompatible returns whether the block is at or after the KIP-227 permissionless fork.
+func (c *ChainConfig) IsPermissionlessCompatible(num *big.Int) bool {
+	return isForked(c.PermissionlessCompatibleBlock, num)
+}
+
 // IsKIP103ForkBlock returns whether num is equal to the kip103 block.
 func (c *ChainConfig) IsKIP103ForkBlock(num *big.Int) bool {
 	return isForkBlock(c.Kip103CompatibleBlock, num)
@@ -604,6 +612,7 @@ func (c *ChainConfig) CheckConfigForkOrder() error {
 		{name: "kaiaBlock", block: c.KaiaCompatibleBlock},
 		{name: "pragueBlock", block: c.PragueCompatibleBlock},
 		{name: "osakaBlock", block: c.OsakaCompatibleBlock},
+		{name: "permissionlessBlock", block: c.PermissionlessCompatibleBlock},
 	} {
 		if lastFork.name != "" {
 			// Next one must be higher number
@@ -661,6 +670,9 @@ func (c *ChainConfig) checkCompatible(newcfg *ChainConfig, head *big.Int) *Confi
 	}
 	if isForkIncompatible(c.OsakaCompatibleBlock, newcfg.OsakaCompatibleBlock, head) {
 		return newCompatError("Osaka Block", c.OsakaCompatibleBlock, newcfg.OsakaCompatibleBlock)
+	}
+	if isForkIncompatible(c.PermissionlessCompatibleBlock, newcfg.PermissionlessCompatibleBlock, head) {
+		return newCompatError("Permissionless Block", c.PermissionlessCompatibleBlock, newcfg.PermissionlessCompatibleBlock)
 	}
 	return nil
 }

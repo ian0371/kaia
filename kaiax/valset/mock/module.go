@@ -10,6 +10,7 @@ import (
 	gomock "github.com/golang/mock/gomock"
 	types "github.com/kaiachain/kaia/blockchain/types"
 	common "github.com/kaiachain/kaia/common"
+	valset "github.com/kaiachain/kaia/kaiax/valset"
 	rpc "github.com/kaiachain/kaia/networks/rpc"
 )
 
@@ -48,6 +49,21 @@ func (m *MockValsetModule) APIs() []rpc.API {
 func (mr *MockValsetModuleMockRecorder) APIs() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "APIs", reflect.TypeOf((*MockValsetModule)(nil).APIs))
+}
+
+// GetCandidates mocks base method.
+func (m *MockValsetModule) GetCandidates(arg0 uint64) (*valset.AddressSet, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetCandidates", arg0)
+	ret0, _ := ret[0].(*valset.AddressSet)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetCandidates indicates an expected call of GetCandidates.
+func (mr *MockValsetModuleMockRecorder) GetCandidates(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetCandidates", reflect.TypeOf((*MockValsetModule)(nil).GetCandidates), arg0)
 }
 
 // GetCommittee mocks base method.

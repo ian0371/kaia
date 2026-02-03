@@ -26,9 +26,25 @@ func (v *ValsetModule) GetCouncil(num uint64) ([]common.Address, error) {
 	council, err := v.getCouncil(num)
 	if err != nil {
 		return nil, err
-	} else {
-		return council.List(), nil
 	}
+	return council.List(), nil
+}
+
+// GetCandidates returns addresses with status CandTesting at the given block (KIP-227 §4).
+// Uses blockNum-1 to read states because blockNum is the block we're resolving for.
+func (v *ValsetModule) GetCandidates(blockNum uint64) (*valset.AddressSet, error) {
+	stateBlock := uint64(0)
+	if blockNum > 0 {
+		stateBlock = blockNum - 1
+	}
+	states := valset.ReadVRankStates(stateBlock)
+	candidates := make([]common.Address, 0, len(states))
+	for addr, status := range states {
+		if status == valset.CandTesting {
+			candidates = append(candidates, addr)
+		}
+	}
+	return valset.NewAddressSet(candidates), nil
 }
 
 // GetDemotedValidators are subtract of qualified from council(N)

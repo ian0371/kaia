@@ -17,6 +17,7 @@
 package impl
 
 import (
+	"math/big"
 	"testing"
 
 	"github.com/golang/mock/gomock"
@@ -26,6 +27,7 @@ import (
 	"github.com/kaiachain/kaia/kaiax/gov"
 	"github.com/kaiachain/kaia/kaiax/gov/headergov"
 	"github.com/kaiachain/kaia/kaiax/valset"
+	"github.com/kaiachain/kaia/params"
 	"github.com/kaiachain/kaia/storage/database"
 	chain_mock "github.com/kaiachain/kaia/work/mocks"
 	"github.com/stretchr/testify/assert"
@@ -199,4 +201,32 @@ func TestApplyVote(t *testing.T) {
 		assert.Equal(t, tc.modified, modified)
 		assert.Equal(t, tc.council, council.List(), i) // council is modified in-place
 	}
+}
+
+// TestGetCouncilPermissionlessFilter checks that when PermissionlessCompatibleBlock
+// is set and block >= fork, getCouncil returns only ValActive addresses from readVrankStates (KIP-227 §6).
+func TestGetCouncilPermissionlessFilter(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	mockChain := chain_mock.NewMockBlockChain(ctrl)
+
+	// Fork active at block 1: council = ValActive only from mock (4 addresses).
+	cfg := &params.ChainConfig{PermissionlessCompatibleBlock: big.NewInt(1)}
+	mockChain.EXPECT().Config().Return(cfg).AnyTimes()
+
+	v := &ValsetModule{InitOpts: InitOpts{Chain: mockChain}}
+
+	council, err := v.getCouncil(1)
+	assert.NoError(t, err)
+	assert.NotNil(t, council)
+
+	// Mock has 4 ValActive (indices 0–3) and 2 CandTesting (4–5). Only ValActive must be returned.
+	expectedValActive := []common.Address{
+		common.HexToAddress("0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"),
+		common.HexToAddress("0x70997970C51812dc3A010C7d01b50e0d17dc79C8"),
+		common.HexToAddress("0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC"),
+		common.HexToAddress("0x90F79bf6EB2c4f870365E785982E1f101E93b906"),
+	}
+	assert.Equal(t, 4, council.Len())
+	assert.ElementsMatch(t, expectedValActive, council.List())
 }

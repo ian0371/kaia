@@ -99,6 +99,9 @@ func TestGetProposers_GetRemoveVotesInInterval(t *testing.T) {
 	writeValidatorVoteBlockNums(v.ChainKv, []uint64{0})
 	writeCouncil(v.ChainKv, 0, genesisCouncil)
 
+	// Mock chain config (required by getCouncil when fork not set)
+	mockChain.EXPECT().Config().Return(&params.ChainConfig{IstanbulCompatibleBlock: big.NewInt(0)}).AnyTimes()
+
 	// Mock gov module
 	mockGovModule.EXPECT().GetParamSet(gomock.Any()).Return(gov.ParamSet{
 		StakingUpdateInterval:  1,
@@ -119,9 +122,6 @@ func TestGetProposers_GetRemoveVotesInInterval(t *testing.T) {
 		assert.NoError(t, v.PostInsertBlock(types.NewBlockWithHeader(header)))
 	}
 	mockChain.EXPECT().GetHeaderByNumber(gomock.Any()).Return(&types.Header{}).AnyTimes() // For unused blocks
-
-	// Mock chainConfig
-	mockChain.EXPECT().Config().Return(&params.ChainConfig{IstanbulCompatibleBlock: big.NewInt(0)}).AnyTimes()
 
 	// Mock qualified validators
 	for blkNum, data := range mockQualifiedValidators {

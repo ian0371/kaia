@@ -32,4 +32,5 @@ type ValsetModule interface {
 	GetCommittee(num uint64, round uint64) ([]common.Address, error)
 	GetDemotedValidators(num uint64) ([]common.Address, error)
 	GetProposer(num uint64, round uint64) (common.Address, error)
+	GetCandidates(blockNum uint64) (*AddressSet, error)
 }

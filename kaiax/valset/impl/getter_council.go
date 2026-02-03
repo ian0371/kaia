@@ -17,6 +17,7 @@
 package impl
 
 import (
+	"math/big"
 	"sort"
 
 	"github.com/kaiachain/kaia/blockchain/types"
@@ -31,13 +32,20 @@ func (v *ValsetModule) getCouncil(num uint64) (*valset.AddressSet, error) {
 		return v.getCouncilGenesis()
 	}
 
-	// First try to get from the (migrated) DB.
-	if council, ok, err := v.getCouncilDB(num); err != nil {
+	if v.Chain.Config().IsPermissionlessCompatible(new(big.Int).SetUint64(num)) {
+		states := valset.ReadVrankStates(num - 1)
+		filtered := make([]common.Address, 0, len(states))
+		for addr, state := range states {
+			if state == valset.ValActive {
+				filtered = append(filtered, addr)
+			}
+		}
+		return valset.NewAddressSet(filtered), nil
+	} else if council, ok, err := v.getCouncilDB(num); err != nil {
 		return nil, err
 	} else if ok {
 		return council, nil
 	} else {
-		// Then fall back to the legacy istanbul snapshot.
 		council, _, err := v.getCouncilFromIstanbulSnapshot(num, false)
 		return council, err
 	}

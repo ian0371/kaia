@@ -27,6 +27,7 @@ import (
 	"github.com/kaiachain/kaia/blockchain/types"
 	"github.com/kaiachain/kaia/common"
 	"github.com/kaiachain/kaia/consensus"
+	"github.com/kaiachain/kaia/event"
 	"github.com/kaiachain/kaia/networks/rpc"
 	"github.com/kaiachain/kaia/params"
 )
@@ -266,3 +267,5 @@ func (f *Faker) Protocol() consensus.Protocol {
 func (f *Faker) PurgeCache() {
 	// No cache to purge for faker
 }
+
+func (f *Faker) EventMux() *event.TypeMux { return nil }

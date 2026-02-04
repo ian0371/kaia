@@ -130,6 +130,10 @@ func (c *core) handlePreprepare(msg *message, src common.Address) error {
 				c.acceptPreprepare(preprepare)
 				c.setState(StatePrepared)
 				c.sendCommit()
+				block, _ := preprepare.Proposal.(*types.Block)
+				logger.Warn("Sending PrepreparedEvent message (hashlocked)")
+				go c.sendEvent(istanbul.PrepreparedEvent{Block: block, View: preprepare.View})
+				logger.Warn("PrepreparedEvent message sent (hashlocked)")
 			} else {
 				// Send round change
 				c.sendNextRoundChange("handlePreprepare. HashLocked, but received hash is different from locked hash")
@@ -143,6 +147,10 @@ func (c *core) handlePreprepare(msg *message, src common.Address) error {
 			c.acceptPreprepare(preprepare)
 			c.setState(StatePreprepared)
 			c.sendPrepare()
+			block, _ := preprepare.Proposal.(*types.Block)
+			logger.Warn("Sending PrepreparedEvent message")
+			go c.sendEvent(istanbul.PrepreparedEvent{Block: block, View: preprepare.View})
+			logger.Warn("PrepreparedEvent message sent")
 		}
 	}
 

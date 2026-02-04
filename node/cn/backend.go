@@ -57,6 +57,7 @@ import (
 	supply_impl "github.com/kaiachain/kaia/kaiax/supply/impl"
 	"github.com/kaiachain/kaia/kaiax/valset"
 	valset_impl "github.com/kaiachain/kaia/kaiax/valset/impl"
+	vrank_impl "github.com/kaiachain/kaia/kaiax/vrank/impl"
 	"github.com/kaiachain/kaia/networks/p2p"
 	"github.com/kaiachain/kaia/networks/rpc"
 	"github.com/kaiachain/kaia/node"
@@ -522,6 +523,7 @@ func (s *CN) SetupKaiaxModules(ctx *node.ServiceContext, mValset valset.ValsetMo
 		mSupply  = supply_impl.NewSupplyModule()
 		mGasless = gasless_impl.NewGaslessModule()
 		mAuction = auction_impl.NewAuctionModule()
+		mVRank   = vrank_impl.NewVRankModule()
 	)
 
 	err := errors.Join(
@@ -557,6 +559,13 @@ func (s *CN) SetupKaiaxModules(ctx *node.ServiceContext, mValset valset.ValsetMo
 			Downloader:    s.protocolManager.Downloader(),
 			NodeKey:       ctx.NodeKey(),
 		}),
+		mVRank.Init(&vrank_impl.InitOpts{
+			Valset:      mValset,
+			PrivateKey:  ctx.NodeKey(),
+			ChainConfig: s.chainConfig,
+			EventMux:    s.engine.EventMux(),
+			Pm:          s.protocolManager.(*ProtocolManager),
+		}),
 	)
 	if err != nil {
 		return err
@@ -587,6 +596,10 @@ func (s *CN) SetupKaiaxModules(ctx *node.ServiceContext, mValset valset.ValsetMo
 		if !mGasless.IsDisabled() {
 			mAuction.RegisterGaslessModule(mGasless)
 		}
+	}
+
+	if ctx.NodeType() == common.CONSENSUSNODE {
+		mBase = append(mBase, mVRank)
 	}
 
 	// Register modules to respective components

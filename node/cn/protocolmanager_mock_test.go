@@ -12,6 +12,7 @@ import (
 	common "github.com/kaiachain/kaia/common"
 	auction "github.com/kaiachain/kaia/kaiax/auction"
 	staking "github.com/kaiachain/kaia/kaiax/staking"
+	vrank "github.com/kaiachain/kaia/kaiax/vrank"
 	p2p "github.com/kaiachain/kaia/networks/p2p"
 )
 
@@ -128,6 +129,18 @@ func (m *MockBackendProtocolManager) RegisterStakingModule(arg0 staking.StakingM
 func (mr *MockBackendProtocolManagerMockRecorder) RegisterStakingModule(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RegisterStakingModule", reflect.TypeOf((*MockBackendProtocolManager)(nil).RegisterStakingModule), arg0)
+}
+
+// RegisterVrankModule mocks base method.
+func (m *MockBackendProtocolManager) RegisterVrankModule(arg0 vrank.VRankModule) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "RegisterVrankModule", arg0)
+}
+
+// RegisterVrankModule indicates an expected call of RegisterVrankModule.
+func (mr *MockBackendProtocolManagerMockRecorder) RegisterVrankModule(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RegisterVrankModule", reflect.TypeOf((*MockBackendProtocolManager)(nil).RegisterVrankModule), arg0)
 }
 
 // SetAcceptTxs mocks base method.

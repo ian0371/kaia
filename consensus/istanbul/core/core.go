@@ -308,7 +308,6 @@ func (c *core) startNewRound(round *big.Int) {
 		c.pfReport = nil
 		c.vrankMu.Unlock()
 	}
-	// cfReport collection is cleared on every new view (PR 5 will populate; here we just ensure clear semantics)
 
 	// Update logger
 	logger = logger.NewWith("old_proposer", oldProposer)

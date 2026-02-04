@@ -28,6 +28,7 @@ import (
 	"github.com/kaiachain/kaia/blockchain/state"
 	"github.com/kaiachain/kaia/blockchain/types"
 	"github.com/kaiachain/kaia/common"
+	"github.com/kaiachain/kaia/event"
 	"github.com/kaiachain/kaia/kaiax"
 	"github.com/kaiachain/kaia/kaiax/gov"
 	"github.com/kaiachain/kaia/kaiax/randao"
@@ -133,6 +134,8 @@ type Engine interface {
 	GetConsensusInfo(block *types.Block) (ConsensusInfo, error)
 
 	PurgeCache()
+
+	EventMux() *event.TypeMux
 }
 
 // PoW is a consensus engine based on proof-of-work.

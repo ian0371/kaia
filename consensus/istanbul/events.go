@@ -22,7 +22,10 @@
 
 package istanbul
 
-import "github.com/kaiachain/kaia/common"
+import (
+	"github.com/kaiachain/kaia/blockchain/types"
+	"github.com/kaiachain/kaia/common"
+)
 
 // RequestEvent is posted to propose a proposal
 type RequestEvent struct {
@@ -37,6 +40,11 @@ type MessageEvent struct {
 
 type CommitEvent struct {
 	Payload []byte
+}
+
+type PrepreparedEvent struct {
+	Block *types.Block
+	View  *View
 }
 
 // FinalCommittedEvent is posted when a proposal is committed

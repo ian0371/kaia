@@ -598,14 +598,15 @@ func (self *worker) commitNewWork() {
 		header.BaseFee = nextBaseFee
 	}
 	if self.config.IsPermissionlessForkEnabled(nextBlockNum) {
-		mockVRankCfAddrs := []common.Address{
-			// common.HexToAddress("0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65"),
-			common.HexToAddress("0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc"),
-		}
-		if enc, err := types.EncodeVRankPayload(&types.VRankPayload{CfReport: mockVRankCfAddrs}); err != nil {
-			logger.Error("Error encoding VRank", "blockNum", header.Number.Uint64(), "cfReport", mockVRankCfAddrs)
-		} else {
-			header.VRank = enc
+		if vrankEng, ok := self.engine.(interface{ BuildCfReportForBlock(uint64) []common.Address }); ok {
+			cfReport := vrankEng.BuildCfReportForBlock(nextBlockNum.Uint64() - 1)
+			if len(cfReport) > 0 {
+				if enc, err := types.EncodeVRankPayload(&types.VRankPayload{CfReport: cfReport}); err != nil {
+					logger.Error("Error encoding VRank", "blockNum", header.Number.Uint64(), "cfReport", cfReport)
+				} else {
+					header.VRank = enc
+				}
+			}
 		}
 	}
 

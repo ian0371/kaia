@@ -24,6 +24,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/kaiachain/kaia/blockchain/types"
 	"github.com/kaiachain/kaia/common"
 	"github.com/kaiachain/kaia/consensus"
 	"github.com/kaiachain/kaia/consensus/istanbul"
@@ -36,7 +37,7 @@ import (
 )
 
 const (
-	candidatePrepareDeadlineMs = 200
+	candidatePrepareDeadlineMs = 0 * time.Millisecond
 
 	VRankPreprepareMsg = 0x17
 	VRankCandidateMsg  = 0x18
@@ -127,16 +128,22 @@ func (v *VRankModule) amICandidate(blockNum uint64) bool {
 	return candidates.Contains(v.nodeAddress)
 }
 
-func (v *VRankModule) BuildCfReportForBlock(blockNum uint64) []common.Address {
+func (v *VRankModule) BuildCfReportForBlock(blockNum uint64) []byte {
+	if blockNum == 0 {
+		return nil
+	}
+
 	v.candidateMu.Lock()
 	defer v.candidateMu.Unlock()
 	collected := v.candidateCollection[blockNum]
-	var expectedCandidates []common.Address
-	if candidates, err := v.Valset.GetCandidates(blockNum); err == nil && candidates != nil {
-		expectedCandidates = candidates.List()
+	candidates, err := v.Valset.GetCandidates(blockNum)
+	if err != nil || candidates == nil {
+		logger.Error("GetCandidates failed", "blockNum", blockNum)
+		return nil
 	}
+
 	var cfReport []common.Address
-	for _, addr := range expectedCandidates {
+	for _, addr := range candidates.List() {
 		entry, ok := collected[addr]
 		if !ok || entry.Elapsed > candidatePrepareDeadlineMs {
 			cfReport = append(cfReport, addr)
@@ -144,7 +151,14 @@ func (v *VRankModule) BuildCfReportForBlock(blockNum uint64) []common.Address {
 	}
 	delete(v.candidateCollection, blockNum)
 	delete(v.candidatePrepareStartTime, blockNum)
-	return cfReport
+
+	enc, err := types.EncodeVRankPayload(&types.VRankPayload{CfReport: cfReport})
+	if err != nil {
+		logger.Error("Error encoding VRank", "blockNum", blockNum, "cfReport", cfReport)
+		return nil
+	}
+
+	return enc
 }
 
 func (v *VRankModule) Start() error {

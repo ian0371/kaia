@@ -25,6 +25,7 @@ type VRankModule interface {
 
 	HandleVRankPreprepare(msg *VRankPreprepare)
 	HandleVRankCandidate(msg *VRankCandidate)
+	BuildCfReportForBlock(blockNum uint64) []byte
 }
 
 type VRankModuleHost interface {

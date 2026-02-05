@@ -43,6 +43,7 @@ import (
 	"github.com/kaiachain/kaia/event"
 	"github.com/kaiachain/kaia/kaiax"
 	"github.com/kaiachain/kaia/kaiax/gov"
+	"github.com/kaiachain/kaia/kaiax/vrank"
 	"github.com/kaiachain/kaia/kerrors"
 	kaiametrics "github.com/kaiachain/kaia/metrics"
 	"github.com/kaiachain/kaia/params"
@@ -186,6 +187,7 @@ type worker struct {
 	proc              blockchain.Validator
 	chainDB           database.DBManager
 	govModule         gov.GovModule
+	vrankModule       vrank.VRankModule
 	executionModules  []kaiax.ExecutionModule
 	txBundlingModules []builder.TxBundlingModule
 
@@ -207,7 +209,7 @@ type worker struct {
 	nodetype common.ConnType
 }
 
-func newWorker(config *params.ChainConfig, engine consensus.Engine, nodeAddr common.Address, backend Backend, mux *event.TypeMux, nodetype common.ConnType, TxResendUseLegacy bool, govModule gov.GovModule) *worker {
+func newWorker(config *params.ChainConfig, engine consensus.Engine, nodeAddr common.Address, backend Backend, mux *event.TypeMux, nodetype common.ConnType, TxResendUseLegacy bool, govModule gov.GovModule, vrankModule vrank.VRankModule) *worker {
 	worker := &worker{
 		config:      config,
 		engine:      engine,
@@ -224,6 +226,7 @@ func newWorker(config *params.ChainConfig, engine consensus.Engine, nodeAddr com
 		nodetype:    nodetype,
 		nodeAddr:    nodeAddr,
 		govModule:   govModule,
+		vrankModule: vrankModule,
 	}
 
 	// Subscribe NewTxsEvent for tx pool
@@ -597,15 +600,12 @@ func (self *worker) commitNewWork() {
 	if self.config.IsMagmaForkEnabled(nextBlockNum) {
 		header.BaseFee = nextBaseFee
 	}
+
 	if self.config.IsPermissionlessForkEnabled(nextBlockNum) {
-		if vrankEng, ok := self.engine.(interface{ BuildCfReportForBlock(uint64) []common.Address }); ok {
-			cfReport := vrankEng.BuildCfReportForBlock(nextBlockNum.Uint64() - 1)
-			if len(cfReport) > 0 {
-				if enc, err := types.EncodeVRankPayload(&types.VRankPayload{CfReport: cfReport}); err != nil {
-					logger.Error("Error encoding VRank", "blockNum", header.Number.Uint64(), "cfReport", cfReport)
-				} else {
-					header.VRank = enc
-				}
+		if self.vrankModule != nil {
+			cfReport := self.vrankModule.BuildCfReportForBlock(nextBlockNum.Uint64() - 1)
+			if cfReport != nil {
+				header.VRank = cfReport
 			}
 		}
 	}

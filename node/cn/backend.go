@@ -243,6 +243,7 @@ func New(ctx *node.ServiceContext, config *Config) (*CN, error) {
 		mGov     = gov_impl.NewGovModule()
 		mValset  = valset_impl.NewValsetModule()
 		mStaking = staking_impl.NewStakingModule()
+		mVRank   = vrank_impl.NewVRankModule()
 	)
 	cn := &CN{
 		config:            config,
@@ -316,6 +317,7 @@ func New(ctx *node.ServiceContext, config *Config) (*CN, error) {
 	cn.blockchain = bc
 
 	if err := cn.InitGovModule(mStaking, mGov, mValset); err != nil {
+		logger.Error("Failed to init gov module", "err", err)
 		return nil, err
 	}
 
@@ -389,7 +391,7 @@ func New(ctx *node.ServiceContext, config *Config) (*CN, error) {
 		}
 	} else {
 		// TODO-Kaia improve to handle drop transaction on network traffic in PN and EN
-		cn.miner = work.New(cn, cn.chainConfig, cn.EventMux(), cn.engine, ctx.NodeType(), crypto.PubkeyToAddress(ctx.NodeKey().PublicKey), cn.config.TxResendUseLegacy, cn.govModule)
+		cn.miner = work.New(cn, cn.chainConfig, cn.EventMux(), cn.engine, ctx.NodeType(), crypto.PubkeyToAddress(ctx.NodeKey().PublicKey), cn.config.TxResendUseLegacy, cn.govModule, mVRank)
 	}
 
 	// istanbul BFT
@@ -407,7 +409,7 @@ func New(ctx *node.ServiceContext, config *Config) (*CN, error) {
 	cn.addComponent(cn.ChainDB())
 	cn.addComponent(cn.engine)
 
-	if err := cn.SetupKaiaxModules(ctx, mValset); err != nil {
+	if err := cn.SetupKaiaxModules(ctx, mValset, mVRank); err != nil {
 		logger.Error("Failed to setup kaiax modules", "err", err)
 	}
 
@@ -493,8 +495,7 @@ func (s *CN) SetComponents(component []interface{}) {
 	// do nothing
 }
 
-func (s *CN) InitGovModule(mStaking *staking_impl.StakingModule, mGov *gov_impl.GovModule, mValset *valset_impl.ValsetModule,
-) error {
+func (s *CN) InitGovModule(mStaking *staking_impl.StakingModule, mGov *gov_impl.GovModule, mValset *valset_impl.ValsetModule) error {
 	// Initialize modules
 	return errors.Join(
 		mStaking.Init(&staking_impl.InitOpts{
@@ -518,14 +519,13 @@ func (s *CN) InitGovModule(mStaking *staking_impl.StakingModule, mGov *gov_impl.
 	)
 }
 
-func (s *CN) SetupKaiaxModules(ctx *node.ServiceContext, mValset valset.ValsetModule) error {
+func (s *CN) SetupKaiaxModules(ctx *node.ServiceContext, mValset valset.ValsetModule, mVRank *vrank_impl.VRankModule) error {
 	var (
 		mRandao  = randao_impl.NewRandaoModule()
 		mReward  = reward_impl.NewRewardModule()
 		mSupply  = supply_impl.NewSupplyModule()
 		mGasless = gasless_impl.NewGaslessModule()
 		mAuction = auction_impl.NewAuctionModule()
-		mVRank   = vrank_impl.NewVRankModule()
 	)
 
 	err := errors.Join(

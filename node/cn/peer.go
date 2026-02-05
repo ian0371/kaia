@@ -365,6 +365,10 @@ var ChannelOfMessage = map[uint64]int{
 	// Protocol messages belonging to kaia/67
 	BlobSidecarsRequestMsg: p2p.ConnDefault,
 	BlobSidecarsMsg:        p2p.ConnDefault,
+
+	// Protocol messages belonging to kaia/68
+	VRankPreprepareMsg: p2p.ConnDefault,
+	VRankCandidateMsg:  p2p.ConnDefault,
 }
 
 var ConcurrentOfChannel = []int{

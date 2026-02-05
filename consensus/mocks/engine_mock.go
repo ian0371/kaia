@@ -13,6 +13,7 @@ import (
 	types "github.com/kaiachain/kaia/blockchain/types"
 	common "github.com/kaiachain/kaia/common"
 	consensus "github.com/kaiachain/kaia/consensus"
+	event "github.com/kaiachain/kaia/event"
 	rpc "github.com/kaiachain/kaia/networks/rpc"
 )
 
@@ -94,6 +95,20 @@ func (m *MockEngine) CanVerifyHeadersConcurrently() bool {
 func (mr *MockEngineMockRecorder) CanVerifyHeadersConcurrently() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CanVerifyHeadersConcurrently", reflect.TypeOf((*MockEngine)(nil).CanVerifyHeadersConcurrently))
+}
+
+// EventMux mocks base method.
+func (m *MockEngine) EventMux() *event.TypeMux {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "EventMux")
+	ret0, _ := ret[0].(*event.TypeMux)
+	return ret0
+}
+
+// EventMux indicates an expected call of EventMux.
+func (mr *MockEngineMockRecorder) EventMux() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EventMux", reflect.TypeOf((*MockEngine)(nil).EventMux))
 }
 
 // Finalize mocks base method.

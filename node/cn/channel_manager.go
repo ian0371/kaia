@@ -76,6 +76,9 @@ func NewChannelManager(channelSize int) *ChannelManager {
 	channelMgr.RegisterMsgCode(MiscChannel, BlobSidecarsRequestMsg)
 	channelMgr.RegisterMsgCode(MiscChannel, BlobSidecarsMsg)
 
+	channelMgr.RegisterMsgCode(MiscChannel, VRankPreprepareMsg) // VRankPreprepareMsg
+	channelMgr.RegisterMsgCode(MiscChannel, VRankCandidateMsg)  // VRankCandidateMsg
+
 	return channelMgr
 }
 

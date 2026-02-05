@@ -47,6 +47,7 @@ import (
 	"github.com/kaiachain/kaia/event"
 	"github.com/kaiachain/kaia/kaiax/auction"
 	"github.com/kaiachain/kaia/kaiax/staking"
+	"github.com/kaiachain/kaia/kaiax/vrank"
 	"github.com/kaiachain/kaia/networks/p2p"
 	"github.com/kaiachain/kaia/networks/p2p/discover"
 	"github.com/kaiachain/kaia/node/cn/snap"
@@ -147,6 +148,7 @@ type ProtocolManager struct {
 
 	stakingModule staking.StakingModule
 	auctionModule auction.AuctionModule
+	vrankModule   vrank.VRankModule
 
 	missingBlobSidecarCh  <-chan *kaia_blockchain.MissingBlobSidecar
 	blobSidecarReqManager *sidecarReqManager
@@ -374,8 +376,16 @@ func (pm *ProtocolManager) RegisterAuctionModule(auctionModule auction.AuctionMo
 	pm.auctionModule = auctionModule
 }
 
+func (pm *ProtocolManager) RegisterVRankModule(vrankModule vrank.VRankModule) {
+	pm.vrankModule = vrankModule
+}
+
 func (pm *ProtocolManager) IsAuctionModuleDisabled() bool {
 	return pm.auctionModule == nil
+}
+
+func (pm *ProtocolManager) IsVRankModuleDisabled() bool {
+	return pm.vrankModule == nil
 }
 
 func (pm *ProtocolManager) getWSEndPoint() string {
@@ -776,6 +786,16 @@ func (pm *ProtocolManager) handleMsg(p Peer, addr common.Address, msg p2p.Msg) e
 
 	case p.GetVersion() >= kaia67 && msg.Code == BlobSidecarsMsg:
 		if err := handleBlobSidecarsMsg(pm, p, msg); err != nil {
+			return err
+		}
+
+	case p.GetVersion() >= kaia68 && msg.Code == VRankPreprepareMsg:
+		if err := handleVRankPreprepareMsg(pm, p, msg); err != nil {
+			return err
+		}
+
+	case p.GetVersion() >= kaia68 && msg.Code == VRankCandidateMsg:
+		if err := handleVRankCandidateMsg(pm, p, msg); err != nil {
 			return err
 		}
 
@@ -1310,6 +1330,32 @@ func (pm *ProtocolManager) blobSidecarSyncLoop() {
 			return
 		}
 	}
+}
+
+func handleVRankPreprepareMsg(pm *ProtocolManager, p Peer, msg p2p.Msg) error {
+	if pm.IsVRankModuleDisabled() {
+		return nil
+	}
+
+	var vrankPreprepare *vrank.VRankPreprepare
+	if err := msg.Decode(&vrankPreprepare); err != nil {
+		return errResp(ErrDecode, "msg %v: %v", msg, err)
+	}
+	pm.vrankModule.HandleVRankPreprepare(vrankPreprepare)
+	return nil
+}
+
+func handleVRankCandidateMsg(pm *ProtocolManager, p Peer, msg p2p.Msg) error {
+	if pm.IsVRankModuleDisabled() {
+		return nil
+	}
+
+	var vrankCandidate *vrank.VRankCandidate
+	if err := msg.Decode(&vrankCandidate); err != nil {
+		return errResp(ErrDecode, "msg %v: %v", msg, err)
+	}
+	pm.vrankModule.HandleVRankCandidate(vrankCandidate)
+	return nil
 }
 
 // handleNewBlockHashesMsg handles new block hashes message.

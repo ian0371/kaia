@@ -51,18 +51,6 @@ func (c *core) Stop() error {
 	return nil
 }
 
-// GetPfReport implements core.Engine.GetPfReport (KIP-227). Returns a copy of the current pfReport; nil when round is 0.
-func (c *core) GetPfReport() []common.Address {
-	c.vrankMu.Lock()
-	defer c.vrankMu.Unlock()
-	if len(c.pfReport) == 0 {
-		return nil
-	}
-	out := make([]common.Address, len(c.pfReport))
-	copy(out, c.pfReport)
-	return out
-}
-
 // ----------------------------------------------------------------------------
 
 // Subscribe both internal and external events

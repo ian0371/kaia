@@ -112,9 +112,6 @@ type core struct {
 	councilSizeGauge   metrics.Gauge
 	committeeSizeGauge metrics.Gauge
 
-	// KIP-227 VRank: proposer-per-round for current sequence (pfReport). Cleared when round=0.
-	vrankMu  sync.Mutex
-	pfReport []common.Address
 	cfReport []common.Address
 }
 
@@ -286,28 +283,6 @@ func (c *core) startNewRound(round *big.Int) {
 		c.committeeSizeGauge.Update(committeeSize)
 	}
 	c.backend.SetCurrentView(newView)
-
-	// KIP-227: on round change (same sequence), append proposers of rounds we're leaving; clear pfReport when new sequence (round=0); clear cfReport on every new view
-	if roundChange && c.current != nil {
-		seq := c.current.Sequence().Uint64()
-		oldRound := c.current.Round().Uint64()
-		newRound := round.Uint64()
-		for r := oldRound; r < newRound; r++ {
-			proposer, err := c.backend.GetProposerByRound(seq, r)
-			if err != nil {
-				logger.Warn("Failed to get proposer for pfReport", "seq", seq, "round", r, "err", err)
-				continue
-			}
-			c.vrankMu.Lock()
-			c.pfReport = append(c.pfReport, proposer)
-			c.vrankMu.Unlock()
-		}
-	}
-	if round.Cmp(common.Big0) == 0 {
-		c.vrankMu.Lock()
-		c.pfReport = nil
-		c.vrankMu.Unlock()
-	}
 
 	// Update logger
 	logger = logger.NewWith("old_proposer", oldProposer)

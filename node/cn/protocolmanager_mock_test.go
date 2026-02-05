@@ -131,16 +131,16 @@ func (mr *MockBackendProtocolManagerMockRecorder) RegisterStakingModule(arg0 int
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RegisterStakingModule", reflect.TypeOf((*MockBackendProtocolManager)(nil).RegisterStakingModule), arg0)
 }
 
-// RegisterVrankModule mocks base method.
-func (m *MockBackendProtocolManager) RegisterVrankModule(arg0 vrank.VRankModule) {
+// RegisterVRankModule mocks base method.
+func (m *MockBackendProtocolManager) RegisterVRankModule(arg0 vrank.VRankModule) {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "RegisterVrankModule", arg0)
+	m.ctrl.Call(m, "RegisterVRankModule", arg0)
 }
 
-// RegisterVrankModule indicates an expected call of RegisterVrankModule.
-func (mr *MockBackendProtocolManagerMockRecorder) RegisterVrankModule(arg0 interface{}) *gomock.Call {
+// RegisterVRankModule indicates an expected call of RegisterVRankModule.
+func (mr *MockBackendProtocolManagerMockRecorder) RegisterVRankModule(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RegisterVrankModule", reflect.TypeOf((*MockBackendProtocolManager)(nil).RegisterVrankModule), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RegisterVRankModule", reflect.TypeOf((*MockBackendProtocolManager)(nil).RegisterVRankModule), arg0)
 }
 
 // SetAcceptTxs mocks base method.

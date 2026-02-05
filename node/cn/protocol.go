@@ -90,8 +90,8 @@ const (
 	BlobSidecarsMsg        = 0x16
 
 	// Protocol messages belonging to kaia/68
-	Unused17 = 0x17 // VRankPreprepareMsg
-	Unused18 = 0x18 // VRankCandidateMsg
+	VRankPreprepareMsg = 0x17
+	VRankCandidateMsg  = 0x18
 
 	MsgCodeEnd = 0x19
 )

@@ -22,6 +22,9 @@ import (
 
 type VRankModule interface {
 	kaiax.BaseModule
+
+	HandleVRankPreprepare(msg *VRankPreprepare)
+	HandleVRankCandidate(msg *VRankCandidate)
 }
 
 type VRankModuleHost interface {

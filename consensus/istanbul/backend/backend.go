@@ -483,7 +483,3 @@ func (sb *backend) GetRewardAddress(num uint64, nodeId common.Address) common.Ad
 	}
 	return common.Address{}
 }
-
-func (sb *backend) IsPermissionlessForkEnabled(num *big.Int) bool {
-	return sb.chain.Config().IsPermissionlessForkEnabled(num)
-}

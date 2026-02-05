@@ -57,6 +57,7 @@ import (
 	supply_impl "github.com/kaiachain/kaia/kaiax/supply/impl"
 	"github.com/kaiachain/kaia/kaiax/valset"
 	valset_impl "github.com/kaiachain/kaia/kaiax/valset/impl"
+	"github.com/kaiachain/kaia/kaiax/vrank"
 	vrank_impl "github.com/kaiachain/kaia/kaiax/vrank/impl"
 	"github.com/kaiachain/kaia/networks/p2p"
 	"github.com/kaiachain/kaia/networks/rpc"
@@ -112,6 +113,7 @@ type BackendProtocolManager interface {
 	SetSyncStop(flag bool)
 	staking.StakingModuleHost
 	auction.AuctionModuleHost
+	vrank.VRankModuleHost
 }
 
 // CN implements the Kaia consensus node service.
@@ -600,6 +602,7 @@ func (s *CN) SetupKaiaxModules(ctx *node.ServiceContext, mValset valset.ValsetMo
 
 	if ctx.NodeType() == common.CONSENSUSNODE {
 		mBase = append(mBase, mVRank)
+		s.protocolManager.RegisterVRankModule(mVRank)
 	}
 
 	// Register modules to respective components

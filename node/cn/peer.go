@@ -147,6 +147,9 @@ type Peer interface {
 	// If the peer's broadcast queue is full, the event is silently dropped.
 	AsyncSendBid(bid *auction.Bid)
 
+	SendVRank() error
+	AsyncSendVRank()
+
 	// SendNewBlock propagates an entire block to a remote peer.
 	SendNewBlock(block *types.Block, td *big.Int) error
 

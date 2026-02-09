@@ -24,6 +24,12 @@ import (
 
 type CfReport []common.Address
 
+type BroadcastRequest struct {
+	Targets []common.Address
+	Code    int
+	Msg     any
+}
+
 type VRankPreprepare struct {
 	Block *types.Block
 }

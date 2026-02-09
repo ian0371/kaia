@@ -24,6 +24,7 @@ import (
 	"github.com/kaiachain/kaia/common"
 	"github.com/kaiachain/kaia/consensus"
 	"github.com/kaiachain/kaia/crypto"
+	"github.com/kaiachain/kaia/event"
 	"github.com/kaiachain/kaia/kaiax/valset"
 	"github.com/kaiachain/kaia/kaiax/vrank"
 	"github.com/kaiachain/kaia/log"
@@ -52,11 +53,12 @@ type InitOpts struct {
 	Valset      valset.ValsetModule
 	NodeKey     *ecdsa.PrivateKey
 	ChainConfig *params.ChainConfig
-	Pm          ProtocolManager
 }
 
 type VRankModule struct {
 	InitOpts
+
+	feed event.Feed
 
 	nodeId common.Address
 

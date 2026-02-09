@@ -105,7 +105,7 @@ func (v *VRankModule) BroadcastVRankPreprepare(vrankPreprepare *vrank.VRankPrepr
 		logger.Error("GetCandidates failed", "blockNum", block.NumberU64())
 		return
 	}
-	v.broadcast(candidates, vrankPreprepare)
+	v.broadcast(candidates, VRankPreprepareMsg, vrankPreprepare)
 }
 
 // BroadcastVRankPreprepare is called by candidates
@@ -116,26 +116,16 @@ func (v *VRankModule) BroadcastVRankCandidate(vrankCandidate *vrank.VRankCandida
 		return
 	}
 
-	v.broadcast(validators, vrankCandidate)
+	v.broadcast(validators, VRankCandidateMsg, vrankCandidate)
 }
 
-func (v *VRankModule) broadcast(targets []common.Address, msg any) {
-	peerTargets := make(map[common.Address]bool)
-	for _, target := range targets {
-		peerTargets[target] = true
+func (v *VRankModule) broadcast(targets []common.Address, code int, msg any) {
+	req := &vrank.BroadcastRequest{
+		Targets: targets,
+		Code:    code,
+		Msg:     msg,
 	}
-
-	peers := v.Pm.FindCNPeers(peerTargets)
-	for _, p := range peers {
-		switch msg.(type) {
-		case *vrank.VRankPreprepare:
-			msg := msg.(*vrank.VRankPreprepare)
-			go p.Send(VRankPreprepareMsg, msg)
-		case *vrank.VRankCandidate:
-			msg := msg.(*vrank.VRankCandidate)
-			go p.Send(VRankCandidateMsg, msg)
-		}
-	}
+	v.feed.Send(req)
 }
 
 func (v *VRankModule) isProposer(blockNum, round uint64) bool {

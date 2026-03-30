@@ -842,6 +842,9 @@ func Gen(ctx *cli.Context) error {
 	genesisJson.Config.PragueCompatibleBlock = big.NewInt(ctx.Int64(pragueCompatibleBlockNumberFlag.Name))
 	genesisJson.Config.OsakaCompatibleBlock = big.NewInt(ctx.Int64(osakaCompatibleBlockNumberFlag.Name))
 	genesisJson.Config.PermissionlessCompatibleBlock = big.NewInt(ctx.Int64(permissionlessCompatibleBlockNumberFlag.Name))
+	if epoch := ctx.Uint64(vrankEpochFlag.Name); epoch != 0 {
+		genesisJson.Config.VRankEpoch = epoch
+	}
 	genesisJson.Config.BlobScheduleConfig = params.DefaultBlobSchedule
 
 	genesisJsonBytes, _ = json.MarshalIndent(genesisJson, "", "    ")

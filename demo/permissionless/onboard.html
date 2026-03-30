@@ -1,0 +1,891 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kaia — Onboard Validator</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #0d1117;
+      color: #e6edf3;
+      min-height: 100vh;
+      padding: 2rem;
+      max-width: 760px;
+      margin: 0 auto;
+    }
+    header {
+      display: flex;
+      align-items: center;
+      gap: 1.5rem;
+      margin-bottom: 2.5rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid #21262d;
+    }
+    .back-link {
+      color: #8b949e;
+      text-decoration: none;
+      font-size: 0.85rem;
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+    }
+    .back-link:hover { color: #e6edf3; }
+    h1 { font-size: 1.3rem; font-weight: 600; }
+
+    /* Progress strip */
+    #progress {
+      display: flex;
+      gap: 0;
+      margin-bottom: 2rem;
+      background: #161b22;
+      border: 1px solid #21262d;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .prog-seg {
+      flex: 1;
+      height: 4px;
+      background: #21262d;
+      transition: background 0.4s;
+    }
+    .prog-seg.done    { background: #3fb950; }
+    .prog-seg.running { background: #d29922; }
+
+    /* Step cards */
+    .step {
+      background: #161b22;
+      border: 1px solid #21262d;
+      border-radius: 8px;
+      margin-bottom: 1rem;
+      overflow: hidden;
+      transition: border-color 0.3s;
+    }
+    .step.active  { border-color: #58a6ff; }
+    .step.done    { border-color: #3fb950; }
+    .step.error   { border-color: #f85149; }
+    .step.running { border-color: #d29922; }
+
+    .step-header {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      padding: 1rem 1.25rem;
+      cursor: default;
+    }
+    .step-num {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.8rem;
+      font-weight: 700;
+      flex-shrink: 0;
+      background: #21262d;
+      color: #8b949e;
+      transition: background 0.3s, color 0.3s;
+    }
+    .step.active  .step-num { background: #1f6feb; color: #fff; }
+    .step.running .step-num { background: #9e6a03; color: #fff; }
+    .step.done    .step-num { background: #238636; color: #fff; }
+    .step.error   .step-num { background: #b62324; color: #fff; }
+    .step-title { font-weight: 600; font-size: 0.95rem; }
+    .step-badge {
+      margin-left: auto;
+      font-size: 0.75rem;
+      padding: 0.2rem 0.6rem;
+      border-radius: 12px;
+      background: #21262d;
+      color: #8b949e;
+    }
+    .step.done    .step-badge { background: rgba(63,185,80,0.15);  color: #3fb950; }
+    .step.running .step-badge { background: rgba(210,153,34,0.15); color: #d29922; }
+    .step.error   .step-badge { background: rgba(248,81,73,0.15);  color: #f85149; }
+
+    .step-body {
+      padding: 0 1.25rem 1.25rem;
+      display: none;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+    .step.active .step-body,
+    .step.running .step-body,
+    .step.done .step-body,
+    .step.error .step-body {
+      display: flex;
+    }
+    .step-desc {
+      font-size: 0.82rem;
+      color: #8b949e;
+      line-height: 1.5;
+    }
+
+    /* Field display */
+    .field {
+      display: grid;
+      grid-template-columns: 120px 1fr;
+      gap: 0.5rem;
+      align-items: start;
+      font-size: 0.82rem;
+    }
+    .field-label { color: #8b949e; }
+    .field-value {
+      font-family: monospace;
+      color: #58a6ff;
+      word-break: break-all;
+      line-height: 1.5;
+    }
+    .field-value.muted { color: #8b949e; }
+    .field-value.green { color: #3fb950; }
+
+    /* Copy button */
+    .copy-btn {
+      background: none;
+      border: 1px solid #30363d;
+      color: #8b949e;
+      border-radius: 4px;
+      padding: 0.1rem 0.4rem;
+      font-size: 0.7rem;
+      cursor: pointer;
+      margin-left: 0.4rem;
+      transition: border-color 0.2s;
+      white-space: nowrap;
+    }
+    .copy-btn:hover { border-color: #8b949e; color: #e6edf3; }
+
+    /* Action button */
+    .action-btn {
+      padding: 0.6rem 1.25rem;
+      border: none;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.2s, transform 0.1s;
+      background: #1f6feb;
+      color: #fff;
+      align-self: flex-start;
+    }
+    .action-btn:hover:not(:disabled) { background: #388bfd; }
+    .action-btn:active:not(:disabled) { transform: scale(0.97); }
+    .action-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .action-btn.danger { background: #b62324; }
+    .action-btn.danger:hover:not(:disabled) { background: #da3633; }
+
+    /* Tx status */
+    .tx-row {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.8rem;
+    }
+    .tx-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .tx-dot.pending { background: #d29922; }
+    .tx-dot.done    { background: #3fb950; }
+    .tx-dot.error   { background: #f85149; }
+
+    /* Final success */
+    #success-panel {
+      display: none;
+      background: rgba(63,185,80,0.08);
+      border: 1px solid #3fb950;
+      border-radius: 8px;
+      padding: 1.5rem;
+      text-align: center;
+      margin-top: 1.5rem;
+    }
+    #success-panel.visible { display: block; }
+    #success-panel .title { font-size: 1.4rem; font-weight: 700; color: #3fb950; margin-bottom: 0.5rem; }
+    #success-panel .sub   { font-size: 0.85rem; color: #8b949e; }
+
+    /* Loading overlay */
+    #loading {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(13,17,23,0.8);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.9rem;
+      color: #8b949e;
+      z-index: 100;
+    }
+    #loading.hidden { display: none !important; }
+
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to   { transform: rotate(360deg); }
+    }
+    .spinner {
+      width: 18px; height: 18px;
+      border: 2px solid #30363d;
+      border-top-color: #58a6ff;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      display: inline-block;
+      margin-right: 0.6rem;
+    }
+    .inline-spinner {
+      width: 12px; height: 12px;
+      border: 2px solid #30363d;
+      border-top-color: #58a6ff;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      display: inline-block;
+      margin-right: 0.4rem;
+      vertical-align: middle;
+    }
+  </style>
+</head>
+<body>
+  <div id="loading" class="hidden">
+    <span class="spinner"></span>Loading libraries…
+  </div>
+
+  <header>
+    <a class="back-link" href="dashboard.html">← Dashboard</a>
+    <h1>Onboard New Validator</h1>
+  </header>
+
+  <!-- Progress bar (6 segments) -->
+  <div id="progress">
+    <div class="prog-seg" id="prog-1"></div>
+    <div class="prog-seg" id="prog-2"></div>
+    <div class="prog-seg" id="prog-3"></div>
+    <div class="prog-seg" id="prog-4"></div>
+    <div class="prog-seg" id="prog-5"></div>
+    <div class="prog-seg" id="prog-6"></div>
+  </div>
+
+  <!-- ===== STEP 1: Resolve Contracts ===== -->
+  <div class="step" id="step-1">
+    <div class="step-header">
+      <div class="step-num">1</div>
+      <div class="step-title">Resolve Contracts</div>
+      <div class="step-badge" id="badge-1">pending</div>
+    </div>
+    <div class="step-body">
+      <p class="step-desc">Read the CnStakingFactory address from the on-chain Registry.</p>
+      <div class="field">
+        <span class="field-label">ABv2</span>
+        <span class="field-value">0x0000000000000000000000000000000000000400</span>
+      </div>
+      <div class="field">
+        <span class="field-label">Registry</span>
+        <span class="field-value">0x0000000000000000000000000000000000000401</span>
+      </div>
+      <div class="field">
+        <span class="field-label">Factory</span>
+        <span class="field-value" id="factory-val"><span class="inline-spinner"></span>resolving…</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== STEP 2: Generate Keypair ===== -->
+  <div class="step" id="step-2">
+    <div class="step-header">
+      <div class="step-num">2</div>
+      <div class="step-title">Generate Keypair</div>
+      <div class="step-badge" id="badge-2">pending</div>
+    </div>
+    <div class="step-body">
+      <p class="step-desc">
+        Generate a fresh ECDSA node key with <strong>viem</strong>, then derive the BLS public key and
+        proof-of-possession using the IETF BLS12-381 KeyGen algorithm
+        (<code>DeriveFromECDSA → KeyGen → PopProve</code>).
+      </p>
+      <button class="action-btn" id="btn-generate" disabled>Generate New Keypair</button>
+      <div class="field">
+        <span class="field-label">Node ID</span>
+        <span class="field-value muted" id="val-nodeid">—</span>
+      </div>
+      <div class="field">
+        <span class="field-label">Node Key</span>
+        <span class="field-value muted" id="val-nodekey">—</span>
+      </div>
+      <div class="field">
+        <span class="field-label">BLS Pub</span>
+        <span class="field-value muted" id="val-blspub">—</span>
+      </div>
+      <div class="field">
+        <span class="field-label">BLS PoP</span>
+        <span class="field-value muted" id="val-blspop">—</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== STEP 3: Deploy Staking ===== -->
+  <div class="step" id="step-3">
+    <div class="step-header">
+      <div class="step-num">3</div>
+      <div class="step-title">Deploy CnStaking + PublicDelegation</div>
+      <div class="step-badge" id="badge-3">pending</div>
+    </div>
+    <div class="step-body">
+      <p class="step-desc">
+        Deploy <code>CnStakingV4</code> and <code>PublicDelegation</code> contracts via the factory.
+        Sends 1 gwei as the initial lockup.
+      </p>
+      <button class="action-btn" id="btn-deploy" disabled>Deploy Contracts</button>
+      <div class="tx-row" id="tx-deploy" style="display:none">
+        <div class="tx-dot pending" id="dot-deploy"></div>
+        <span id="msg-deploy">Sending transaction…</span>
+      </div>
+      <div class="field" id="field-staking" style="display:none">
+        <span class="field-label">CnStaking</span>
+        <span class="field-value" id="val-staking">—</span>
+      </div>
+      <div class="field" id="field-pd" style="display:none">
+        <span class="field-label">PublicDeleg.</span>
+        <span class="field-value" id="val-pd">—</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== STEP 4: Stake ===== -->
+  <div class="step" id="step-4">
+    <div class="step-header">
+      <div class="step-num">4</div>
+      <div class="step-title">Stake 5,000,000 KAIA</div>
+      <div class="step-badge" id="badge-4">pending</div>
+    </div>
+    <div class="step-body">
+      <p class="step-desc">
+        Send <code>MIN_STAKE</code> KAIA to the <code>PublicDelegation</code> contract's
+        <code>stake()</code> function.
+      </p>
+      <div class="field">
+        <span class="field-label">MIN_STAKE</span>
+        <span class="field-value muted" id="val-minstake">loading…</span>
+      </div>
+      <button class="action-btn" id="btn-stake" disabled>Stake</button>
+      <div class="tx-row" id="tx-stake" style="display:none">
+        <div class="tx-dot pending" id="dot-stake"></div>
+        <span id="msg-stake">Sending transaction…</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== STEP 5: Register in ABv2 ===== -->
+  <div class="step" id="step-5">
+    <div class="step-header">
+      <div class="step-num">5</div>
+      <div class="step-title">Register in ABv2</div>
+      <div class="step-badge" id="badge-5">pending</div>
+    </div>
+    <div class="step-body">
+      <p class="step-desc">
+        Call <code>createNode</code> on ABv2 with the node's staking contract, reward address,
+        manager, and BLS key + proof-of-possession.
+      </p>
+      <button class="action-btn" id="btn-register" disabled>Register Node</button>
+      <div class="tx-row" id="tx-register" style="display:none">
+        <div class="tx-dot pending" id="dot-register"></div>
+        <span id="msg-register">Sending transaction…</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== STEP 6: readyCandidate ===== -->
+  <div class="step" id="step-6">
+    <div class="step-header">
+      <div class="step-num">6</div>
+      <div class="step-title">Signal readyCandidate</div>
+      <div class="step-badge" id="badge-6">pending</div>
+    </div>
+    <div class="step-body">
+      <p class="step-desc">
+        Call <code>readyCandidate(nodeId)</code> signed by the node key itself
+        (<code>onlyNodeId</code> modifier). Also funds the node key with gas if needed.
+      </p>
+      <button class="action-btn" id="btn-ready" disabled>Signal Ready</button>
+      <div class="tx-row" id="tx-fund" style="display:none">
+        <div class="tx-dot pending" id="dot-fund"></div>
+        <span id="msg-fund">Funding node key with gas…</span>
+      </div>
+      <div class="tx-row" id="tx-ready" style="display:none">
+        <div class="tx-dot pending" id="dot-ready"></div>
+        <span id="msg-ready">Calling readyCandidate…</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Success -->
+  <div id="success-panel">
+    <div class="title">Validator Joined!</div>
+    <div class="sub" id="success-msg">Node is now CandReady. Waiting for the next epoch boundary (~100 blocks) to join the active validator set.</div>
+  </div>
+
+  <script type="module">
+    // ─────────────────────────────────────────────────────────
+    // Constants
+    // ─────────────────────────────────────────────────────────
+    const RPC        = 'http://localhost:8551';
+    const ABV2       = '0x0000000000000000000000000000000000000400';
+    const REGISTRY   = '0x0000000000000000000000000000000000000401';
+    const FUNDED_KEY = '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80';
+    const BLS_R      = 0x73eda753299d7d483339d80809a1d80553bda402fffe5bfeffffffff00000001n;
+    const DST_POP    = 'BLS_POP_BLS12381G2_XMD:SHA-256_SSWU_RO_POP_';
+
+    // ─────────────────────────────────────────────────────────
+    // State
+    // ─────────────────────────────────────────────────────────
+    const state = {
+      factory:     null,
+      ecdsaKey:    null,   // '0x...' 32-byte hex
+      nodeId:      null,   // '0x...' address
+      blsSkBytes:  null,   // Uint8Array 32 bytes (BLS secret key from KeyGen)
+      blsPubHex:   null,   // '0x...'
+      blsPopHex:   null,   // '0x...'
+      staking:     null,
+      pd:          null,
+      minStake:    null,   // ethers.BigNumber
+    };
+
+    // ─────────────────────────────────────────────────────────
+    // Library references (set after import)
+    // ─────────────────────────────────────────────────────────
+    let viem_accounts, noble_bls, ethers_lib;
+
+    // ─────────────────────────────────────────────────────────
+    // UI helpers
+    // ─────────────────────────────────────────────────────────
+    function setStep(n, status) {
+      const el  = document.getElementById(`step-${n}`);
+      const seg = document.getElementById(`prog-${n}`);
+      const badge = document.getElementById(`badge-${n}`);
+      el.className = 'step ' + status;
+      seg.className = 'prog-seg ' + (status === 'done' ? 'done' : status === 'running' ? 'running' : '');
+      badge.textContent = status;
+    }
+
+    function setTxStatus(id, status, msg) {
+      const row = document.getElementById(`tx-${id}`);
+      const dot = document.getElementById(`dot-${id}`);
+      const msgEl = document.getElementById(`msg-${id}`);
+      row.style.display = 'flex';
+      dot.className = 'tx-dot ' + status;
+      msgEl.textContent = msg;
+    }
+
+    function showField(id) {
+      const el = document.getElementById(`field-${id}`);
+      if (el) el.style.display = 'grid';
+    }
+
+    function val(id, text, cls = '') {
+      const el = document.getElementById(`val-${id}`);
+      if (!el) return;
+      el.textContent = text;
+      el.className = 'field-value' + (cls ? ' ' + cls : '');
+    }
+
+    function shortHex(h) {
+      if (!h) return '—';
+      return h.slice(0, 10) + '…' + h.slice(-6);
+    }
+
+    // ─────────────────────────────────────────────────────────
+    // Hex utilities
+    // ─────────────────────────────────────────────────────────
+    function hexToBytes(hex) {
+      hex = hex.replace(/^0x/, '');
+      const arr = new Uint8Array(hex.length / 2);
+      for (let i = 0; i < arr.length; i++)
+        arr[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16);
+      return arr;
+    }
+    function bytesToHex(bytes) {
+      return '0x' + Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+    function bytesToBigInt(bytes) {
+      return BigInt('0x' + Array.from(bytes).map(b => b.toString(16).padStart(2,'0')).join(''));
+    }
+    function bigIntToBytes32(n) {
+      const hex = n.toString(16).padStart(64, '0');
+      return hexToBytes(hex);
+    }
+
+    // ─────────────────────────────────────────────────────────
+    // BLS KeyGen — IETF draft-irtf-cfrg-bls-signature-05 §2.3
+    // Equivalent to Kaia's bls.DeriveFromECDSA(ecdsaKey)
+    // ─────────────────────────────────────────────────────────
+    async function hmacSha256(key, data) {
+      const k = await crypto.subtle.importKey('raw', key, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+      return new Uint8Array(await crypto.subtle.sign('HMAC', k, data));
+    }
+    async function sha256(data) {
+      return new Uint8Array(await crypto.subtle.digest('SHA-256', data));
+    }
+
+    async function blsKeyGen(ecdsaPrivBytes) {
+      // IKM = ecdsaPrivBytes || 0x00  (I2OSP(0,1))
+      const ikm = new Uint8Array(ecdsaPrivBytes.length + 1);
+      ikm.set(ecdsaPrivBytes);
+      // info = I2OSP(48, 2) = [0x00, 0x30]
+      const info = new Uint8Array([0x00, 0x30]);
+      // Initial salt = "BLS-SIG-KEYGEN-SALT-"
+      let salt = new TextEncoder().encode('BLS-SIG-KEYGEN-SALT-');
+
+      for (;;) {
+        // salt = H(salt)
+        salt = await sha256(salt);
+        // PRK = HKDF-Extract(salt, ikm) = HMAC-SHA256(key=salt, data=ikm)
+        const prk = await hmacSha256(salt, ikm);
+        // OKM = HKDF-Expand(prk, info, 48)
+        // T(1) = HMAC-SHA256(key=prk, data=info || 0x01)  → 32 bytes
+        const t1 = await hmacSha256(prk, new Uint8Array([...info, 0x01]));
+        // T(2) = HMAC-SHA256(key=prk, data=t1 || info || 0x02)
+        const t2 = await hmacSha256(prk, new Uint8Array([...t1, ...info, 0x02]));
+        // OKM = T(1) || T(2)[0:16]
+        const okm = new Uint8Array(48);
+        okm.set(t1, 0); okm.set(t2.slice(0, 16), 32);
+        const sk = bytesToBigInt(okm) % BLS_R;
+        if (sk !== 0n) return bigIntToBytes32(sk);
+        // extremely unlikely — retry with new salt
+      }
+    }
+
+    // ─────────────────────────────────────────────────────────
+    // BLS PopProve — sign pubKey bytes with POP DST
+    // Equivalent to Kaia's bls.PopProve(sk)
+    // ─────────────────────────────────────────────────────────
+    async function blsPopProve(blsSkBytes, blsPubBytes) {
+      const bls = noble_bls;
+      const skBigInt = bytesToBigInt(blsSkBytes);
+      // Hash pubKey to G2 with POP DST (no augmentation — just the pubKey bytes)
+      const msgPoint = await bls.PointG2.hashToCurve(blsPubBytes, { DST: DST_POP });
+      // PoP = msgPoint * sk
+      const popPoint = msgPoint.multiply(skBigInt);
+      return popPoint.toRawBytes(true); // compressed G2, 96 bytes
+    }
+
+    // Self-test against known test vector (cn5 nodekey from this demo)
+    async function selfTest() {
+      const knownEcdsa   = '2b12182d904ccfc66cf8c36135f8e2656aeeb3562061b14e18aa0fcabeff11be';
+      const expectedPub  = 'b2117166528a624ae4091dc382c722ce10e1b8954b44ec05678d5b3983ff00b154b431717f0e7c1348692e31a006316e';
+      const expectedPop  = '86f11e25a69c439456d6ab8c0fe1729470fc6fc09408fe309bab82f3df4dadfb8dc8683c88c677501290850a3ce8bbe20c5ceaa1b4bc9d1c886d923e15018b1a1b4e2b7f3bb9289679633e25d43671a8a9c4d97a84237e1d19fd4c0c8b1dca57';
+      try {
+        const sk  = await blsKeyGen(hexToBytes(knownEcdsa));
+        const pub = noble_bls.getPublicKey(sk);
+        const pop = await blsPopProve(sk, pub);
+        const pubHex = bytesToHex(pub).slice(2);
+        const popHex = bytesToHex(pop).slice(2);
+        if (pubHex === expectedPub && popHex === expectedPop) {
+          console.log('%c[BLS self-test] PASSED', 'color: #3fb950');
+        } else {
+          console.warn('[BLS self-test] MISMATCH');
+          console.log('pub expected:', expectedPub);
+          console.log('pub got:     ', pubHex);
+          console.log('pop expected:', expectedPop);
+          console.log('pop got:     ', popHex);
+        }
+      } catch (e) {
+        console.warn('[BLS self-test] ERROR', e);
+      }
+    }
+
+    // ─────────────────────────────────────────────────────────
+    // JSON-RPC helper (no ethers needed for reads)
+    // ─────────────────────────────────────────────────────────
+    async function jsonRpc(method, params = []) {
+      const res = await fetch(RPC, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }),
+      });
+      const j = await res.json();
+      if (j.error) throw new Error(j.error.message);
+      return j.result;
+    }
+
+    // ─────────────────────────────────────────────────────────
+    // ethers helpers (set up after library loads)
+    // ─────────────────────────────────────────────────────────
+    let provider, fundedWallet;
+
+    const ABV2_ABI = [
+      'function MIN_STAKE() view returns (uint256)',
+      'function getNodeState(address) view returns (uint8)',
+      'function createNode(address,address,address,address,(bytes,bytes),string)',
+      'function readyCandidate(address)',
+    ];
+    const FACTORY_ABI = [
+      'function deployCnStakingWithPD(address,(address,address,uint256,string)) payable',
+    ];
+    const STAKING_ABI = [ 'function publicDelegation() view returns (address)' ];
+    const PD_ABI      = [ 'function stake() payable' ];
+    const REGISTRY_ABI= [ 'function getActiveAddr(string) view returns (address)' ];
+
+    // ─────────────────────────────────────────────────────────
+    // Step implementations
+    // ─────────────────────────────────────────────────────────
+
+    // STEP 1 — auto
+    async function runStep1() {
+      setStep(1, 'running');
+      try {
+        const registry = new ethers_lib.ethers.Contract(REGISTRY, REGISTRY_ABI, provider);
+        state.factory = await registry.getActiveAddr('CnStakingFactory');
+        val('factory', state.factory);
+        document.getElementById('factory-val').innerHTML = state.factory;
+        setStep(1, 'done');
+        // Enable step 2
+        setStep(2, 'active');
+        document.getElementById('btn-generate').disabled = false;
+      } catch (e) {
+        document.getElementById('factory-val').textContent = 'Error: ' + e.message;
+        setStep(1, 'error');
+      }
+    }
+
+    // STEP 2 — generate keypair
+    async function runStep2() {
+      setStep(2, 'running');
+      document.getElementById('btn-generate').disabled = true;
+      try {
+        // Generate ECDSA key with viem
+        const { generatePrivateKey, privateKeyToAccount } = viem_accounts;
+        state.ecdsaKey = generatePrivateKey(); // '0x...'
+        const account = privateKeyToAccount(state.ecdsaKey);
+        state.nodeId = account.address;
+
+        // Derive BLS via IETF KeyGen
+        const ecdsaBytes = hexToBytes(state.ecdsaKey);
+        state.blsSkBytes = await blsKeyGen(ecdsaBytes);
+        const pubBytes   = noble_bls.getPublicKey(state.blsSkBytes); // G1 48 bytes
+        const popBytes   = await blsPopProve(state.blsSkBytes, pubBytes);
+
+        state.blsPubHex = bytesToHex(pubBytes);
+        state.blsPopHex = bytesToHex(popBytes);
+
+        // Display
+        val('nodeid', state.nodeId);
+        val('nodekey', shortHex(state.ecdsaKey) + ' (copy ↓)');
+        val('blspub', shortHex(state.blsPubHex));
+        val('blspop', shortHex(state.blsPopHex));
+
+        setStep(2, 'done');
+        // Move to step 3
+        setStep(3, 'active');
+        document.getElementById('btn-deploy').disabled = false;
+
+        // Pre-load MIN_STAKE for step 4
+        const abv2 = new ethers_lib.ethers.Contract(ABV2, ABV2_ABI, provider);
+        abv2.MIN_STAKE().then(ms => {
+          state.minStake = ms;
+          val('minstake', ethers_lib.ethers.utils.formatEther(ms) + ' KAIA');
+        });
+      } catch (e) {
+        setStep(2, 'error');
+        document.getElementById('badge-2').textContent = 'error: ' + e.message.slice(0, 40);
+        document.getElementById('btn-generate').disabled = false;
+      }
+    }
+
+    // STEP 3 — deploy
+    async function runStep3() {
+      setStep(3, 'running');
+      document.getElementById('btn-deploy').disabled = true;
+      document.getElementById('tx-deploy').style.display = 'flex';
+      try {
+        const factory = new ethers_lib.ethers.Contract(state.factory, FACTORY_ABI, fundedWallet);
+        const FUNDED_ADDR = fundedWallet.address;
+
+        setTxStatus('deploy', 'pending', 'Sending deployCnStakingWithPD…');
+        const tx = await factory.deployCnStakingWithPD(
+          state.nodeId,
+          { owner: FUNDED_ADDR, rewardAddr: FUNDED_ADDR, unlockTime: 0, description: '' },
+          { value: ethers_lib.ethers.BigNumber.from('1000000000'), gasLimit: 3000000 }
+        );
+        setTxStatus('deploy', 'pending', `Waiting for tx ${tx.hash.slice(0,10)}…`);
+        const receipt = await tx.wait();
+        state.staking = receipt.logs[0].address;
+
+        const stk = new ethers_lib.ethers.Contract(state.staking, STAKING_ABI, provider);
+        state.pd = await stk.publicDelegation();
+
+        setTxStatus('deploy', 'done', `Confirmed in block ${receipt.blockNumber}`);
+        showField('staking'); val('staking', state.staking);
+        showField('pd');      val('pd',      state.pd);
+
+        setStep(3, 'done');
+        setStep(4, 'active');
+        document.getElementById('btn-stake').disabled = false;
+      } catch (e) {
+        setTxStatus('deploy', 'error', e.reason || e.message);
+        setStep(3, 'error');
+        document.getElementById('btn-deploy').disabled = false;
+      }
+    }
+
+    // STEP 4 — stake
+    async function runStep4() {
+      setStep(4, 'running');
+      document.getElementById('btn-stake').disabled = true;
+      document.getElementById('tx-stake').style.display = 'flex';
+      try {
+        const pd = new ethers_lib.ethers.Contract(state.pd, PD_ABI, fundedWallet);
+        setTxStatus('stake', 'pending', `Staking ${ethers_lib.ethers.utils.formatEther(state.minStake)} KAIA…`);
+        const tx = await pd.stake({ value: state.minStake, gasLimit: 300000 });
+        setTxStatus('stake', 'pending', `Waiting for tx ${tx.hash.slice(0,10)}…`);
+        const receipt = await tx.wait();
+        setTxStatus('stake', 'done', `Confirmed in block ${receipt.blockNumber}`);
+
+        setStep(4, 'done');
+        setStep(5, 'active');
+        document.getElementById('btn-register').disabled = false;
+      } catch (e) {
+        setTxStatus('stake', 'error', e.reason || e.message);
+        setStep(4, 'error');
+        document.getElementById('btn-stake').disabled = false;
+      }
+    }
+
+    // STEP 5 — createNode
+    async function runStep5() {
+      setStep(5, 'running');
+      document.getElementById('btn-register').disabled = true;
+      document.getElementById('tx-register').style.display = 'flex';
+      try {
+        const abv2 = new ethers_lib.ethers.Contract(ABV2, ABV2_ABI, fundedWallet);
+        const FUNDED_ADDR = fundedWallet.address;
+        setTxStatus('register', 'pending', 'Sending createNode…');
+        const tx = await abv2.createNode(
+          state.nodeId,
+          state.staking,
+          state.pd,
+          FUNDED_ADDR,
+          { publicKey: state.blsPubHex, pop: state.blsPopHex },
+          '',
+          { gasLimit: 500000 }
+        );
+        setTxStatus('register', 'pending', `Waiting for tx ${tx.hash.slice(0,10)}…`);
+        const receipt = await tx.wait();
+        setTxStatus('register', 'done', `Confirmed in block ${receipt.blockNumber}`);
+
+        setStep(5, 'done');
+        setStep(6, 'active');
+        document.getElementById('btn-ready').disabled = false;
+      } catch (e) {
+        setTxStatus('register', 'error', e.reason || e.message);
+        setStep(5, 'error');
+        document.getElementById('btn-register').disabled = false;
+      }
+    }
+
+    // STEP 6 — readyCandidate
+    async function runStep6() {
+      setStep(6, 'running');
+      document.getElementById('btn-ready').disabled = true;
+
+      try {
+        const cn5Wallet = new ethers_lib.ethers.Wallet(state.ecdsaKey, provider);
+        const abv2Cn5   = new ethers_lib.ethers.Contract(ABV2, ABV2_ABI, cn5Wallet);
+
+        // Fund cn5 with gas if balance < 0.1 ETH
+        const balance = await provider.getBalance(state.nodeId);
+        if (balance.lt(ethers_lib.ethers.utils.parseEther('0.01'))) {
+          document.getElementById('tx-fund').style.display = 'flex';
+          setTxStatus('fund', 'pending', 'Sending 1 KAIA to node for gas…');
+          const fundTx = await fundedWallet.sendTransaction({
+            to: state.nodeId, value: ethers_lib.ethers.utils.parseEther('1'), gasLimit: 21000
+          });
+          setTxStatus('fund', 'pending', `Waiting for ${fundTx.hash.slice(0,10)}…`);
+          await fundTx.wait();
+          setTxStatus('fund', 'done', 'Node funded');
+        }
+
+        document.getElementById('tx-ready').style.display = 'flex';
+        setTxStatus('ready', 'pending', 'Calling readyCandidate (signed by node key)…');
+        const tx = await abv2Cn5.readyCandidate(state.nodeId, { gasLimit: 200000 });
+        setTxStatus('ready', 'pending', `Waiting for ${tx.hash.slice(0,10)}…`);
+        await tx.wait();
+        setTxStatus('ready', 'done', 'readyCandidate confirmed — node is CandReady');
+
+        setStep(6, 'done');
+        document.getElementById('success-panel').classList.add('visible');
+        document.getElementById('success-msg').textContent =
+          `${state.nodeId} is CandReady. Waiting for the next epoch boundary (~100 blocks) to join ValActive.`;
+        pollForActive();
+      } catch (e) {
+        setTxStatus('ready', 'error', e.reason || e.message);
+        setStep(6, 'error');
+        document.getElementById('btn-ready').disabled = false;
+      }
+    }
+
+    // Poll until node is ValActive
+    async function pollForActive() {
+      const abv2 = new ethers_lib.ethers.Contract(ABV2, ABV2_ABI, provider);
+      for (let i = 0; i < 120; i++) {
+        await new Promise(r => setTimeout(r, 5000));
+        try {
+          const s = await abv2.getNodeState(state.nodeId);
+          if (s === 6) { // ValActive
+            document.getElementById('success-msg').textContent =
+              `${state.nodeId} is now ValActive! Check the dashboard — validator count increased.`;
+            document.getElementById('success-panel').style.borderColor = '#3fb950';
+            return;
+          }
+        } catch (_) {}
+      }
+    }
+
+    // ─────────────────────────────────────────────────────────
+    // Wire up buttons
+    // ─────────────────────────────────────────────────────────
+    document.getElementById('btn-generate').addEventListener('click', runStep2);
+    document.getElementById('btn-deploy')  .addEventListener('click', runStep3);
+    document.getElementById('btn-stake')   .addEventListener('click', runStep4);
+    document.getElementById('btn-register').addEventListener('click', runStep5);
+    document.getElementById('btn-ready')   .addEventListener('click', runStep6);
+
+    // ─────────────────────────────────────────────────────────
+    // Bootstrap — load libraries then start
+    // ─────────────────────────────────────────────────────────
+    const loadingEl = document.getElementById('loading');
+    loadingEl.classList.remove('hidden');
+
+    try {
+      // All libraries via esm.sh (requires internet)
+      const [viemAccounts, nobleBls, ethersModule] = await Promise.all([
+        import('https://esm.sh/viem@2.30.3/accounts'),
+        import('https://esm.sh/@noble/bls12-381@1.4.0'),
+        import('https://esm.sh/ethers@5.7.2'),
+      ]);
+
+      viem_accounts = viemAccounts;
+      noble_bls     = nobleBls;
+      ethers_lib    = ethersModule;
+
+      provider     = new ethers_lib.ethers.providers.JsonRpcProvider(RPC);
+      fundedWallet = new ethers_lib.ethers.Wallet(FUNDED_KEY, provider);
+
+      loadingEl.classList.add('hidden');
+
+      // Run BLS self-test in background
+      selfTest();
+
+      // Auto-run step 1
+      setStep(1, 'active');
+      await runStep1();
+    } catch (e) {
+      loadingEl.classList.add('hidden');
+      document.getElementById('step-1').classList.add('error');
+      document.getElementById('badge-1').textContent = 'load error';
+      document.getElementById('factory-val').textContent =
+        'Failed to load libraries: ' + e.message +
+        ' — internet access required (esm.sh CDN)';
+    }
+  </script>
+</body>
+</html>

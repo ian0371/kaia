@@ -1,0 +1,694 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kaia Permissionless Validator Dashboard</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", monospace;
+      background: #0d1117;
+      color: #e6edf3;
+      min-height: 100vh;
+      padding: 2rem;
+    }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 2rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid #21262d;
+    }
+    h1 { font-size: 1.4rem; font-weight: 600; }
+    #status-bar { display: flex; gap: 1.5rem; align-items: center; font-size: 0.85rem; color: #8b949e; }
+    #block-num { font-variant-numeric: tabular-nums; }
+    #connection-status { display: flex; align-items: center; gap: 0.4rem; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: #3fb950; }
+    .dot.error { background: #f85149; }
+    #error-msg {
+      display: none;
+      background: #21262d;
+      border: 1px solid #f85149;
+      border-radius: 6px;
+      padding: 1rem;
+      margin-bottom: 1.5rem;
+      color: #f85149;
+      font-size: 0.85rem;
+      white-space: pre-wrap;
+    }
+    #count-banner {
+      font-size: 3rem;
+      font-weight: 700;
+      text-align: center;
+      margin-bottom: 2rem;
+      color: #58a6ff;
+      font-variant-numeric: tabular-nums;
+      transition: color 0.3s;
+    }
+    #count-banner.new { color: #3fb950; }
+    table { width: 100%; border-collapse: collapse; }
+    th {
+      text-align: left;
+      padding: 0.6rem 1rem;
+      font-size: 0.75rem;
+      color: #8b949e;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      border-bottom: 1px solid #21262d;
+    }
+    td {
+      padding: 0.7rem 1rem;
+      font-family: monospace;
+      font-size: 0.85rem;
+      border-bottom: 1px solid #21262d;
+    }
+    tr.new-validator td {
+      animation: fadeIn 3s ease-out;
+      background: rgba(63, 185, 80, 0.08);
+    }
+    @keyframes fadeIn {
+      from { background: rgba(63, 185, 80, 0.3); }
+      to   { background: rgba(63, 185, 80, 0.08); }
+    }
+
+    /* ===== DEMO CONTROLS ===== */
+    #demo-section {
+      margin-top: 3rem;
+      padding-top: 2rem;
+      border-top: 1px solid #21262d;
+    }
+    #demo-section h2 {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: #8b949e;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 1.5rem;
+    }
+    #demo-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    @media (max-width: 600px) { #demo-grid { grid-template-columns: 1fr; } }
+
+    .demo-card {
+      background: #161b22;
+      border: 1px solid #21262d;
+      border-radius: 8px;
+      padding: 1.25rem;
+    }
+    .demo-card .card-title {
+      font-size: 0.7rem;
+      color: #8b949e;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 0.75rem;
+    }
+    #cn5-addr {
+      display: block;
+      font-size: 0.8rem;
+      color: #58a6ff;
+      margin-bottom: 0.75rem;
+      word-break: break-all;
+    }
+    #cn5-state-badge {
+      display: inline-block;
+      padding: 0.25rem 0.75rem;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      background: #21262d;
+      color: #8b949e;
+      transition: background 0.3s, color 0.3s;
+    }
+    #cn5-state-badge.state-active   { background: rgba(63,185,80,0.15); color: #3fb950; }
+    #cn5-state-badge.state-pending  { background: rgba(210,153,34,0.15); color: #d29922; }
+    #cn5-state-badge.state-inactive { background: rgba(248,81,73,0.15); color: #f85149; }
+    #cn5-state-badge.state-neutral  { background: #21262d; color: #8b949e; }
+
+    .action-card { display: flex; flex-direction: column; gap: 0.75rem; }
+    #cn5-hint {
+      font-size: 0.8rem;
+      color: #8b949e;
+      line-height: 1.5;
+    }
+    .btn-row { display: flex; gap: 0.75rem; }
+    .demo-btn {
+      flex: 1;
+      padding: 0.7rem 1rem;
+      border: none;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.2s, transform 0.1s;
+    }
+    .demo-btn:active { transform: scale(0.97); }
+    .demo-btn:disabled { opacity: 0.35; cursor: not-allowed; transform: none; }
+    #btn-onboard  { background: #238636; color: #e6edf3; }
+    #btn-offboard { background: #b62324; color: #e6edf3; }
+    #btn-onboard:not(:disabled):hover  { background: #2ea043; }
+    #btn-offboard:not(:disabled):hover { background: #da3633; }
+
+    /* Tx log */
+    #tx-log {
+      background: #161b22;
+      border: 1px solid #21262d;
+      border-radius: 8px;
+      padding: 1rem;
+      min-height: 80px;
+      max-height: 240px;
+      overflow-y: auto;
+      font-family: monospace;
+      font-size: 0.8rem;
+    }
+    #log-entries:empty::before {
+      content: 'No transactions yet.';
+      color: #8b949e;
+    }
+    .log-entry {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: 0.6rem;
+      align-items: baseline;
+      padding: 0.3rem 0;
+      border-bottom: 1px solid #21262d;
+      line-height: 1.4;
+    }
+    .log-entry:last-child { border-bottom: none; }
+    .log-ts { color: #8b949e; white-space: nowrap; }
+    .log-msg { color: #e6edf3; word-break: break-all; }
+    .log-msg.pending { color: #d29922; }
+    .log-msg.success { color: #3fb950; }
+    .log-msg.error   { color: #f85149; }
+    .log-hash { color: #58a6ff; font-size: 0.75rem; white-space: nowrap; }
+
+    #ethers-warn {
+      display: none;
+      background: #21262d;
+      border: 1px solid #d29922;
+      border-radius: 6px;
+      padding: 0.75rem 1rem;
+      color: #d29922;
+      font-size: 0.8rem;
+      margin-bottom: 1rem;
+    }
+
+    #footer { margin-top: 2rem; font-size: 0.75rem; color: #8b949e; text-align: center; }
+    code { background: #161b22; padding: 0.1em 0.4em; border-radius: 3px; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Kaia Permissionless Validators</h1>
+    <div id="status-bar">
+      <div id="connection-status">
+        <div class="dot" id="dot"></div>
+        <span id="conn-label">Connecting...</span>
+      </div>
+      <div>Block: <span id="block-num">—</span></div>
+      <div>Validators: <span id="val-count">—</span></div>
+    </div>
+  </header>
+  <div id="error-msg"></div>
+  <div id="count-banner">— validators</div>
+  <table>
+    <thead><tr><th>#</th><th>Address</th><th>Status</th></tr></thead>
+    <tbody id="validator-tbody"></tbody>
+  </table>
+
+  <!-- ===== DEMO CONTROLS ===== -->
+  <section id="demo-section">
+    <h2>Demo Controls</h2>
+    <div id="ethers-warn">
+      ⚠ ethers.js not loaded — internet access required for demo controls.
+      Serve via <code>python3 -m http.server 9000</code> from a machine with internet.
+    </div>
+    <div id="demo-grid">
+      <!-- CN5 State Card -->
+      <div class="demo-card">
+        <div class="card-title">CN5 Node</div>
+        <code id="cn5-addr">0xafb1fc03ac9b43a643d229704b3e3bdc496a7fbc</code>
+        <div id="cn5-state-badge" class="state-neutral">Loading…</div>
+      </div>
+      <!-- Action Card -->
+      <div class="demo-card action-card">
+        <div class="card-title">Action</div>
+        <div id="cn5-hint" style="color:#8b949e">Waiting for state…</div>
+        <div class="btn-row">
+          <button class="demo-btn" id="btn-onboard"  disabled>⬆ Onboard</button>
+          <button class="demo-btn" id="btn-offboard" disabled>⬇ Exit</button>
+        </div>
+      </div>
+    </div>
+    <!-- Transaction Log -->
+    <div id="tx-log"><div id="log-entries"></div></div>
+  </section>
+
+  <div id="footer">
+    Polling <code>http://localhost:8551</code> every 2s &nbsp;·&nbsp;
+    Serve with: <code>python3 -m http.server 9000</code> then open
+    <code>http://localhost:9000/dashboard.html</code>
+  </div>
+
+  <!-- ethers.js v5 for transaction signing -->
+  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+  <script>
+    /* ==================== EXISTING VALIDATOR POLLING ==================== */
+    const RPC = 'http://localhost:8551';
+    let knownAddrs = new Set();
+    let prevCount = 0;
+
+    async function rpc(method, params = []) {
+      const res = await fetch(RPC, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params })
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const j = await res.json();
+      if (j.error) throw new Error(j.error.message);
+      return j.result;
+    }
+
+    function setError(msg) {
+      const el = document.getElementById('error-msg');
+      const dot = document.getElementById('dot');
+      const label = document.getElementById('conn-label');
+      if (msg) {
+        el.style.display = 'block'; el.textContent = msg;
+        dot.className = 'dot error'; label.textContent = 'Disconnected';
+      } else {
+        el.style.display = 'none'; dot.className = 'dot'; label.textContent = 'Connected';
+      }
+    }
+
+    async function update() {
+      try {
+        const [nodeMap, blockHex] = await Promise.all([
+          rpc('kaia_getNodeByState', ['latest', ['ValActive']]),
+          rpc('kaia_blockNumber', [])
+        ]);
+        setError(null);
+        const validators = Object.keys(nodeMap);
+        const block = parseInt(blockHex, 16);
+        document.getElementById('block-num').textContent = block.toLocaleString();
+        document.getElementById('val-count').textContent = validators.length;
+
+        const banner = document.getElementById('count-banner');
+        banner.textContent = `${validators.length} validator${validators.length !== 1 ? 's' : ''}`;
+        if (validators.length > prevCount && prevCount > 0) {
+          banner.className = 'new';
+          setTimeout(() => { banner.className = ''; }, 3000);
+        }
+        prevCount = validators.length;
+
+        const tbody = document.getElementById('validator-tbody');
+        const newAddrs = new Set(validators.map(a => a.toLowerCase()));
+        tbody.innerHTML = '';
+        validators.forEach((addr, i) => {
+          const isNew = !knownAddrs.has(addr.toLowerCase()) && knownAddrs.size > 0;
+          const tr = document.createElement('tr');
+          if (isNew) tr.className = 'new-validator';
+          tr.innerHTML = `<td>${i + 1}</td><td>${addr}</td><td>${isNew ? '&#x1F7E2; just joined' : '&#x2713; active'}</td>`;
+          tbody.appendChild(tr);
+        });
+        knownAddrs = newAddrs;
+      } catch (e) {
+        let msg = `Cannot reach ${RPC}: ${e.message}`;
+        if (e.message.toLowerCase().includes('fetch') ||
+            e.message.toLowerCase().includes('failed') ||
+            e.message.toLowerCase().includes('network')) {
+          msg += '\n\nIf opening as file://, serve with:\n  python3 -m http.server 9000\nthen open http://localhost:9000/dashboard.html';
+        }
+        setError(msg);
+      }
+    }
+
+    update();
+    setInterval(update, 2000);
+
+    /* ==================== DEMO CONTROLS ==================== */
+
+    // Fixed demo keys — derived from "test junk" mnemonic via join.sh
+    const ABV2       = '0x0000000000000000000000000000000000000400';
+    const REGISTRY   = '0x0000000000000000000000000000000000000401';
+    const FUNDED_KEY = '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80';
+    const CN5_NODEKEY= '0x2b12182d904ccfc66cf8c36135f8e2656aeeb3562061b14e18aa0fcabeff11be';
+    const CN5_NODEID = '0xafb1fc03ac9b43a643d229704b3e3bdc496a7fbc';
+    const BLS_PUB    = '0xb2117166528a624ae4091dc382c722ce10e1b8954b44ec05678d5b3983ff00b154b431717f0e7c1348692e31a006316e';
+    const BLS_POP    = '0x86f11e25a69c439456d6ab8c0fe1729470fc6fc09408fe309bab82f3df4dadfb8dc8683c88c677501290850a3ce8bbe20c5ceaa1b4bc9d1c886d923e15018b1a1b4e2b7f3bb9289679633e25d43671a8a9c4d97a84237e1d19fd4c0c8b1dca57';
+
+    // State enum (Node.sol)
+    const STATE = {
+      0: 'Unknown',    1: 'Registered', 2: 'CandReady',
+      3: 'CandTesting',4: 'ValInactive',5: 'ValReady',
+      6: 'ValActive',  7: 'ValPaused',  8: 'ValExiting'
+    };
+    const STATE_CLASS = {
+      0: 'state-neutral', 1: 'state-inactive', 2: 'state-pending',
+      3: 'state-pending',  4: 'state-inactive', 5: 'state-pending',
+      6: 'state-active',   7: 'state-pending',  8: 'state-pending'
+    };
+
+    // Minimal ABIs
+    const ABI_ABV2 = [
+      'function MIN_STAKE() view returns (uint256)',
+      'function getNodeState(address nodeId) view returns (uint8)',
+      'function getNodeInfo(address nodeId) view returns ((address manager, address stakingContract, address rewardAddress, address voterAddress, uint256 timeoutAt, uint256 gcId, (bytes publicKey, bytes pop) blsInfo, string metadata, uint8 state))',
+      'function readyCandidate(address nodeId)',
+      'function exit(address nodeId)',
+      'function offboard(address nodeId)',
+      'function createNode(address nodeId, address staking, address rewardAddr, address manager, (bytes publicKey, bytes pop) blsKey, string description)',
+    ];
+    const ABI_FACTORY = [
+      'function deployCnStakingWithPD(address nodeId, (address owner, address rewardAddr, uint256 unlockTime, string description) pdArgs) payable returns (address)',
+    ];
+    const ABI_STAKING = [
+      'function publicDelegation() view returns (address)',
+    ];
+    const ABI_PD = [
+      'function stake() payable',
+    ];
+    const ABI_REGISTRY = [
+      'function getActiveAddr(string name) view returns (address)',
+    ];
+
+    /* ---------- Log helpers ---------- */
+    function logEntry(msg, cls, hash) {
+      const el = document.getElementById('log-entries');
+      const ts = new Date().toLocaleTimeString();
+      const div = document.createElement('div');
+      div.className = 'log-entry';
+      div.innerHTML = `<span class="log-ts">${ts}</span>` +
+                      `<span class="log-msg ${cls || ''}">${msg}</span>` +
+                      (hash ? `<a class="log-hash" href="#" onclick="return false">${hash.slice(0,10)}…</a>` : '<span></span>');
+      el.appendChild(div);
+      div.scrollIntoView({ behavior: 'smooth' });
+      return div;
+    }
+    function logPending(msg) { return logEntry(msg, 'pending'); }
+    function logOk(msg, hash) { return logEntry(msg, 'success', hash); }
+    function logErr(msg) { return logEntry(msg, 'error'); }
+
+    /* ---------- ethers.js init ---------- */
+    let provider, fundedWallet, cn5Wallet, abv2R, abv2Funded, abv2Cn5, factoryAddr;
+    let demoReady = false;
+
+    async function initEthers() {
+      if (typeof ethers === 'undefined') {
+        document.getElementById('ethers-warn').style.display = 'block';
+        return;
+      }
+      try {
+        provider    = new ethers.providers.JsonRpcProvider(RPC);
+        fundedWallet= new ethers.Wallet(FUNDED_KEY, provider);
+        cn5Wallet   = new ethers.Wallet(CN5_NODEKEY, provider);
+        abv2R       = new ethers.Contract(ABV2, ABI_ABV2, provider);
+        abv2Funded  = new ethers.Contract(ABV2, ABI_ABV2, fundedWallet);
+        abv2Cn5     = new ethers.Contract(ABV2, ABI_ABV2, cn5Wallet);
+        // Resolve factory address from Registry
+        const registry = new ethers.Contract(REGISTRY, ABI_REGISTRY, provider);
+        factoryAddr = await registry.getActiveAddr('CnStakingFactory');
+        demoReady = true;
+        pollCN5State();
+      } catch (e) {
+        document.getElementById('ethers-warn').style.display = 'block';
+        document.getElementById('ethers-warn').textContent =
+          '⚠ Demo controls init failed: ' + e.message;
+      }
+    }
+
+    /* ---------- CN5 state poller ---------- */
+    let cn5State = -1;
+    let demoRunning = false;
+
+    async function pollCN5State() {
+      if (!demoReady || demoRunning) return;
+      try {
+        const s = await abv2R.getNodeState(CN5_NODEID);
+        const n = s.toNumber ? s.toNumber() : Number(s);
+        if (n !== cn5State) {
+          cn5State = n;
+          renderCN5State(n);
+        }
+      } catch (_) {}
+    }
+
+    function renderCN5State(s) {
+      const badge = document.getElementById('cn5-state-badge');
+      const hint  = document.getElementById('cn5-hint');
+      const btnOn = document.getElementById('btn-onboard');
+      const btnOff= document.getElementById('btn-offboard');
+      const name  = STATE[s] || 'Unknown';
+
+      badge.textContent = name;
+      badge.className   = STATE_CLASS[s] || 'state-neutral';
+      btnOn.disabled  = true;
+      btnOff.disabled = true;
+
+      switch (s) {
+        case 0: // Unknown — not registered yet
+          hint.textContent = 'CN5 is not registered. Run join.sh first, or click Onboard to deploy staking + register.';
+          btnOn.disabled = false;
+          btnOn.textContent = '⬆ Register & Stake';
+          btnOff.textContent = '⬇ Exit';
+          break;
+        case 1: // Registered — has staking but not ready
+          hint.textContent = 'CN5 is registered. Signal readyCandidate to enter the queue.';
+          btnOn.disabled = false;
+          btnOn.textContent = '⬆ Signal Ready';
+          btnOff.textContent = '⬇ Exit';
+          break;
+        case 2: // CandReady
+        case 3: // CandTesting
+          hint.textContent = `CN5 is in the candidate queue (${name}). Waiting for next epoch boundary → ValActive.`;
+          btnOn.textContent = '⬆ Pending Epoch…';
+          btnOff.textContent = '⬇ Exit';
+          break;
+        case 4: // ValInactive
+          hint.textContent = 'CN5 exited and is now inactive. Click Reactivate to re-enter the queue.';
+          btnOn.disabled = false;
+          btnOn.textContent = '⬆ Reactivate';
+          btnOff.textContent = '⬇ Exit';
+          break;
+        case 5: // ValReady
+          hint.textContent = 'CN5 is ValReady — waiting for epoch → ValActive.';
+          btnOn.textContent = '⬆ Pending Epoch…';
+          btnOff.textContent = '⬇ Exit';
+          break;
+        case 6: // ValActive — in the validator set
+          hint.textContent = 'CN5 is an active validator. Click Exit to initiate offboarding (takes effect at next epoch).';
+          btnOn.textContent = '⬆ Onboard';
+          btnOff.disabled = false;
+          btnOff.textContent = '⬇ Exit Validator';
+          break;
+        case 7: // ValPaused
+          hint.textContent = 'CN5 is paused. Click Exit to begin offboarding.';
+          btnOn.textContent = '⬆ Onboard';
+          btnOff.disabled = false;
+          btnOff.textContent = '⬇ Exit (Paused)';
+          break;
+        case 8: // ValExiting
+          hint.textContent = 'CN5 is exiting. Waiting for epoch boundary → ValInactive. Then you can reactivate.';
+          btnOn.textContent = '⬆ Onboard';
+          btnOff.textContent = '⬇ Exiting…';
+          break;
+        default:
+          hint.textContent = `CN5 state: ${s}`;
+      }
+    }
+
+    setInterval(pollCN5State, 3000);
+    initEthers().then(pollCN5State);
+
+    /* ---------- Transaction helpers ---------- */
+    async function waitTx(tx, label) {
+      const entry = logPending(`${label} — sent ${tx.hash.slice(0,10)}…`);
+      const receipt = await tx.wait();
+      entry.querySelector('.log-msg').className = 'log-msg success';
+      entry.querySelector('.log-msg').textContent = `${label} — confirmed (block ${receipt.blockNumber})`;
+      const hashEl = entry.querySelector('.log-hash');
+      hashEl.textContent = tx.hash.slice(0, 10) + '…';
+      return receipt;
+    }
+
+    function setDemoRunning(v) {
+      demoRunning = v;
+      document.getElementById('btn-onboard').disabled  = v || true; // re-enabled by renderCN5State
+      document.getElementById('btn-offboard').disabled = v || true;
+      if (!v) { cn5State = -1; pollCN5State(); } // force refresh
+    }
+
+    /* ---------- Full onboard (Unknown state) ---------- */
+    async function doFullOnboard() {
+      setDemoRunning(true);
+      try {
+        logPending('Starting full onboard (deploy → stake → register → ready)…');
+
+        // 1. Deploy CnStakingV4 + PublicDelegation
+        const factory  = new ethers.Contract(factoryAddr, ABI_FACTORY, fundedWallet);
+        const FUNDED_ADDR = fundedWallet.address;
+        logPending('Step 1/5: Deploying CnStaking + PublicDelegation…');
+        let cn5Staking, cn5Pd;
+        try {
+          const deployTx = await factory.deployCnStakingWithPD(
+            CN5_NODEID,
+            { owner: FUNDED_ADDR, rewardAddr: FUNDED_ADDR, unlockTime: 0, description: '' },
+            { value: ethers.BigNumber.from('1000000000'), gasLimit: 3000000 }
+          );
+          const receipt = await waitTx(deployTx, 'deployCnStakingWithPD');
+          cn5Staking = receipt.logs[0].address;
+        } catch (e) {
+          // Staking contract may already be deployed (CREATE2 collision)
+          logEntry('Deploy skipped (contract may already exist) — reading from chain…', 'pending');
+          const info = await abv2R.getNodeInfo(CN5_NODEID).catch(() => null);
+          if (info && info.stakingContract !== ethers.constants.AddressZero) {
+            cn5Staking = info.stakingContract;
+            logOk(`Using existing staking: ${cn5Staking}`);
+          } else {
+            throw new Error('Cannot determine staking address: ' + e.message);
+          }
+        }
+        const stakingContract = new ethers.Contract(cn5Staking, ABI_STAKING, provider);
+        cn5Pd = await stakingContract.publicDelegation();
+        logOk(`CnStaking: ${cn5Staking}`);
+        logOk(`PublicDelegation: ${cn5Pd}`);
+
+        // 2. Stake MIN_STAKE via PublicDelegation
+        logPending('Step 2/5: Reading MIN_STAKE from ABv2…');
+        const minStake = await abv2R.MIN_STAKE();
+        logOk(`MIN_STAKE: ${ethers.utils.formatEther(minStake)} KAIA`);
+
+        const pd = new ethers.Contract(cn5Pd, ABI_PD, fundedWallet);
+        const stakeTx = await pd.stake({ value: minStake, gasLimit: 300000 });
+        await waitTx(stakeTx, `stake(${ethers.utils.formatEther(minStake)} KAIA)`);
+
+        // 3. Register CN5 in ABv2
+        logPending('Step 3/5: Registering CN5 in ABv2 (createNode)…');
+        const FUNDED_ADDR2 = fundedWallet.address;
+        const createTx = await abv2Funded.createNode(
+          CN5_NODEID, cn5Staking, cn5Pd, FUNDED_ADDR2,
+          { publicKey: BLS_PUB, pop: BLS_POP },
+          '', { gasLimit: 500000 }
+        );
+        await waitTx(createTx, 'createNode');
+
+        // 4. Fund CN5 with gas
+        logPending('Step 4/5: Funding CN5 nodekey with 1 ETH for gas…');
+        const fundTx = await fundedWallet.sendTransaction({
+          to: CN5_NODEID, value: ethers.utils.parseEther('1'), gasLimit: 21000
+        });
+        await waitTx(fundTx, 'fund CN5 nodekey');
+
+        // 5. readyCandidate — must be signed by CN5 nodekey
+        logPending('Step 5/5: Calling readyCandidate (signed by CN5 nodekey)…');
+        const readyTx = await abv2Cn5.readyCandidate(CN5_NODEID, { gasLimit: 200000 });
+        await waitTx(readyTx, 'readyCandidate');
+
+        logOk('CN5 is CandReady — waiting for epoch boundary to join ValActive.');
+      } catch (e) {
+        logErr('Onboard failed: ' + (e.reason || e.message));
+      } finally {
+        setDemoRunning(false);
+      }
+    }
+
+    /* ---------- Signal ready (Registered state) ---------- */
+    async function doSignalReady() {
+      setDemoRunning(true);
+      try {
+        // Ensure CN5 has gas
+        const balance = await provider.getBalance(CN5_NODEID);
+        if (balance.lt(ethers.utils.parseEther('0.01'))) {
+          logPending('Funding CN5 nodekey with 1 ETH for gas…');
+          const fundTx = await fundedWallet.sendTransaction({
+            to: CN5_NODEID, value: ethers.utils.parseEther('1'), gasLimit: 21000
+          });
+          await waitTx(fundTx, 'fund CN5 nodekey');
+        }
+        logPending('Calling readyCandidate…');
+        const tx = await abv2Cn5.readyCandidate(CN5_NODEID, { gasLimit: 200000 });
+        await waitTx(tx, 'readyCandidate');
+        logOk('CN5 is CandReady — waiting for next epoch → ValActive.');
+      } catch (e) {
+        logErr('readyCandidate failed: ' + (e.reason || e.message));
+      } finally {
+        setDemoRunning(false);
+      }
+    }
+
+    /* ---------- Reactivate (ValInactive state) ---------- */
+    async function doReactivate() {
+      setDemoRunning(true);
+      try {
+        // Ensure CN5 has gas
+        const balance = await provider.getBalance(CN5_NODEID);
+        if (balance.lt(ethers.utils.parseEther('0.01'))) {
+          logPending('Funding CN5 nodekey with 1 ETH for gas…');
+          const fundTx = await fundedWallet.sendTransaction({
+            to: CN5_NODEID, value: ethers.utils.parseEther('1'), gasLimit: 21000
+          });
+          await waitTx(fundTx, 'fund CN5 nodekey');
+        }
+        logPending('Step 1/2: Calling offboard (ValInactive → Registered)…');
+        const tx1 = await abv2Cn5.offboard(CN5_NODEID, { gasLimit: 200000 });
+        await waitTx(tx1, 'offboard');
+
+        logPending('Step 2/2: Calling readyCandidate (Registered → CandReady)…');
+        const tx2 = await abv2Cn5.readyCandidate(CN5_NODEID, { gasLimit: 200000 });
+        await waitTx(tx2, 'readyCandidate');
+        logOk('CN5 is CandReady — waiting for next epoch → ValActive.');
+      } catch (e) {
+        logErr('Reactivate failed: ' + (e.reason || e.message));
+      } finally {
+        setDemoRunning(false);
+      }
+    }
+
+    /* ---------- Exit validator (ValActive / ValPaused) ---------- */
+    async function doExit() {
+      setDemoRunning(true);
+      try {
+        // Ensure CN5 has gas
+        const balance = await provider.getBalance(CN5_NODEID);
+        if (balance.lt(ethers.utils.parseEther('0.01'))) {
+          logPending('Funding CN5 nodekey with 1 ETH for gas…');
+          const fundTx = await fundedWallet.sendTransaction({
+            to: CN5_NODEID, value: ethers.utils.parseEther('1'), gasLimit: 21000
+          });
+          await waitTx(fundTx, 'fund CN5 nodekey');
+        }
+        logPending('Calling exit (ValActive → ValExiting)…');
+        const tx = await abv2Cn5.exit(CN5_NODEID, { gasLimit: 200000 });
+        await waitTx(tx, 'exit');
+        logOk('CN5 is ValExiting — validator count drops at next epoch boundary.');
+      } catch (e) {
+        logErr('exit failed: ' + (e.reason || e.message));
+      } finally {
+        setDemoRunning(false);
+      }
+    }
+
+    /* ---------- Button router ---------- */
+    document.getElementById('btn-onboard').addEventListener('click', () => {
+      if (demoRunning || !demoReady) return;
+      switch (cn5State) {
+        case 0: doFullOnboard(); break;
+        case 1: doSignalReady(); break;
+        case 4: doReactivate(); break;
+        default: break;
+      }
+    });
+
+    document.getElementById('btn-offboard').addEventListener('click', () => {
+      if (demoRunning || !demoReady) return;
+      if (cn5State === 6 || cn5State === 7) doExit();
+    });
+  </script>
+</body>
+</html>

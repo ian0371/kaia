@@ -321,7 +321,7 @@
       'function getNodeInfos(address[] nodeIds) view returns ((address manager, address stakingContract, address rewardAddress, address voterAddress, uint256 timeoutAt, uint256 gcId, (bytes publicKey, bytes pop) blsInfo, string metadata, uint8 state)[])',
     ];
     const REGISTERED_PAGE_SIZE = 15;
-    const REGISTERED_BATCH_SIZE = 50;
+    const REGISTERED_SCAN_BATCH_SIZE = 25;
     let knownAddrs = new Set();
     let prevCount = 0;
     let abv2Read;
@@ -330,12 +330,13 @@
     const gcIdPending = new Map();
     const registeredState = {
       page: 1,
-      nodes: [],
-      candidateNodeIds: [],
-      knownNodeIdSet: new Set(),
-      lastAssignedGcId: 0,
+      nodesByAddr: new Map(),
+      lastAssignedGcId: 100,
       lastNodeCreatedBlock: -1,
-      refreshPromise: null,
+      scanCursorGcId: 100,
+      scanFromGcId: 100,
+      scanToGcId: 100,
+      scanBusy: false,
     };
 
     async function rpc(method, params = []) {
@@ -419,22 +420,7 @@
       }
     }
 
-    function extendRegisteredCandidates(nextLastAssignedGcId) {
-      for (let gcId = registeredState.lastAssignedGcId + 1; gcId <= nextLastAssignedGcId; gcId++) {
-        const derivationIndexes = Array.from(new Set([gcId - 1, gcId])).filter(index => index >= 0);
-        for (const derivationIndex of derivationIndexes) {
-          const nodeId = deriveNodeId(derivationIndex);
-          if (!nodeId) continue;
-          const cacheKey = nodeId.toLowerCase();
-          if (registeredState.knownNodeIdSet.has(cacheKey)) continue;
-          registeredState.knownNodeIdSet.add(cacheKey);
-          registeredState.candidateNodeIds.push(nodeId);
-        }
-      }
-      registeredState.lastAssignedGcId = nextLastAssignedGcId;
-    }
-
-    async function refreshRegisteredCandidates() {
+    async function refreshLastAssignedGcId(visibleValidators) {
       if (!abv2Read || !abv2Iface) return;
       const latestBlock = await abv2Read.provider.getBlockNumber();
       const logs = await abv2Read.provider.getLogs({
@@ -443,50 +429,77 @@
         fromBlock: registeredState.lastNodeCreatedBlock + 1,
         toBlock: latestBlock,
       });
-      let nextLastAssignedGcId = Math.max(100, registeredState.lastAssignedGcId);
+      let nextLastAssignedGcId = registeredState.lastAssignedGcId;
       for (const log of logs) {
         const parsed = abv2Iface.parseLog(log);
         const gcId = parsed.args.gcId.toNumber ? parsed.args.gcId.toNumber() : Number(parsed.args.gcId);
         if (Number.isFinite(gcId)) nextLastAssignedGcId = Math.max(nextLastAssignedGcId, gcId);
       }
+      for (const { addr } of visibleValidators) {
+        const cachedGcId = gcIdCache.get(addr.toLowerCase());
+        if (Number.isFinite(cachedGcId)) nextLastAssignedGcId = Math.max(nextLastAssignedGcId, cachedGcId);
+      }
       registeredState.lastNodeCreatedBlock = latestBlock;
-      if (nextLastAssignedGcId > registeredState.lastAssignedGcId) {
-        extendRegisteredCandidates(nextLastAssignedGcId);
+      registeredState.lastAssignedGcId = Math.max(100, nextLastAssignedGcId);
+      if (registeredState.scanCursorGcId > registeredState.lastAssignedGcId) {
+        registeredState.scanCursorGcId = 100;
       }
     }
 
-    async function refreshRegisteredNodes() {
-      if (!abv2Read) return registeredState.nodes;
-      if (registeredState.refreshPromise) return registeredState.refreshPromise;
-      registeredState.refreshPromise = (async () => {
-        await refreshRegisteredCandidates();
-        const registered = [];
-        for (let i = 0; i < registeredState.candidateNodeIds.length; i += REGISTERED_BATCH_SIZE) {
-          const nodeIds = registeredState.candidateNodeIds.slice(i, i + REGISTERED_BATCH_SIZE);
-          const infos = await abv2Read.getNodeInfos(nodeIds);
+    async function scanRegisteredBatch(visibleValidators) {
+      if (!abv2Read || registeredState.scanBusy) return;
+      registeredState.scanBusy = true;
+      try {
+        await refreshLastAssignedGcId(visibleValidators);
+        if (registeredState.scanCursorGcId > registeredState.lastAssignedGcId) {
+          registeredState.scanCursorGcId = 100;
+        }
+
+        const fromGcId = registeredState.scanCursorGcId;
+        const toGcId = Math.min(
+          registeredState.lastAssignedGcId,
+          fromGcId + REGISTERED_SCAN_BATCH_SIZE - 1
+        );
+        registeredState.scanFromGcId = fromGcId;
+        registeredState.scanToGcId = toGcId;
+
+        const batchNodeIds = [];
+        const batchNodeIdSet = new Set();
+        for (let gcId = fromGcId; gcId <= toGcId; gcId++) {
+          const derivationIndexes = Array.from(new Set([gcId - 1, gcId])).filter(index => index >= 0);
+          for (const derivationIndex of derivationIndexes) {
+            const nodeId = deriveNodeId(derivationIndex);
+            if (!nodeId) continue;
+            const cacheKey = nodeId.toLowerCase();
+            if (batchNodeIdSet.has(cacheKey)) continue;
+            batchNodeIdSet.add(cacheKey);
+            batchNodeIds.push(nodeId);
+          }
+        }
+
+        if (batchNodeIds.length > 0) {
+          const infos = await abv2Read.getNodeInfos(batchNodeIds);
           infos.forEach((info, index) => {
             const state = info.state.toNumber ? info.state.toNumber() : Number(info.state);
             const gcId = info.gcId.toNumber ? info.gcId.toNumber() : Number(info.gcId);
-            const addr = nodeIds[index];
-            gcIdCache.set(addr.toLowerCase(), state !== 0 && Number.isFinite(gcId) && gcId > 0 ? gcId : null);
+            const addr = batchNodeIds[index];
+            const cacheKey = addr.toLowerCase();
+            gcIdCache.set(cacheKey, state !== 0 && Number.isFinite(gcId) && gcId > 0 ? gcId : null);
             if (state === 1) {
-              registered.push({ addr, gcId });
+              registeredState.nodesByAddr.set(cacheKey, { addr, gcId });
+            } else {
+              registeredState.nodesByAddr.delete(cacheKey);
             }
           });
         }
-        registered.sort((a, b) => {
-          const aKnown = Number.isFinite(a.gcId);
-          const bKnown = Number.isFinite(b.gcId);
-          if (aKnown && bKnown && a.gcId !== b.gcId) return a.gcId - b.gcId;
-          if (aKnown !== bKnown) return aKnown ? -1 : 1;
-          return a.addr.localeCompare(b.addr);
-        });
-        registeredState.nodes = registered;
-        return registered;
-      })().finally(() => {
-        registeredState.refreshPromise = null;
-      });
-      return registeredState.refreshPromise;
+
+        registeredState.scanCursorGcId = toGcId + 1;
+        if (registeredState.scanCursorGcId > registeredState.lastAssignedGcId) {
+          registeredState.scanCursorGcId = 100;
+        }
+      } finally {
+        registeredState.scanBusy = false;
+      }
     }
 
     function renderRegisteredPreview() {
@@ -495,15 +508,22 @@
       const prevBtn = document.getElementById('registered-prev');
       const nextBtn = document.getElementById('registered-next');
       const pageLabel = document.getElementById('registered-page-label');
-      const total = registeredState.nodes.length;
+      const registeredNodes = [...registeredState.nodesByAddr.values()].sort((a, b) => {
+        const aKnown = Number.isFinite(a.gcId);
+        const bKnown = Number.isFinite(b.gcId);
+        if (aKnown && bKnown && a.gcId !== b.gcId) return a.gcId - b.gcId;
+        if (aKnown !== bKnown) return aKnown ? -1 : 1;
+        return a.addr.localeCompare(b.addr);
+      });
+      const total = registeredNodes.length;
       const pageCount = Math.max(1, Math.ceil(total / REGISTERED_PAGE_SIZE));
       registeredState.page = Math.min(registeredState.page, pageCount);
       const start = (registeredState.page - 1) * REGISTERED_PAGE_SIZE;
-      const shown = registeredState.nodes.slice(start, start + REGISTERED_PAGE_SIZE);
+      const shown = registeredNodes.slice(start, start + REGISTERED_PAGE_SIZE);
 
       summary.textContent = total === 0
-        ? 'No nodes are currently in Registered state.'
-        : `Showing ${start + 1}-${start + shown.length} of ${total} registered node${total !== 1 ? 's' : ''}, ordered by GCID.`;
+        ? `No nodes are currently in Registered state. Scanning GCIDs ${registeredState.scanFromGcId}-${registeredState.scanToGcId} of ${registeredState.lastAssignedGcId}.`
+        : `Showing ${start + 1}-${start + shown.length} of ${total} registered node${total !== 1 ? 's' : ''}, ordered by GCID. Scanning GCIDs ${registeredState.scanFromGcId}-${registeredState.scanToGcId} of ${registeredState.lastAssignedGcId}.`;
       list.innerHTML = '';
       pageLabel.textContent = `Page ${registeredState.page} / ${pageCount}`;
       prevBtn.disabled = registeredState.page <= 1 || total === 0;
@@ -534,10 +554,7 @@
         const validators = Object.entries(nodeMap)
           .map(([addr, state]) => ({ addr, state: normalizeState(state) }));
 
-        await Promise.all([
-          ensureGcIds(validators.map(v => v.addr)),
-          refreshRegisteredNodes(),
-        ]);
+        await ensureGcIds(validators.map(v => v.addr));
 
         validators.sort((a, b) => {
           const aGcId = gcIdCache.get(a.addr.toLowerCase());
@@ -579,6 +596,7 @@
             `<td><a class="action-link" href="${actionHref(addr)}">Open Actions</a></td>`;
           tbody.appendChild(tr);
         });
+        await scanRegisteredBatch(validators);
         renderRegisteredPreview();
         knownAddrs = newAddrs;
       } catch (e) {
@@ -605,7 +623,7 @@
       }
     });
     document.getElementById('registered-next').addEventListener('click', () => {
-      const pageCount = Math.max(1, Math.ceil(registeredState.nodes.length / REGISTERED_PAGE_SIZE));
+      const pageCount = Math.max(1, Math.ceil(registeredState.nodesByAddr.size / REGISTERED_PAGE_SIZE));
       if (registeredState.page < pageCount) {
         registeredState.page += 1;
         renderRegisteredPreview();

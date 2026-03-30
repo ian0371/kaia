@@ -109,6 +109,23 @@
       flex-wrap: wrap;
       margin-top: 1rem;
     }
+    .action-group {
+      display: none;
+      margin-top: 1rem;
+      padding-top: 1rem;
+      border-top: 1px solid #21262d;
+    }
+    .action-group:first-of-type {
+      margin-top: 0.75rem;
+      padding-top: 0;
+      border-top: none;
+    }
+    .action-group-title {
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #8b949e;
+    }
     .action-btn {
       padding: 0.8rem 1.1rem;
       border: none;
@@ -209,13 +226,24 @@
   <section class="panel">
     <div class="panel-title">Available Actions</div>
     <p id="hint">Loading node state…</p>
-    <div class="btn-row">
-      <button class="action-btn secondary" id="btn-ready" disabled>Signal Ready</button>
-      <button class="action-btn" id="btn-reactivate" disabled>Reactivate</button>
-      <button class="action-btn secondary" id="btn-pause" disabled>Pause</button>
-      <button class="action-btn" id="btn-unpause" disabled>Unpause</button>
-      <button class="action-btn danger" id="btn-exit" disabled>Exit Validator</button>
-      <a class="action-btn secondary" id="btn-onboard-link" href="onboard.html" style="display:none; text-decoration:none;">Onboard a new validator</a>
+    <div class="action-group" id="candidate-actions">
+      <div class="action-group-title">Candidate Actions</div>
+      <div class="btn-row">
+        <button class="action-btn secondary" id="btn-ready" disabled>Signal Ready</button>
+        <button class="action-btn" id="btn-cancel-ready" disabled>Cancel Ready</button>
+        <a class="action-btn secondary" id="btn-onboard-link" href="onboard.html" style="display:none; text-decoration:none;">Onboard a new validator</a>
+      </div>
+    </div>
+    <div class="action-group" id="validator-actions">
+      <div class="action-group-title">Validator Actions</div>
+      <div class="btn-row">
+        <button class="action-btn" id="btn-reactivate" disabled>Reactivate</button>
+        <button class="action-btn secondary" id="btn-unready-validator" disabled>Unready Validator</button>
+        <button class="action-btn secondary" id="btn-pause" disabled>Pause</button>
+        <button class="action-btn" id="btn-unpause" disabled>Unpause</button>
+        <button class="action-btn secondary" id="btn-offboard" disabled>Offboard</button>
+        <button class="action-btn danger" id="btn-exit" disabled>Exit Validator</button>
+      </div>
     </div>
   </section>
 
@@ -248,7 +276,9 @@
       'function getNodeState(address nodeId) view returns (uint8)',
       'function getNodeInfo(address nodeId) view returns ((address manager, address stakingContract, address rewardAddress, address voterAddress, uint256 timeoutAt, uint256 gcId, (bytes publicKey, bytes pop) blsInfo, string metadata, uint8 state))',
       'function readyCandidate(address nodeId)',
+      'function unreadyCandidate(address nodeId)',
       'function readyValidator(address nodeId)',
+      'function unreadyValidator(address nodeId)',
       'function pause(address nodeId)',
       'function resume(address nodeId)',
       'function exit(address nodeId)',
@@ -300,11 +330,29 @@
     function logOk(msg, hash) { return logEntry(msg, 'success', hash); }
     function logErr(msg) { return logEntry(msg, 'error'); }
 
-    function setButtons({ ready = false, reactivate = false, pause = false, unpause = false, exit = false, onboard = false }) {
+    function showActionGroups({ candidate = false, validator = false }) {
+      document.getElementById('candidate-actions').style.display = candidate ? 'block' : 'none';
+      document.getElementById('validator-actions').style.display = validator ? 'block' : 'none';
+    }
+
+    function setButtons({
+      ready = false,
+      cancelReady = false,
+      reactivate = false,
+      unreadyValidator = false,
+      pause = false,
+      unpause = false,
+      offboard = false,
+      exit = false,
+      onboard = false,
+    }) {
       document.getElementById('btn-ready').disabled = !ready || busy;
+      document.getElementById('btn-cancel-ready').disabled = !cancelReady || busy;
       document.getElementById('btn-reactivate').disabled = !reactivate || busy;
+      document.getElementById('btn-unready-validator').disabled = !unreadyValidator || busy;
       document.getElementById('btn-pause').disabled = !pause || busy;
       document.getElementById('btn-unpause').disabled = !unpause || busy;
+      document.getElementById('btn-offboard').disabled = !offboard || busy;
       document.getElementById('btn-exit').disabled = !exit || busy;
       document.getElementById('btn-onboard-link').style.display = onboard ? 'inline-flex' : 'none';
     }
@@ -320,12 +368,14 @@
 
       if (!selectedNode || !selectedNode.wallet) {
         hint.textContent = 'Could not recover a signing key from this node\'s gcId and the demo mnemonic, so browser actions are unavailable.';
+        showActionGroups({});
         setButtons({});
         return;
       }
 
       switch (state) {
         case 0:
+          showActionGroups({ candidate: true });
           if (selectedNode.supportsFullOnboard) {
             hint.textContent = `${label} is not registered yet. Use the guided onboarding page to join it as a new validator.`;
             setButtons({ onboard: true });
@@ -335,29 +385,47 @@
           }
           break;
         case 1:
+          showActionGroups({ candidate: true });
           hint.textContent = `${label} is registered. You can signal readyCandidate from this page.`;
           setButtons({ ready: true });
           break;
+        case 2:
+          showActionGroups({ candidate: true });
+          hint.textContent = `${label} is candidate-ready. You can cancel readiness from this page.`;
+          setButtons({ cancelReady: true });
+          break;
+        case 3:
+          showActionGroups({ candidate: true });
+          hint.textContent = `${label} is currently in candidate testing. No direct candidate action is available right now.`;
+          setButtons({});
+          break;
         case 4:
-          hint.textContent = `${label} is inactive. You can reactivate it from this page with readyValidator.`;
-          setButtons({ reactivate: true });
+          showActionGroups({ validator: true });
+          hint.textContent = `${label} is inactive. You can reactivate it with readyValidator or offboard it back to Registered.`;
+          setButtons({ reactivate: true, offboard: true });
+          break;
+        case 5:
+          showActionGroups({ validator: true });
+          hint.textContent = `${label} is validator-ready. You can cancel readiness and move it back to ValInactive.`;
+          setButtons({ unreadyValidator: true });
           break;
         case 6:
+          showActionGroups({ validator: true });
           hint.textContent = `${label} is currently active. You can pause it temporarily or offboard it with Exit Validator.`;
           setButtons({ pause: true, exit: true });
           break;
         case 7:
+          showActionGroups({ validator: true });
           hint.textContent = `${label} is paused. You can unpause it back to ValActive or offboard it with Exit Validator while it remains paused.`;
           setButtons({ unpause: true, exit: true });
           break;
-        case 2:
-        case 3:
-        case 5:
         case 8:
-          hint.textContent = `${label} is already mid-transition (${STATE[state]}). No direct action is available right now.`;
+          showActionGroups({ validator: true });
+          hint.textContent = `${label} is already mid-transition (${STATE[state]}). No direct validator action is available right now.`;
           setButtons({});
           break;
         default:
+          showActionGroups({});
           hint.textContent = `${label} is in an unknown state.`;
           setButtons({});
       }
@@ -469,6 +537,14 @@
       logOk(`${selectedNode.label} is CandReady — waiting for the next epoch.`);
     }));
 
+    document.getElementById('btn-cancel-ready').addEventListener('click', () => runAction(async () => {
+      await ensureNodeGas();
+      logPending(`Calling unreadyCandidate for ${selectedNode.label}…`);
+      const tx = await getNodeWriter().unreadyCandidate(nodeId, { gasLimit: 200000 });
+      await waitTx(tx, 'unreadyCandidate');
+      logOk(`${selectedNode.label} is now Registered.`);
+    }));
+
     document.getElementById('btn-reactivate').addEventListener('click', () => runAction(async () => {
       await ensureNodeGas();
       logPending(`Calling readyValidator for ${selectedNode.label}…`);
@@ -476,6 +552,14 @@
       const tx = await writer.readyValidator(nodeId, { gasLimit: 200000 });
       await waitTx(tx, 'readyValidator');
       logOk(`${selectedNode.label} is now ValReady.`);
+    }));
+
+    document.getElementById('btn-unready-validator').addEventListener('click', () => runAction(async () => {
+      await ensureNodeGas();
+      logPending(`Calling unreadyValidator for ${selectedNode.label}…`);
+      const tx = await getNodeWriter().unreadyValidator(nodeId, { gasLimit: 200000 });
+      await waitTx(tx, 'unreadyValidator');
+      logOk(`${selectedNode.label} is now ValInactive.`);
     }));
 
     document.getElementById('btn-pause').addEventListener('click', () => runAction(async () => {
@@ -492,6 +576,14 @@
       const tx = await getNodeWriter().resume(nodeId, { gasLimit: 200000 });
       await waitTx(tx, 'resume');
       logOk(`${selectedNode.label} is now ValActive.`);
+    }));
+
+    document.getElementById('btn-offboard').addEventListener('click', () => runAction(async () => {
+      await ensureNodeGas();
+      logPending(`Calling offboard for ${selectedNode.label}…`);
+      const tx = await getNodeWriter().offboard(nodeId, { gasLimit: 200000 });
+      await waitTx(tx, 'offboard');
+      logOk(`${selectedNode.label} is now Registered.`);
     }));
 
     document.getElementById('btn-exit').addEventListener('click', () => runAction(async () => {

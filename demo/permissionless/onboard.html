@@ -313,7 +313,7 @@
       </div>
       <div class="field">
         <span class="field-label">Path</span>
-        <span class="field-value" id="val-path">m/44'/60'/0'/0/4</span>
+        <span class="field-value" id="val-path">loading…</span>
       </div>
       <div class="field">
         <span class="field-label">Node ID</span>
@@ -626,6 +626,7 @@
     // ethers helpers (set up after library loads)
     // ─────────────────────────────────────────────────────────
     let provider, fundedWallet;
+    let nextGcIdPromise = null;
 
     const ABV2_ABI = [
       'function MIN_STAKE() view returns (uint256)',
@@ -640,6 +641,28 @@
     const STAKING_ABI = [ 'function publicDelegation() view returns (address)' ];
     const PD_ABI      = [ 'function stake() payable' ];
     const REGISTRY_ABI= [ 'function getActiveAddr(string) view returns (address)' ];
+
+    async function loadNextGcId() {
+      if (state.gcId !== null) return state.gcId;
+      if (!nextGcIdPromise) {
+        nextGcIdPromise = (async () => {
+          const nodeMap = await jsonRpc('kaia_getNodeByState', ['latest', []]);
+          const abv2 = new ethers_lib.ethers.Contract(ABV2, ABV2_ABI, provider);
+          let maxGcId = 100;
+          for (const addr of Object.keys(nodeMap || {})) {
+            const info = await abv2.getNodeInfo(addr);
+            const gcId = info.gcId.toNumber ? info.gcId.toNumber() : Number(info.gcId);
+            if (Number.isFinite(gcId)) maxGcId = Math.max(maxGcId, gcId);
+          }
+          state.gcId = maxGcId + 1;
+          return state.gcId;
+        })();
+      }
+      const gcId = await nextGcIdPromise;
+      val('gcid', String(gcId));
+      val('path', `${HOMI_BASE_PATH}${gcId}`);
+      return gcId;
+    }
 
     // ─────────────────────────────────────────────────────────
     // Step implementations
@@ -657,6 +680,10 @@
         // Enable step 2
         setStep(2, 'active');
         document.getElementById('btn-generate').disabled = false;
+        loadNextGcId().catch(() => {
+          val('gcid', 'unavailable', 'muted');
+          val('path', 'unavailable', 'muted');
+        });
       } catch (e) {
         document.getElementById('factory-val').textContent = 'Error: ' + e.message;
         setStep(1, 'error');
@@ -668,15 +695,8 @@
       setStep(2, 'running');
       document.getElementById('btn-generate').disabled = true;
       try {
-        const nodeMap = await jsonRpc('kaia_getNodeByState', ['latest', []]);
         const abv2 = new ethers_lib.ethers.Contract(ABV2, ABV2_ABI, provider);
-        let maxGcId = 100;
-        for (const addr of Object.keys(nodeMap)) {
-          const info = await abv2.getNodeInfo(addr);
-          const gcId = info.gcId.toNumber ? info.gcId.toNumber() : Number(info.gcId);
-          if (Number.isFinite(gcId)) maxGcId = Math.max(maxGcId, gcId);
-        }
-        state.gcId = maxGcId + 1;
+        state.gcId = await loadNextGcId();
         const derivationPath = `${HOMI_BASE_PATH}${state.gcId}`;
 
         // Derive ECDSA key from the same mnemonic/path family used by the demo network
@@ -707,7 +727,6 @@
         document.getElementById('btn-deploy').disabled = false;
 
         // Pre-load MIN_STAKE for step 4
-        const abv2 = new ethers_lib.ethers.Contract(ABV2, ABV2_ABI, provider);
         abv2.MIN_STAKE().then(ms => {
           state.minStake = ms;
           val('minstake', ethers_lib.ethers.utils.formatEther(ms) + ' KAIA');

@@ -525,6 +525,7 @@
         ? `No nodes are currently in Registered state. Scanning GCIDs ${registeredState.scanFromGcId}-${registeredState.scanToGcId} of ${registeredState.lastAssignedGcId}.`
         : `Showing ${start + 1}-${start + shown.length} of ${total} registered node${total !== 1 ? 's' : ''}, ordered by GCID. Scanning GCIDs ${registeredState.scanFromGcId}-${registeredState.scanToGcId} of ${registeredState.lastAssignedGcId}.`;
       list.innerHTML = '';
+      document.getElementById('registered-pagination').style.display = pageCount > 1 ? 'flex' : 'none';
       pageLabel.textContent = `Page ${registeredState.page} / ${pageCount}`;
       prevBtn.disabled = registeredState.page <= 1 || total === 0;
       nextBtn.disabled = registeredState.page >= pageCount || total === 0;

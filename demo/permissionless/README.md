@@ -52,7 +52,22 @@ bash demo/permissionless/join.sh
 The script generates a fresh nodekey, deploys staking, stakes 5 M KAIA, registers in ABv2,
 and signals `readyCandidate`. At the next epoch the dashboard shows **4 → 5**.
 
-### Option B — dashboard demo controls
+### Option B — guided onboarding page
+
+Open **http://localhost:9000/onboard.html** in a browser.
+
+This page is the browser equivalent of `join.sh`. It walks through the same six steps:
+
+1. Resolve `CnStakingFactory` from Registry
+2. Generate a fresh node key
+3. Deploy `CnStakingV4` + `PublicDelegation`
+4. Stake `MIN_STAKE`
+5. Register in ABv2 with `createNode`
+6. Signal `readyCandidate`
+
+At the end the page waits for the next epoch and confirms when the node becomes `ValActive`.
+
+### Option C — dashboard demo controls
 
 The dashboard includes an interactive **Demo Controls** panel (requires internet for ethers.js CDN).
 After `join.sh` runs once, use the dashboard buttons to cycle CN5 in and out of the validator set

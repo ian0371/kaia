@@ -298,11 +298,19 @@
     </div>
     <div class="step-body">
       <p class="step-desc">
-        Generate a fresh ECDSA node key with <strong>viem</strong>, then derive the BLS public key and
-        proof-of-possession using the IETF BLS12-381 KeyGen algorithm
+        Derive a deterministic ECDSA node key from the same demo mnemonic used by the local network,
+        then derive the BLS public key and proof-of-possession using the IETF BLS12-381 KeyGen algorithm
         (<code>DeriveFromECDSA → KeyGen → PopProve</code>).
       </p>
-      <button class="action-btn" id="btn-generate" disabled>Generate New Keypair</button>
+      <button class="action-btn" id="btn-generate" disabled>Derive Demo Keypair</button>
+      <div class="field">
+        <span class="field-label">Mnemonic</span>
+        <span class="field-value" id="val-mnemonic">test test test test test test test test test test test junk</span>
+      </div>
+      <div class="field">
+        <span class="field-label">Path</span>
+        <span class="field-value" id="val-path">m/44'/60'/0'/0/4</span>
+      </div>
       <div class="field">
         <span class="field-label">Node ID</span>
         <span class="field-value muted" id="val-nodeid">—</span>
@@ -432,6 +440,8 @@
     const ABV2       = '0x0000000000000000000000000000000000000400';
     const REGISTRY   = '0x0000000000000000000000000000000000000401';
     const FUNDED_KEY = '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80';
+    const DEMO_MNEMONIC = 'test test test test test test test test test test test junk';
+    const DEMO_DERIVATION_PATH = "m/44'/60'/0'/0/4";
     const BLS_R      = 0x73eda753299d7d483339d80809a1d80553bda402fffe5bfeffffffff00000001n;
     const DST_POP    = 'BLS_POP_BLS12381G2_XMD:SHA-256_SSWU_RO_POP_';
 
@@ -453,7 +463,7 @@
     // ─────────────────────────────────────────────────────────
     // Library references (set after import)
     // ─────────────────────────────────────────────────────────
-    let viem_accounts, noble_bls, ethers_lib;
+    let noble_bls, ethers_lib;
 
     // ─────────────────────────────────────────────────────────
     // UI helpers
@@ -615,11 +625,11 @@
     const ABV2_ABI = [
       'function MIN_STAKE() view returns (uint256)',
       'function getNodeState(address) view returns (uint8)',
-      'function createNode(address,address,address,address,(bytes,bytes),string)',
+      'function createNode(address nodeId, address staking, address rewardAddr, address manager, (bytes publicKey, bytes pop) blsKey, string description)',
       'function readyCandidate(address)',
     ];
     const FACTORY_ABI = [
-      'function deployCnStakingWithPD(address,(address,address,uint256,string)) payable',
+      'function deployCnStakingWithPD(address nodeId, (address owner, address rewardAddr, uint256 unlockTime, string description) pdArgs) payable returns (address)',
     ];
     const STAKING_ABI = [ 'function publicDelegation() view returns (address)' ];
     const PD_ABI      = [ 'function stake() payable' ];
@@ -652,11 +662,10 @@
       setStep(2, 'running');
       document.getElementById('btn-generate').disabled = true;
       try {
-        // Generate ECDSA key with viem
-        const { generatePrivateKey, privateKeyToAccount } = viem_accounts;
-        state.ecdsaKey = generatePrivateKey(); // '0x...'
-        const account = privateKeyToAccount(state.ecdsaKey);
-        state.nodeId = account.address;
+        // Derive ECDSA key from the same mnemonic/path family used by the demo network
+        const wallet = ethers_lib.ethers.Wallet.fromMnemonic(DEMO_MNEMONIC, DEMO_DERIVATION_PATH);
+        state.ecdsaKey = wallet.privateKey;
+        state.nodeId = wallet.address;
 
         // Derive BLS via IETF KeyGen
         const ecdsaBytes = hexToBytes(state.ecdsaKey);
@@ -857,13 +866,11 @@
 
     try {
       // All libraries via esm.sh (requires internet)
-      const [viemAccounts, nobleBls, ethersModule] = await Promise.all([
-        import('https://esm.sh/viem@2.30.3/accounts'),
+      const [nobleBls, ethersModule] = await Promise.all([
         import('https://esm.sh/@noble/bls12-381@1.4.0'),
         import('https://esm.sh/ethers@5.7.2'),
       ]);
 
-      viem_accounts = viemAccounts;
       noble_bls     = nobleBls;
       ethers_lib    = ethersModule;
 

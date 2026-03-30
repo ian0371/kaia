@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kaia Permissionless Validator Actions</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", monospace;
+      background: #0d1117;
+      color: #e6edf3;
+      min-height: 100vh;
+      padding: 2rem;
+      max-width: 980px;
+      margin: 0 auto;
+    }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 2rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid #21262d;
+    }
+    .back-link {
+      color: #8b949e;
+      text-decoration: none;
+      font-size: 0.85rem;
+    }
+    .back-link:hover { color: #e6edf3; }
+    h1 { font-size: 1.2rem; font-weight: 600; }
+    .page-actions {
+      display: flex;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+    }
+    .page-link {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0.7rem 1rem;
+      border-radius: 999px;
+      border: 1px solid #30363d;
+      background: linear-gradient(135deg, #f7b733, #fc4a1a);
+      color: #0d1117;
+      font-size: 0.8rem;
+      font-weight: 700;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+    .page-link.secondary {
+      background: #161b22;
+      color: #58a6ff;
+      box-shadow: none;
+    }
+    .panel {
+      background: #161b22;
+      border: 1px solid #21262d;
+      border-radius: 12px;
+      padding: 1.25rem;
+      margin-bottom: 1rem;
+    }
+    .panel-title {
+      font-size: 0.74rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #8b949e;
+      margin-bottom: 0.85rem;
+    }
+    .field {
+      display: grid;
+      grid-template-columns: 130px minmax(0, 1fr);
+      gap: 0.6rem;
+      align-items: start;
+      margin-bottom: 0.75rem;
+      font-size: 0.84rem;
+    }
+    .field-label { color: #8b949e; }
+    .field-value {
+      color: #58a6ff;
+      word-break: break-all;
+      line-height: 1.5;
+    }
+    .state-pill {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.2rem 0.7rem;
+      border-radius: 999px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      background: #21262d;
+      color: #8b949e;
+    }
+    .state-pill.state-active   { background: rgba(63,185,80,0.15); color: #3fb950; }
+    .state-pill.state-pending  { background: rgba(210,153,34,0.15); color: #d29922; }
+    .state-pill.state-inactive { background: rgba(248,81,73,0.15); color: #f85149; }
+    .state-pill.state-neutral  { background: #21262d; color: #8b949e; }
+    #hint {
+      color: #8b949e;
+      line-height: 1.6;
+      font-size: 0.84rem;
+    }
+    .btn-row {
+      display: flex;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+      margin-top: 1rem;
+    }
+    .action-btn {
+      padding: 0.8rem 1.1rem;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      font-weight: 700;
+      cursor: pointer;
+      background: #238636;
+      color: #e6edf3;
+    }
+    .action-btn.secondary {
+      background: #1f6feb;
+    }
+    .action-btn.danger {
+      background: #c62828;
+    }
+    .action-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+    #error-msg {
+      display: none;
+      background: #21262d;
+      border: 1px solid #f85149;
+      border-radius: 6px;
+      padding: 1rem;
+      margin-bottom: 1rem;
+      color: #f85149;
+      font-size: 0.85rem;
+      white-space: pre-wrap;
+    }
+    #tx-log {
+      background: #161b22;
+      border: 1px solid #21262d;
+      border-radius: 12px;
+      padding: 1rem;
+      min-height: 120px;
+      max-height: 280px;
+      overflow-y: auto;
+      font-size: 0.8rem;
+    }
+    #log-entries:empty::before {
+      content: 'No transactions yet.';
+      color: #8b949e;
+    }
+    .log-entry {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: 0.6rem;
+      align-items: baseline;
+      padding: 0.3rem 0;
+      border-bottom: 1px solid #21262d;
+      line-height: 1.4;
+    }
+    .log-entry:last-child { border-bottom: none; }
+    .log-ts { color: #8b949e; white-space: nowrap; }
+    .log-msg { color: #e6edf3; word-break: break-all; }
+    .log-msg.pending { color: #d29922; }
+    .log-msg.success { color: #3fb950; }
+    .log-msg.error { color: #f85149; }
+    .log-hash { color: #58a6ff; font-size: 0.75rem; white-space: nowrap; }
+    @media (max-width: 760px) {
+      header { flex-direction: column; align-items: flex-start; }
+      .field { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <a class="back-link" href="dashboard.html">← Dashboard</a>
+      <h1>Node Actions</h1>
+    </div>
+    <div class="page-actions">
+      <a class="page-link secondary" href="dashboard.html">Back to Dashboard</a>
+      <a class="page-link" href="onboard.html">Open Guided Onboarding</a>
+    </div>
+  </header>
+
+  <div id="error-msg"></div>
+
+  <section class="panel">
+    <div class="panel-title">Node</div>
+    <div class="field">
+      <span class="field-label">Label</span>
+      <span class="field-value" id="node-label">Loading…</span>
+    </div>
+    <div class="field">
+      <span class="field-label">Address</span>
+      <span class="field-value" id="node-id">Loading…</span>
+    </div>
+    <div class="field">
+      <span class="field-label">State</span>
+      <span class="field-value"><span class="state-pill state-neutral" id="state-pill">Loading…</span></span>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-title">Available Actions</div>
+    <p id="hint">Loading node state…</p>
+    <div class="btn-row">
+      <button class="action-btn secondary" id="btn-ready" disabled>Signal Ready</button>
+      <button class="action-btn" id="btn-reactivate" disabled>Reactivate</button>
+      <button class="action-btn danger" id="btn-exit" disabled>Exit Validator</button>
+      <a class="action-btn secondary" id="btn-onboard-link" href="onboard.html" style="display:none; text-decoration:none;">Open Guided Onboarding</a>
+    </div>
+  </section>
+
+  <section id="tx-log">
+    <div id="log-entries"></div>
+  </section>
+
+  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+  <script>
+    const RPC = 'http://localhost:8551';
+    const ABV2 = '0x0000000000000000000000000000000000000400';
+    const FUNDED_KEY = '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80';
+    const DEMO_MNEMONIC = 'test test test test test test test test test test test junk';
+    const HOMI_BASE_PATH = "m/44'/60'/0'/0/";
+    const CN5_NODEKEY = '0x2b12182d904ccfc66cf8c36135f8e2656aeeb3562061b14e18aa0fcabeff11be';
+    const CN5_NODEID = '0xafb1fc03ac9b43a643d229704b3e3bdc496a7fbc';
+
+    const STATE = {
+      0: 'Unknown', 1: 'Registered', 2: 'CandReady',
+      3: 'CandTesting', 4: 'ValInactive', 5: 'ValReady',
+      6: 'ValActive', 7: 'ValPaused', 8: 'ValExiting'
+    };
+    const STATE_CLASS = {
+      0: 'state-neutral', 1: 'state-inactive', 2: 'state-pending',
+      3: 'state-pending', 4: 'state-inactive', 5: 'state-pending',
+      6: 'state-active', 7: 'state-pending', 8: 'state-pending'
+    };
+
+    const ABI_ABV2 = [
+      'function getNodeState(address nodeId) view returns (uint8)',
+      'function readyCandidate(address nodeId)',
+      'function readyValidator(address nodeId)',
+      'function exit(address nodeId)',
+      'function offboard(address nodeId)',
+    ];
+
+    let provider;
+    let fundedWallet;
+    let abv2Read;
+    let nodeId;
+    let selectedNode;
+    let currentState = -1;
+    let busy = false;
+
+    function readNodeId() {
+      const url = new URL(window.location.href);
+      const fromQuery = url.searchParams.get('nodeId');
+      if (fromQuery) return fromQuery;
+      const parts = window.location.pathname.split('/').filter(Boolean);
+      const last = parts[parts.length - 1];
+      if (last && last !== 'action.html' && /^0x[a-fA-F0-9]{40}$/.test(last)) return last;
+      return '';
+    }
+
+    function showError(msg) {
+      const el = document.getElementById('error-msg');
+      if (!msg) {
+        el.style.display = 'none';
+        return;
+      }
+      el.style.display = 'block';
+      el.textContent = msg;
+    }
+
+    function logEntry(msg, cls, hash) {
+      const el = document.getElementById('log-entries');
+      const ts = new Date().toLocaleTimeString();
+      const div = document.createElement('div');
+      div.className = 'log-entry';
+      div.innerHTML =
+        `<span class="log-ts">${ts}</span>` +
+        `<span class="log-msg ${cls || ''}">${msg}</span>` +
+        (hash ? `<span class="log-hash">${hash.slice(0, 10)}…</span>` : '<span></span>');
+      el.appendChild(div);
+      div.scrollIntoView({ behavior: 'smooth' });
+      return div;
+    }
+    function logPending(msg) { return logEntry(msg, 'pending'); }
+    function logOk(msg, hash) { return logEntry(msg, 'success', hash); }
+    function logErr(msg) { return logEntry(msg, 'error'); }
+
+    function setButtons({ ready = false, reactivate = false, exit = false, onboard = false }) {
+      document.getElementById('btn-ready').disabled = !ready || busy;
+      document.getElementById('btn-reactivate').disabled = !reactivate || busy;
+      document.getElementById('btn-exit').disabled = !exit || busy;
+      document.getElementById('btn-onboard-link').style.display = onboard ? 'inline-flex' : 'none';
+    }
+
+    function renderState(state) {
+      currentState = state;
+      const pill = document.getElementById('state-pill');
+      pill.textContent = STATE[state] || `State ${state}`;
+      pill.className = `state-pill ${STATE_CLASS[state] || 'state-neutral'}`;
+
+      const hint = document.getElementById('hint');
+      const label = selectedNode ? selectedNode.label : 'This node';
+
+      if (!selectedNode || !selectedNode.wallet) {
+        hint.textContent = 'This node is not part of the deterministic demo set, so browser actions are unavailable.';
+        setButtons({});
+        return;
+      }
+
+      switch (state) {
+        case 0:
+          if (selectedNode.supportsFullOnboard) {
+            hint.textContent = `${label} is not registered yet. Use the guided onboarding page to join it as a new validator.`;
+            setButtons({ onboard: true });
+          } else {
+            hint.textContent = `${label} is not registered and cannot be bootstrapped from this page.`;
+            setButtons({});
+          }
+          break;
+        case 1:
+          hint.textContent = `${label} is registered. You can signal readyCandidate from this page.`;
+          setButtons({ ready: true });
+          break;
+        case 4:
+          hint.textContent = `${label} is inactive. You can reactivate it from this page with readyValidator.`;
+          setButtons({ reactivate: true });
+          break;
+        case 6:
+        case 7:
+          hint.textContent = `${label} is currently participating as a validator. You can offboard it with Exit Validator.`;
+          setButtons({ exit: true });
+          break;
+        case 2:
+        case 3:
+        case 5:
+        case 8:
+          hint.textContent = `${label} is already mid-transition (${STATE[state]}). No direct action is available right now.`;
+          setButtons({});
+          break;
+        default:
+          hint.textContent = `${label} is in an unknown state.`;
+          setButtons({});
+      }
+    }
+
+    async function waitTx(tx, label) {
+      const entry = logEntry(`${label} — sent ${tx.hash.slice(0, 10)}…`, 'pending', tx.hash);
+      const receipt = await tx.wait();
+      entry.querySelector('.log-msg').className = 'log-msg success';
+      entry.querySelector('.log-msg').textContent = `${label} — confirmed (block ${receipt.blockNumber})`;
+      const hashEl = entry.querySelector('.log-hash');
+      if (hashEl) hashEl.textContent = tx.hash.slice(0, 10) + '…';
+      return receipt;
+    }
+
+    async function ensureNodeGas() {
+      const balance = await provider.getBalance(nodeId);
+      if (balance.lt(ethers.utils.parseEther('0.01'))) {
+        logPending(`Funding ${selectedNode.label} nodekey with 1 ETH for gas…`);
+        const tx = await fundedWallet.sendTransaction({
+          to: nodeId,
+          value: ethers.utils.parseEther('1'),
+          gasLimit: 21000
+        });
+        await waitTx(tx, `fund ${selectedNode.label} nodekey`);
+      }
+    }
+
+    function getNodeWriter() {
+      return new ethers.Contract(ABV2, ABI_ABV2, selectedNode.wallet);
+    }
+
+    async function refreshState() {
+      const raw = await abv2Read.getNodeState(nodeId);
+      const state = raw.toNumber ? raw.toNumber() : Number(raw);
+      renderState(state);
+    }
+
+    async function runAction(fn) {
+      busy = true;
+      renderState(currentState);
+      try {
+        await fn();
+      } catch (e) {
+        logErr(e.reason || e.message);
+      } finally {
+        busy = false;
+        await refreshState();
+      }
+    }
+
+    function buildDemoNodes() {
+      const nodes = [
+        ...Array.from({ length: 4 }, (_, i) => {
+          const wallet = ethers.Wallet.fromMnemonic(DEMO_MNEMONIC, `${HOMI_BASE_PATH}${i}`).connect(provider);
+          return { label: `CN${i + 1}`, nodeId: wallet.address, wallet, supportsFullOnboard: false };
+        }),
+        { label: 'CN5', nodeId: CN5_NODEID, wallet: new ethers.Wallet(CN5_NODEKEY, provider), supportsFullOnboard: true },
+      ];
+      return new Map(nodes.map(node => [node.nodeId.toLowerCase(), node]));
+    }
+
+    async function init() {
+      nodeId = readNodeId();
+      if (!/^0x[a-fA-F0-9]{40}$/.test(nodeId)) {
+        showError('Missing or invalid nodeId. Open this page from the dashboard Actions column.');
+        setButtons({});
+        return;
+      }
+
+      provider = new ethers.providers.JsonRpcProvider(RPC);
+      fundedWallet = new ethers.Wallet(FUNDED_KEY, provider);
+      abv2Read = new ethers.Contract(ABV2, ABI_ABV2, provider);
+
+      const demoNodes = buildDemoNodes();
+      selectedNode = demoNodes.get(nodeId.toLowerCase()) || { label: 'Validator', nodeId, wallet: null, supportsFullOnboard: false };
+
+      document.getElementById('node-label').textContent = selectedNode.label;
+      document.getElementById('node-id').textContent = nodeId;
+      document.getElementById('btn-onboard-link').href = `onboard.html?nodeId=${encodeURIComponent(nodeId)}`;
+
+      await refreshState();
+      setInterval(refreshState, 3000);
+    }
+
+    document.getElementById('btn-ready').addEventListener('click', () => runAction(async () => {
+      await ensureNodeGas();
+      logPending(`Calling readyCandidate for ${selectedNode.label}…`);
+      const tx = await getNodeWriter().readyCandidate(nodeId, { gasLimit: 200000 });
+      await waitTx(tx, 'readyCandidate');
+      logOk(`${selectedNode.label} is CandReady — waiting for the next epoch.`);
+    }));
+
+    document.getElementById('btn-reactivate').addEventListener('click', () => runAction(async () => {
+      await ensureNodeGas();
+      logPending(`Calling readyValidator for ${selectedNode.label}…`);
+      const writer = getNodeWriter();
+      const tx = await writer.readyValidator(nodeId, { gasLimit: 200000 });
+      await waitTx(tx, 'readyValidator');
+      logOk(`${selectedNode.label} is now ValReady.`);
+    }));
+
+    document.getElementById('btn-exit').addEventListener('click', () => runAction(async () => {
+      await ensureNodeGas();
+      logPending(`Calling exit for ${selectedNode.label}…`);
+      const tx = await getNodeWriter().exit(nodeId, { gasLimit: 200000 });
+      await waitTx(tx, 'exit');
+      logOk(`${selectedNode.label} is now ValExiting.`);
+    }));
+
+    init().catch(err => showError(err.message));
+  </script>
+</body>
+</html>

@@ -73,6 +73,57 @@
       max-width: 52rem;
       font-size: 0.85rem;
     }
+    #registered-panel {
+      margin-bottom: 2rem;
+      padding: 1.25rem;
+      background: #161b22;
+      border: 1px solid #21262d;
+      border-radius: 12px;
+    }
+    #registered-panel h2 {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: #8b949e;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 0.5rem;
+    }
+    #registered-summary {
+      color: #8b949e;
+      font-size: 0.85rem;
+      line-height: 1.6;
+      margin-bottom: 0.9rem;
+    }
+    #registered-list {
+      display: grid;
+      gap: 0.75rem;
+    }
+    .registered-row {
+      display: grid;
+      grid-template-columns: 88px minmax(0, 1fr) auto;
+      gap: 0.75rem;
+      align-items: center;
+      padding: 0.8rem 0.9rem;
+      border: 1px solid #21262d;
+      border-radius: 10px;
+      background: #0d1117;
+    }
+    .registered-gcid {
+      color: #d29922;
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+    }
+    .registered-address {
+      color: #58a6ff;
+      font-size: 0.82rem;
+      word-break: break-all;
+    }
+    .registered-empty {
+      color: #8b949e;
+      font-size: 0.85rem;
+      padding: 0.9rem 0;
+    }
     .page-link {
       display: inline-flex;
       align-items: center;
@@ -189,6 +240,12 @@
     <a class="page-link" href="onboard.html">Onboard a new validator</a>
   </section>
 
+  <section id="registered-panel">
+    <h2>Registered Preview</h2>
+    <p id="registered-summary">Loading registered nodes…</p>
+    <div id="registered-list"></div>
+  </section>
+
   <table>
     <thead>
       <tr>
@@ -226,6 +283,7 @@
     const ABV2_ABI = [
       'function getNodeInfo(address nodeId) view returns ((address manager, address stakingContract, address rewardAddress, address voterAddress, uint256 timeoutAt, uint256 gcId, (bytes publicKey, bytes pop) blsInfo, string metadata, uint8 state))',
     ];
+    const REGISTERED_PREVIEW_LIMIT = 5;
     let knownAddrs = new Set();
     let prevCount = 0;
     let abv2Read;
@@ -305,18 +363,56 @@
       if (lookups.length > 0) await Promise.allSettled(lookups);
     }
 
+    function renderRegisteredPreview(registeredNodes) {
+      const summary = document.getElementById('registered-summary');
+      const list = document.getElementById('registered-list');
+      const preview = [...registeredNodes].sort((a, b) => {
+        const aGcId = gcIdCache.get(a.addr.toLowerCase());
+        const bGcId = gcIdCache.get(b.addr.toLowerCase());
+        const aKnown = Number.isFinite(aGcId);
+        const bKnown = Number.isFinite(bGcId);
+        if (aKnown && bKnown && aGcId !== bGcId) return aGcId - bGcId;
+        if (aKnown !== bKnown) return aKnown ? -1 : 1;
+        return a.addr.localeCompare(b.addr);
+      });
+      const shown = preview.slice(0, REGISTERED_PREVIEW_LIMIT);
+      summary.textContent = preview.length === 0
+        ? 'No nodes are currently in Registered state.'
+        : `Showing ${shown.length} of ${preview.length} registered node${preview.length !== 1 ? 's' : ''}, ordered by GCID.`;
+      list.innerHTML = '';
+      if (shown.length === 0) {
+        list.innerHTML = '<div class="registered-empty">Newly registered nodes will appear here before they move into candidate testing.</div>';
+        return;
+      }
+      shown.forEach(({ addr }) => {
+        const row = document.createElement('div');
+        row.className = 'registered-row';
+        row.innerHTML =
+          `<div class="registered-gcid">GC ${gcIdDisplay(addr)}</div>` +
+          `<div class="registered-address">${addr}</div>` +
+          `<a class="action-link" href="${actionHref(addr)}">Open Actions</a>`;
+        list.appendChild(row);
+      });
+    }
+
     async function update() {
       try {
-        const [nodeMap, blockHex] = await Promise.all([
+        const [nodeMap, registeredMap, blockHex] = await Promise.all([
           rpc('kaia_getNodeByState', ['latest', []]),
+          rpc('kaia_getNodeByState', ['latest', ['Registered']]),
           rpc('kaia_blockNumber', [])
         ]);
         setError(null);
 
         const validators = Object.entries(nodeMap)
           .map(([addr, state]) => ({ addr, state: normalizeState(state) }));
+        const registeredNodes = Object.entries(registeredMap)
+          .map(([addr, state]) => ({ addr, state: normalizeState(state) }));
 
-        await ensureGcIds(validators.map(v => v.addr));
+        await ensureGcIds([
+          ...validators.map(v => v.addr),
+          ...registeredNodes.map(v => v.addr),
+        ]);
 
         validators.sort((a, b) => {
           const aGcId = gcIdCache.get(a.addr.toLowerCase());
@@ -358,6 +454,7 @@
             `<td><a class="action-link" href="${actionHref(addr)}">Open Actions</a></td>`;
           tbody.appendChild(tr);
         });
+        renderRegisteredPreview(registeredNodes);
         knownAddrs = newAddrs;
       } catch (e) {
         let msg = `Cannot reach ${RPC}: ${e.message}`;

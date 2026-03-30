@@ -202,13 +202,12 @@
   </table>
 
   <div id="footer">
-    Polling <code>http://localhost:8551</code> every 2s &nbsp;·&nbsp;
-    Serve with: <code>python3 -m http.server 9000</code> then open
-    <code>http://localhost:9000/dashboard.html</code>
+    Polling private network every 2s &nbsp;·&nbsp;
+    Serve with: <code>python3 -m http.server 9000</code>.
   </div>
 
   <script>
-    const RPC = 'http://localhost:8551';
+    const RPC = 'https://pless-demo-rpc.yum3.me';
     const STATE = {
       0: 'Unknown', 1: 'Registered', 2: 'CandReady',
       3: 'CandTesting', 4: 'ValInactive', 5: 'ValReady',
@@ -317,7 +316,7 @@
         if (e.message.toLowerCase().includes('fetch') ||
             e.message.toLowerCase().includes('failed') ||
             e.message.toLowerCase().includes('network')) {
-          msg += '\n\nIf opening as file://, serve with:\n  python3 -m http.server 9000\nthen open http://localhost:9000/dashboard.html';
+          msg += '\n\nIf opening as file://, serve with:\n  python3 -m http.server 9000\nthen open http://localhost:9000';
         }
         setError(msg);
       }

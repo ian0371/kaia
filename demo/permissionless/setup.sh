@@ -14,9 +14,9 @@ cd "$DEPLOY_DIR"
 
 # Set homi options: mnemonic for reproducible keys, short vrank epoch for demo
 if grep -q "HOMI_ADDITIONAL_OPTIONS" properties.sh; then
-  sed -i.bak 's|HOMI_ADDITIONAL_OPTIONS=.*|HOMI_ADDITIONAL_OPTIONS="--mnemonic test,junk --vrank-epoch 100"|' properties.sh
+  sed -i.bak 's|HOMI_ADDITIONAL_OPTIONS=.*|HOMI_ADDITIONAL_OPTIONS="--mnemonic test,junk --vrank-epoch 30"|' properties.sh
 else
-  echo 'HOMI_ADDITIONAL_OPTIONS="--mnemonic test,junk --vrank-epoch 100"' >> properties.sh
+  echo 'HOMI_ADDITIONAL_OPTIONS="--mnemonic test,junk --vrank-epoch 30"' >> properties.sh
 fi
 
 # Set 4 CNs

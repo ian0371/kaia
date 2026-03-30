@@ -258,25 +258,14 @@
 
   <section id="entry-panel">
     <div>
-      <h2>Join Flow</h2>
+      <h2>Validator Onboarding</h2>
       <p>
-        Use the dashboard to monitor the validator set. If you want to add a brand-new validator,
-        open the guided onboarding page to derive a demo key, deploy staking, stake, register the
-        node, and signal <code>readyCandidate</code>.
+        Monitor the current validator set here. To add a new validator, open the onboarding page
+        for the guided browser flow: create the node identity, deploy staking, fund the minimum
+        stake, register the node, and signal <code>readyCandidate</code>.
       </p>
     </div>
     <a class="page-link" href="onboard.html">Onboard a new validator</a>
-  </section>
-
-  <section id="registered-panel">
-    <h2>Registered Preview</h2>
-    <p id="registered-summary">Loading registered nodes…</p>
-    <div id="registered-list"></div>
-    <div id="registered-pagination">
-      <button class="pager-btn" id="registered-prev" disabled>Previous</button>
-      <span id="registered-page-label">Page 1</span>
-      <button class="pager-btn" id="registered-next" disabled>Next</button>
-    </div>
   </section>
 
   <table>
@@ -291,6 +280,17 @@
     </thead>
     <tbody id="validator-tbody"></tbody>
   </table>
+
+  <section id="registered-panel">
+    <h2>Registered Preview</h2>
+    <p id="registered-summary">Loading registered nodes…</p>
+    <div id="registered-list"></div>
+    <div id="registered-pagination">
+      <button class="pager-btn" id="registered-prev" disabled>Previous</button>
+      <span id="registered-page-label">Page 1</span>
+      <button class="pager-btn" id="registered-next" disabled>Next</button>
+    </div>
+  </section>
 
   <div id="footer">
     Polling private network every 2s &nbsp;·&nbsp;

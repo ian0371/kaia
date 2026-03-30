@@ -314,14 +314,19 @@
         setError(null);
 
         const validators = Object.entries(nodeMap)
-          .map(([addr, state]) => ({ addr, state: normalizeState(state) }))
-          .sort((a, b) => {
-            const stateCmp = (STATE_ORDER[a.state] ?? 999) - (STATE_ORDER[b.state] ?? 999);
-            if (stateCmp !== 0) return stateCmp;
-            return a.addr.localeCompare(b.addr);
-          });
+          .map(([addr, state]) => ({ addr, state: normalizeState(state) }));
 
         await ensureGcIds(validators.map(v => v.addr));
+
+        validators.sort((a, b) => {
+          const aGcId = gcIdCache.get(a.addr.toLowerCase());
+          const bGcId = gcIdCache.get(b.addr.toLowerCase());
+          const aKnown = Number.isFinite(aGcId);
+          const bKnown = Number.isFinite(bGcId);
+          if (aKnown && bKnown && aGcId !== bGcId) return aGcId - bGcId;
+          if (aKnown !== bKnown) return aKnown ? -1 : 1;
+          return a.addr.localeCompare(b.addr);
+        });
 
         const activeCount = validators.filter(v => v.state === 6).length;
         const block = parseInt(blockHex, 16);

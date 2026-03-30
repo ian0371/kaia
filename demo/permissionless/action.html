@@ -424,12 +424,26 @@
       const gcId = info.gcId.toNumber ? info.gcId.toNumber() : Number(info.gcId);
       let wallet = null;
       let supportsFullOnboard = false;
-      try {
-        wallet = ethers.Wallet.fromMnemonic(DEMO_MNEMONIC, `${HOMI_BASE_PATH}${gcId}`).connect(provider);
-        if (wallet.address.toLowerCase() !== nodeId.toLowerCase()) {
-          wallet = null;
-        }
-      } catch (_) {}
+      const derivationIndexes = Number.isFinite(gcId)
+        ? Array.from(new Set([gcId, gcId - 1])).filter(index => index >= 0)
+        : [];
+      for (const derivationIndex of derivationIndexes) {
+        try {
+          const candidate = ethers.Wallet.fromMnemonic(DEMO_MNEMONIC, `${HOMI_BASE_PATH}${derivationIndex}`).connect(provider);
+          if (candidate.address.toLowerCase() === nodeId.toLowerCase()) {
+            wallet = candidate;
+            break;
+          }
+        } catch (_) {}
+      }
+      if (!wallet && Number.isFinite(gcId)) {
+        try {
+          wallet = ethers.Wallet.fromMnemonic(DEMO_MNEMONIC, `${HOMI_BASE_PATH}${gcId}`).connect(provider);
+          if (wallet.address.toLowerCase() !== nodeId.toLowerCase()) {
+            wallet = null;
+          }
+        } catch (_) {}
+      }
       if (gcId >= 101) supportsFullOnboard = true;
       selectedNode = {
         label: Number.isFinite(gcId) ? `GC ${gcId}` : 'Validator',

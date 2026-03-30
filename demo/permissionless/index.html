@@ -193,6 +193,7 @@
     <thead>
       <tr>
         <th>#</th>
+        <th>GCID</th>
         <th>Address</th>
         <th>Status</th>
         <th>Actions</th>
@@ -206,8 +207,10 @@
     Serve with: <code>python3 -m http.server 9000</code>.
   </div>
 
+  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
   <script>
     const RPC = 'https://pless-demo-rpc.yum3.me';
+    const ABV2 = '0x0000000000000000000000000000000000000400';
     const STATE = {
       0: 'Unknown', 1: 'Registered', 2: 'CandReady',
       3: 'CandTesting', 4: 'ValInactive', 5: 'ValReady',
@@ -220,8 +223,14 @@
     };
     const STATE_BY_NAME = Object.fromEntries(Object.entries(STATE).map(([id, name]) => [name, Number(id)]));
     const STATE_ORDER = { 6: 0, 5: 1, 7: 2, 8: 3, 4: 4, 2: 5, 3: 6, 1: 7, 0: 8 };
+    const ABV2_ABI = [
+      'function getNodeInfo(address nodeId) view returns ((address manager, address stakingContract, address rewardAddress, address voterAddress, uint256 timeoutAt, uint256 gcId, (bytes publicKey, bytes pop) blsInfo, string metadata, uint8 state))',
+    ];
     let knownAddrs = new Set();
     let prevCount = 0;
+    let abv2Read;
+    const gcIdCache = new Map();
+    const gcIdPending = new Map();
 
     async function rpc(method, params = []) {
       const res = await fetch(RPC, {
@@ -265,6 +274,37 @@
       return `action.html?nodeId=${encodeURIComponent(addr)}`;
     }
 
+    function gcIdDisplay(addr) {
+      const cached = gcIdCache.get(addr.toLowerCase());
+      return Number.isFinite(cached) ? String(cached) : '—';
+    }
+
+    async function ensureGcIds(addrs) {
+      if (!abv2Read) return;
+      const lookups = addrs.map(addr => {
+        const cacheKey = addr.toLowerCase();
+        if (gcIdCache.has(cacheKey)) return null;
+        if (gcIdPending.has(cacheKey)) return gcIdPending.get(cacheKey);
+
+        const lookup = abv2Read.getNodeInfo(addr)
+          .then(info => {
+            const gcId = info.gcId.toNumber ? info.gcId.toNumber() : Number(info.gcId);
+            gcIdCache.set(cacheKey, Number.isFinite(gcId) ? gcId : null);
+          })
+          .catch(() => {
+            gcIdCache.set(cacheKey, null);
+          })
+          .finally(() => {
+            gcIdPending.delete(cacheKey);
+          });
+
+        gcIdPending.set(cacheKey, lookup);
+        return lookup;
+      }).filter(Boolean);
+
+      if (lookups.length > 0) await Promise.allSettled(lookups);
+    }
+
     async function update() {
       try {
         const [nodeMap, blockHex] = await Promise.all([
@@ -280,6 +320,8 @@
             if (stateCmp !== 0) return stateCmp;
             return a.addr.localeCompare(b.addr);
           });
+
+        await ensureGcIds(validators.map(v => v.addr));
 
         const activeCount = validators.filter(v => v.state === 6).length;
         const block = parseInt(blockHex, 16);
@@ -305,6 +347,7 @@
           if (isNew) tr.className = 'new-validator';
           tr.innerHTML =
             `<td>${i + 1}</td>` +
+            `<td>${gcIdDisplay(addr)}</td>` +
             `<td>${addr}</td>` +
             `<td><span class="state-pill ${stateClass}">${stateName}</span>${isNew ? ' <span style="color:#3fb950">new</span>' : ''}</td>` +
             `<td><a class="action-link" href="${actionHref(addr)}">Open Actions</a></td>`;
@@ -320,6 +363,11 @@
         }
         setError(msg);
       }
+    }
+
+    if (window.ethers) {
+      const provider = new window.ethers.providers.JsonRpcProvider(RPC);
+      abv2Read = new window.ethers.Contract(ABV2, ABV2_ABI, provider);
     }
 
     update();

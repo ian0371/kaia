@@ -81,9 +81,9 @@
       border-radius: 12px;
     }
     #registered-panel h2 {
-      font-size: 0.75rem;
-      font-weight: 600;
-      color: #8b949e;
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: #e6edf3;
       text-transform: uppercase;
       letter-spacing: 0.08em;
       margin-bottom: 0.5rem;
@@ -282,7 +282,7 @@
   </table>
 
   <section id="registered-panel">
-    <h2>Registered Preview</h2>
+    <h2>Registered Nodes</h2>
     <p id="registered-summary">Loading registered nodes…</p>
     <div id="registered-list"></div>
     <div id="registered-pagination">
@@ -321,21 +321,22 @@
       'function getNodeInfos(address[] nodeIds) view returns ((address manager, address stakingContract, address rewardAddress, address voterAddress, uint256 timeoutAt, uint256 gcId, (bytes publicKey, bytes pop) blsInfo, string metadata, uint8 state)[])',
     ];
     const REGISTERED_PAGE_SIZE = 15;
-    const REGISTERED_SCAN_BATCH_SIZE = 25;
+    const REGISTERED_SCAN_BATCH_SIZE = 26;
     let knownAddrs = new Set();
     let prevCount = 0;
     let abv2Read;
     let abv2Iface;
     const gcIdCache = new Map();
     const gcIdPending = new Map();
+    let registeredPreviewInitialized = false;
     const registeredState = {
       page: 1,
       nodesByAddr: new Map(),
-      lastAssignedGcId: 200,
+      lastAssignedGcId: 125,
       lastNodeCreatedBlock: -1,
       scanCursorGcId: 100,
       scanFromGcId: 100,
-      scanToGcId: 200,
+      scanToGcId: 125,
       scanBusy: false,
     };
 
@@ -608,7 +609,10 @@
           tbody.appendChild(tr);
         });
         renderRegisteredPreview();
-        scheduleRegisteredScan(validators);
+        if (!registeredPreviewInitialized) {
+          registeredPreviewInitialized = true;
+          scheduleRegisteredScan(validators);
+        }
         knownAddrs = newAddrs;
       } catch (e) {
         let msg = `Cannot reach ${RPC}: ${e.message}`;

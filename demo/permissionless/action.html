@@ -212,6 +212,8 @@
     <div class="btn-row">
       <button class="action-btn secondary" id="btn-ready" disabled>Signal Ready</button>
       <button class="action-btn" id="btn-reactivate" disabled>Reactivate</button>
+      <button class="action-btn secondary" id="btn-pause" disabled>Pause</button>
+      <button class="action-btn" id="btn-unpause" disabled>Unpause</button>
       <button class="action-btn danger" id="btn-exit" disabled>Exit Validator</button>
       <a class="action-btn secondary" id="btn-onboard-link" href="onboard.html" style="display:none; text-decoration:none;">Onboard a new validator</a>
     </div>
@@ -247,6 +249,8 @@
       'function getNodeInfo(address nodeId) view returns ((address manager, address stakingContract, address rewardAddress, address voterAddress, uint256 timeoutAt, uint256 gcId, (bytes publicKey, bytes pop) blsInfo, string metadata, uint8 state))',
       'function readyCandidate(address nodeId)',
       'function readyValidator(address nodeId)',
+      'function pause(address nodeId)',
+      'function resume(address nodeId)',
       'function exit(address nodeId)',
       'function offboard(address nodeId)',
     ];
@@ -296,9 +300,11 @@
     function logOk(msg, hash) { return logEntry(msg, 'success', hash); }
     function logErr(msg) { return logEntry(msg, 'error'); }
 
-    function setButtons({ ready = false, reactivate = false, exit = false, onboard = false }) {
+    function setButtons({ ready = false, reactivate = false, pause = false, unpause = false, exit = false, onboard = false }) {
       document.getElementById('btn-ready').disabled = !ready || busy;
       document.getElementById('btn-reactivate').disabled = !reactivate || busy;
+      document.getElementById('btn-pause').disabled = !pause || busy;
+      document.getElementById('btn-unpause').disabled = !unpause || busy;
       document.getElementById('btn-exit').disabled = !exit || busy;
       document.getElementById('btn-onboard-link').style.display = onboard ? 'inline-flex' : 'none';
     }
@@ -337,9 +343,12 @@
           setButtons({ reactivate: true });
           break;
         case 6:
+          hint.textContent = `${label} is currently active. You can pause it temporarily or offboard it with Exit Validator.`;
+          setButtons({ pause: true, exit: true });
+          break;
         case 7:
-          hint.textContent = `${label} is currently participating as a validator. You can offboard it with Exit Validator.`;
-          setButtons({ exit: true });
+          hint.textContent = `${label} is paused. You can unpause it back to ValActive or offboard it with Exit Validator while it remains paused.`;
+          setButtons({ unpause: true, exit: true });
           break;
         case 2:
         case 3:
@@ -453,6 +462,22 @@
       const tx = await writer.readyValidator(nodeId, { gasLimit: 200000 });
       await waitTx(tx, 'readyValidator');
       logOk(`${selectedNode.label} is now ValReady.`);
+    }));
+
+    document.getElementById('btn-pause').addEventListener('click', () => runAction(async () => {
+      await ensureNodeGas();
+      logPending(`Calling pause for ${selectedNode.label}…`);
+      const tx = await getNodeWriter().pause(nodeId, { gasLimit: 200000 });
+      await waitTx(tx, 'pause');
+      logOk(`${selectedNode.label} is now ValPaused.`);
+    }));
+
+    document.getElementById('btn-unpause').addEventListener('click', () => runAction(async () => {
+      await ensureNodeGas();
+      logPending(`Calling resume for ${selectedNode.label}…`);
+      const tx = await getNodeWriter().resume(nodeId, { gasLimit: 200000 });
+      await waitTx(tx, 'resume');
+      logOk(`${selectedNode.label} is now ValActive.`);
     }));
 
     document.getElementById('btn-exit').addEventListener('click', () => runAction(async () => {

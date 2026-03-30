@@ -502,6 +502,16 @@
       }
     }
 
+    function scheduleRegisteredScan(visibleValidators) {
+      scanRegisteredBatch(visibleValidators)
+        .then(() => {
+          renderRegisteredPreview();
+        })
+        .catch(e => {
+          console.warn('registered scan failed', e);
+        });
+    }
+
     function renderRegisteredPreview() {
       const summary = document.getElementById('registered-summary');
       const list = document.getElementById('registered-list');
@@ -597,8 +607,8 @@
             `<td><a class="action-link" href="${actionHref(addr)}">Open Actions</a></td>`;
           tbody.appendChild(tr);
         });
-        await scanRegisteredBatch(validators);
         renderRegisteredPreview();
+        scheduleRegisteredScan(validators);
         knownAddrs = newAddrs;
       } catch (e) {
         let msg = `Cannot reach ${RPC}: ${e.message}`;

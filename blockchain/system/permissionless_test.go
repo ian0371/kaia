@@ -150,3 +150,37 @@ func TestAllocPermissionless_MismatchedLengths(t *testing.T) {
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "mismatched lengths")
 }
+
+func TestAllocPermissionlessCustomEpoch(t *testing.T) {
+	log.EnableLogForTest(log.LvlCrit, log.LvlWarn)
+	config := makeTestPermissionlessConfig(1)
+	config.EpochBlockInterval = 100
+
+	alloc, err := AllocPermissionless(config)
+	require.NoError(t, err)
+
+	backend := backends.NewSimulatedBackend(blockchain.GenesisAlloc(alloc))
+	caller, err := addressbookv2contract.NewAddressBookV2Caller(AddressBookAddr, backend)
+	require.NoError(t, err)
+
+	interval, err := caller.EpochBlockInterval(&bind.CallOpts{})
+	require.NoError(t, err)
+	assert.Equal(t, big.NewInt(100), interval)
+}
+
+func TestAllocPermissionlessDefaultEpoch(t *testing.T) {
+	log.EnableLogForTest(log.LvlCrit, log.LvlWarn)
+	config := makeTestPermissionlessConfig(1)
+	// EpochBlockInterval zero-value → must default to DefaultEpochBlockInterval
+
+	alloc, err := AllocPermissionless(config)
+	require.NoError(t, err)
+
+	backend := backends.NewSimulatedBackend(blockchain.GenesisAlloc(alloc))
+	caller, err := addressbookv2contract.NewAddressBookV2Caller(AddressBookAddr, backend)
+	require.NoError(t, err)
+
+	interval, err := caller.EpochBlockInterval(&bind.CallOpts{})
+	require.NoError(t, err)
+	assert.Equal(t, big.NewInt(DefaultEpochBlockInterval), interval)
+}

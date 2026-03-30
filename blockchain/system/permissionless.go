@@ -43,11 +43,12 @@ const DefaultEpochBlockInterval = int64(params.DefaultVRankEpoch)
 
 // AllocPermissionlessConfig holds parameters for genesis permissionless allocation.
 type AllocPermissionlessConfig struct {
-	Owner      common.Address                                  // Owner of beacons, Registry registrant
-	NodeIds    []common.Address                                // Validator node IDs
-	NodeInfos  []addressbookv2contract.NodeInfo                // Validator info — caller fills all fields except StakingContract (set after deployCnStaking)
-	StakeAmts  []*big.Int                                      // Stake amounts per validator
-	DataConfig addressbookv2contract.IABv2DataContractInitData // ABv2DataContract constructor data
+	Owner              common.Address                                  // Owner of beacons, Registry registrant
+	NodeIds            []common.Address                                // Validator node IDs
+	NodeInfos          []addressbookv2contract.NodeInfo                // Validator info — caller fills all fields except StakingContract (set after deployCnStaking)
+	StakeAmts          []*big.Int                                      // Stake amounts per validator
+	DataConfig         addressbookv2contract.IABv2DataContractInitData // ABv2DataContract constructor data
+	EpochBlockInterval int64                                           // 0 = use DefaultEpochBlockInterval
 }
 
 // allocPermissionlessResult holds intermediate deployed addresses passed between internal steps.
@@ -100,7 +101,11 @@ func AllocPermissionless(config *AllocPermissionlessConfig) (map[common.Address]
 	result := &allocPermissionlessResult{}
 
 	// Step 1: Deploy implementation contracts and their UpgradeableBeacons
-	if err := deployBeaconInfra(cfg, deployer, result); err != nil {
+	epochInterval := config.EpochBlockInterval
+	if epochInterval == 0 {
+		epochInterval = DefaultEpochBlockInterval
+	}
+	if err := deployBeaconInfra(cfg, deployer, result, epochInterval); err != nil {
 		return nil, err
 	}
 
@@ -158,7 +163,7 @@ func AllocPermissionless(config *AllocPermissionlessConfig) (map[common.Address]
 
 // deployBeaconInfra deploys CnStakingV4 and PublicDelegation implementations
 // along with their UpgradeableBeacons (step 1).
-func deployBeaconInfra(cfg *runtime.Config, owner common.Address, result *allocPermissionlessResult) error {
+func deployBeaconInfra(cfg *runtime.Config, owner common.Address, result *allocPermissionlessResult, epochInterval int64) error {
 	// Deploy CnStakingV4 implementation
 	cnImplAddr, err := evmCreate(cfg, common.FromHex(cnstakingv4.CnStakingV4Bin))
 	if err != nil {
@@ -195,7 +200,7 @@ func deployBeaconInfra(cfg *runtime.Config, owner common.Address, result *allocP
 
 	// Deploy AddressBookV2 implementation (used by ABv2DataContract and proxy setup)
 	abv2ABI, _ := addressbookv2contract.AddressBookV2MetaData.GetAbi()
-	abv2ImplInput, err := packConstructor(abv2ABI, common.FromHex(addressbookv2contract.AddressBookV2Bin), big.NewInt(DefaultEpochBlockInterval))
+	abv2ImplInput, err := packConstructor(abv2ABI, common.FromHex(addressbookv2contract.AddressBookV2Bin), big.NewInt(epochInterval))
 	if err != nil {
 		return fmt.Errorf("pack ABv2 impl constructor: %w", err)
 	}

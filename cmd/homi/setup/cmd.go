@@ -146,6 +146,7 @@ var HomiFlags = []cli.Flag{
 	altsrc.NewInt64Flag(pragueCompatibleBlockNumberFlag),
 	altsrc.NewInt64Flag(osakaCompatibleBlockNumberFlag),
 	altsrc.NewInt64Flag(permissionlessCompatibleBlockNumberFlag),
+	altsrc.NewUint64Flag(vrankEpochFlag),
 	altsrc.NewStringFlag(kip113ProxyAddressFlag),
 	altsrc.NewStringFlag(kip113LogicAddressFlag),
 	altsrc.NewBoolFlag(kip113MockFlag),
@@ -583,10 +584,11 @@ func allocatePermissionless(ctx *cli.Context, genesisJson *blockchain.Genesis, v
 	}
 
 	config := &system.AllocPermissionlessConfig{
-		Owner:     owner,
-		NodeIds:   validatorAddrs,
-		NodeInfos: nodeInfos,
-		StakeAmts: stakeAmts,
+		Owner:              owner,
+		NodeIds:            validatorAddrs,
+		NodeInfos:          nodeInfos,
+		StakeAmts:          stakeAmts,
+		EpochBlockInterval: int64(ctx.Uint64(vrankEpochFlag.Name)),
 		DataConfig: addressbookv2contract.IABv2DataContractInitData{
 			InitialOwner:           owner,
 			ExitThreshold:          big.NewInt(defaultExitThreshold),

@@ -229,20 +229,20 @@
     <div class="action-group" id="candidate-actions">
       <div class="action-group-title">Candidate Actions</div>
       <div class="btn-row">
-        <button class="action-btn secondary" id="btn-ready" disabled>Signal Ready</button>
-        <button class="action-btn" id="btn-cancel-ready" disabled>Cancel Ready</button>
-        <a class="action-btn secondary" id="btn-onboard-link" href="onboard.html" style="display:none; text-decoration:none;">Onboard a new validator</a>
+        <button class="action-btn secondary" id="btn-ready" disabled title="Registered -> CandReady">Signal Ready</button>
+        <button class="action-btn" id="btn-cancel-ready" disabled title="CandReady -> Registered">Cancel Ready</button>
+        <a class="action-btn secondary" id="btn-onboard-link" href="onboard.html" style="display:none; text-decoration:none;" title="Guided lifecycle flow: Unknown -> Registered -> CandReady">Onboard a new validator</a>
       </div>
     </div>
     <div class="action-group" id="validator-actions">
       <div class="action-group-title">Validator Actions</div>
       <div class="btn-row">
-        <button class="action-btn" id="btn-reactivate" disabled>Reactivate</button>
-        <button class="action-btn secondary" id="btn-unready-validator" disabled>Unready Validator</button>
-        <button class="action-btn secondary" id="btn-pause" disabled>Pause</button>
-        <button class="action-btn" id="btn-unpause" disabled>Unpause</button>
-        <button class="action-btn secondary" id="btn-offboard" disabled>Offboard</button>
-        <button class="action-btn danger" id="btn-exit" disabled>Exit Validator</button>
+        <button class="action-btn" id="btn-reactivate" disabled title="ValInactive -> ValReady">Reactivate</button>
+        <button class="action-btn secondary" id="btn-unready-validator" disabled title="ValReady -> ValInactive">Unready Validator</button>
+        <button class="action-btn secondary" id="btn-pause" disabled title="ValActive -> ValPaused">Pause</button>
+        <button class="action-btn" id="btn-unpause" disabled title="ValPaused -> ValActive">Unpause</button>
+        <button class="action-btn secondary" id="btn-offboard" disabled title="ValInactive -> Registered">Offboard</button>
+        <button class="action-btn danger" id="btn-exit" disabled title="ValActive/ValPaused -> ValExiting">Exit Validator</button>
       </div>
     </div>
   </section>

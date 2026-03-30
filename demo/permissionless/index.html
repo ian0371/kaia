@@ -94,6 +94,34 @@
       line-height: 1.6;
       margin-bottom: 0.9rem;
     }
+    #registered-pagination {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      margin-top: 1rem;
+    }
+    #registered-page-label {
+      color: #8b949e;
+      font-size: 0.8rem;
+    }
+    .pager-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0.5rem 0.8rem;
+      border-radius: 999px;
+      border: 1px solid #30363d;
+      background: #0d1117;
+      color: #58a6ff;
+      font-size: 0.78rem;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .pager-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
     #registered-list {
       display: grid;
       gap: 0.75rem;
@@ -244,6 +272,11 @@
     <h2>Registered Preview</h2>
     <p id="registered-summary">Loading registered nodes…</p>
     <div id="registered-list"></div>
+    <div id="registered-pagination">
+      <button class="pager-btn" id="registered-prev" disabled>Previous</button>
+      <span id="registered-page-label">Page 1</span>
+      <button class="pager-btn" id="registered-next" disabled>Next</button>
+    </div>
   </section>
 
   <table>
@@ -268,6 +301,8 @@
   <script>
     const RPC = 'https://pless-demo-rpc.yum3.me';
     const ABV2 = '0x0000000000000000000000000000000000000400';
+    const DEMO_MNEMONIC = 'test test test test test test test test test test test junk';
+    const HOMI_BASE_PATH = "m/44'/60'/0'/0/";
     const STATE = {
       0: 'Unknown', 1: 'Registered', 2: 'CandReady',
       3: 'CandTesting', 4: 'ValInactive', 5: 'ValReady',
@@ -281,14 +316,27 @@
     const STATE_BY_NAME = Object.fromEntries(Object.entries(STATE).map(([id, name]) => [name, Number(id)]));
     const STATE_ORDER = { 6: 0, 5: 1, 7: 2, 8: 3, 4: 4, 2: 5, 3: 6, 1: 7, 0: 8 };
     const ABV2_ABI = [
+      'event NodeCreated(address indexed nodeId, uint256 gcId)',
       'function getNodeInfo(address nodeId) view returns ((address manager, address stakingContract, address rewardAddress, address voterAddress, uint256 timeoutAt, uint256 gcId, (bytes publicKey, bytes pop) blsInfo, string metadata, uint8 state))',
+      'function getNodeInfos(address[] nodeIds) view returns ((address manager, address stakingContract, address rewardAddress, address voterAddress, uint256 timeoutAt, uint256 gcId, (bytes publicKey, bytes pop) blsInfo, string metadata, uint8 state)[])',
     ];
-    const REGISTERED_PREVIEW_LIMIT = 5;
+    const REGISTERED_PAGE_SIZE = 15;
+    const REGISTERED_BATCH_SIZE = 50;
     let knownAddrs = new Set();
     let prevCount = 0;
     let abv2Read;
+    let abv2Iface;
     const gcIdCache = new Map();
     const gcIdPending = new Map();
+    const registeredState = {
+      page: 1,
+      nodes: [],
+      candidateNodeIds: [],
+      knownNodeIdSet: new Set(),
+      lastAssignedGcId: 0,
+      lastNodeCreatedBlock: -1,
+      refreshPromise: null,
+    };
 
     async function rpc(method, params = []) {
       const res = await fetch(RPC, {
@@ -363,23 +411,103 @@
       if (lookups.length > 0) await Promise.allSettled(lookups);
     }
 
-    function renderRegisteredPreview(registeredNodes) {
+    function deriveNodeId(pathIndex) {
+      try {
+        return window.ethers.Wallet.fromMnemonic(DEMO_MNEMONIC, `${HOMI_BASE_PATH}${pathIndex}`).address;
+      } catch (_) {
+        return null;
+      }
+    }
+
+    function extendRegisteredCandidates(nextLastAssignedGcId) {
+      for (let gcId = registeredState.lastAssignedGcId + 1; gcId <= nextLastAssignedGcId; gcId++) {
+        const derivationIndexes = Array.from(new Set([gcId - 1, gcId])).filter(index => index >= 0);
+        for (const derivationIndex of derivationIndexes) {
+          const nodeId = deriveNodeId(derivationIndex);
+          if (!nodeId) continue;
+          const cacheKey = nodeId.toLowerCase();
+          if (registeredState.knownNodeIdSet.has(cacheKey)) continue;
+          registeredState.knownNodeIdSet.add(cacheKey);
+          registeredState.candidateNodeIds.push(nodeId);
+        }
+      }
+      registeredState.lastAssignedGcId = nextLastAssignedGcId;
+    }
+
+    async function refreshRegisteredCandidates() {
+      if (!abv2Read || !abv2Iface) return;
+      const latestBlock = await abv2Read.provider.getBlockNumber();
+      const logs = await abv2Read.provider.getLogs({
+        address: ABV2,
+        topics: [abv2Iface.getEventTopic('NodeCreated')],
+        fromBlock: registeredState.lastNodeCreatedBlock + 1,
+        toBlock: latestBlock,
+      });
+      let nextLastAssignedGcId = Math.max(100, registeredState.lastAssignedGcId);
+      for (const log of logs) {
+        const parsed = abv2Iface.parseLog(log);
+        const gcId = parsed.args.gcId.toNumber ? parsed.args.gcId.toNumber() : Number(parsed.args.gcId);
+        if (Number.isFinite(gcId)) nextLastAssignedGcId = Math.max(nextLastAssignedGcId, gcId);
+      }
+      registeredState.lastNodeCreatedBlock = latestBlock;
+      if (nextLastAssignedGcId > registeredState.lastAssignedGcId) {
+        extendRegisteredCandidates(nextLastAssignedGcId);
+      }
+    }
+
+    async function refreshRegisteredNodes() {
+      if (!abv2Read) return registeredState.nodes;
+      if (registeredState.refreshPromise) return registeredState.refreshPromise;
+      registeredState.refreshPromise = (async () => {
+        await refreshRegisteredCandidates();
+        const registered = [];
+        for (let i = 0; i < registeredState.candidateNodeIds.length; i += REGISTERED_BATCH_SIZE) {
+          const nodeIds = registeredState.candidateNodeIds.slice(i, i + REGISTERED_BATCH_SIZE);
+          const infos = await abv2Read.getNodeInfos(nodeIds);
+          infos.forEach((info, index) => {
+            const state = info.state.toNumber ? info.state.toNumber() : Number(info.state);
+            const gcId = info.gcId.toNumber ? info.gcId.toNumber() : Number(info.gcId);
+            const addr = nodeIds[index];
+            gcIdCache.set(addr.toLowerCase(), state !== 0 && Number.isFinite(gcId) && gcId > 0 ? gcId : null);
+            if (state === 1) {
+              registered.push({ addr, gcId });
+            }
+          });
+        }
+        registered.sort((a, b) => {
+          const aKnown = Number.isFinite(a.gcId);
+          const bKnown = Number.isFinite(b.gcId);
+          if (aKnown && bKnown && a.gcId !== b.gcId) return a.gcId - b.gcId;
+          if (aKnown !== bKnown) return aKnown ? -1 : 1;
+          return a.addr.localeCompare(b.addr);
+        });
+        registeredState.nodes = registered;
+        return registered;
+      })().finally(() => {
+        registeredState.refreshPromise = null;
+      });
+      return registeredState.refreshPromise;
+    }
+
+    function renderRegisteredPreview() {
       const summary = document.getElementById('registered-summary');
       const list = document.getElementById('registered-list');
-      const preview = [...registeredNodes].sort((a, b) => {
-        const aGcId = gcIdCache.get(a.addr.toLowerCase());
-        const bGcId = gcIdCache.get(b.addr.toLowerCase());
-        const aKnown = Number.isFinite(aGcId);
-        const bKnown = Number.isFinite(bGcId);
-        if (aKnown && bKnown && aGcId !== bGcId) return aGcId - bGcId;
-        if (aKnown !== bKnown) return aKnown ? -1 : 1;
-        return a.addr.localeCompare(b.addr);
-      });
-      const shown = preview.slice(0, REGISTERED_PREVIEW_LIMIT);
-      summary.textContent = preview.length === 0
+      const prevBtn = document.getElementById('registered-prev');
+      const nextBtn = document.getElementById('registered-next');
+      const pageLabel = document.getElementById('registered-page-label');
+      const total = registeredState.nodes.length;
+      const pageCount = Math.max(1, Math.ceil(total / REGISTERED_PAGE_SIZE));
+      registeredState.page = Math.min(registeredState.page, pageCount);
+      const start = (registeredState.page - 1) * REGISTERED_PAGE_SIZE;
+      const shown = registeredState.nodes.slice(start, start + REGISTERED_PAGE_SIZE);
+
+      summary.textContent = total === 0
         ? 'No nodes are currently in Registered state.'
-        : `Showing ${shown.length} of ${preview.length} registered node${preview.length !== 1 ? 's' : ''}, ordered by GCID.`;
+        : `Showing ${start + 1}-${start + shown.length} of ${total} registered node${total !== 1 ? 's' : ''}, ordered by GCID.`;
       list.innerHTML = '';
+      pageLabel.textContent = `Page ${registeredState.page} / ${pageCount}`;
+      prevBtn.disabled = registeredState.page <= 1 || total === 0;
+      nextBtn.disabled = registeredState.page >= pageCount || total === 0;
       if (shown.length === 0) {
         list.innerHTML = '<div class="registered-empty">Newly registered nodes will appear here before they move into candidate testing.</div>';
         return;
@@ -397,21 +525,18 @@
 
     async function update() {
       try {
-        const [nodeMap, registeredMap, blockHex] = await Promise.all([
+        const [nodeMap, blockHex] = await Promise.all([
           rpc('kaia_getNodeByState', ['latest', []]),
-          rpc('kaia_getNodeByState', ['latest', ['Registered']]),
           rpc('kaia_blockNumber', [])
         ]);
         setError(null);
 
         const validators = Object.entries(nodeMap)
           .map(([addr, state]) => ({ addr, state: normalizeState(state) }));
-        const registeredNodes = Object.entries(registeredMap)
-          .map(([addr, state]) => ({ addr, state: normalizeState(state) }));
 
-        await ensureGcIds([
-          ...validators.map(v => v.addr),
-          ...registeredNodes.map(v => v.addr),
+        await Promise.all([
+          ensureGcIds(validators.map(v => v.addr)),
+          refreshRegisteredNodes(),
         ]);
 
         validators.sort((a, b) => {
@@ -454,7 +579,7 @@
             `<td><a class="action-link" href="${actionHref(addr)}">Open Actions</a></td>`;
           tbody.appendChild(tr);
         });
-        renderRegisteredPreview(registeredNodes);
+        renderRegisteredPreview();
         knownAddrs = newAddrs;
       } catch (e) {
         let msg = `Cannot reach ${RPC}: ${e.message}`;
@@ -470,7 +595,22 @@
     if (window.ethers) {
       const provider = new window.ethers.providers.JsonRpcProvider(RPC);
       abv2Read = new window.ethers.Contract(ABV2, ABV2_ABI, provider);
+      abv2Iface = abv2Read.interface;
     }
+
+    document.getElementById('registered-prev').addEventListener('click', () => {
+      if (registeredState.page > 1) {
+        registeredState.page -= 1;
+        renderRegisteredPreview();
+      }
+    });
+    document.getElementById('registered-next').addEventListener('click', () => {
+      const pageCount = Math.max(1, Math.ceil(registeredState.nodes.length / REGISTERED_PAGE_SIZE));
+      if (registeredState.page < pageCount) {
+        registeredState.page += 1;
+        renderRegisteredPreview();
+      }
+    });
 
     update();
     setInterval(update, 2000);

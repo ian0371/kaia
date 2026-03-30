@@ -244,6 +244,7 @@
 
     const ABI_ABV2 = [
       'function getNodeState(address nodeId) view returns (uint8)',
+      'function getNodeInfo(address nodeId) view returns ((address manager, address stakingContract, address rewardAddress, address voterAddress, uint256 timeoutAt, uint256 gcId, (bytes publicKey, bytes pop) blsInfo, string metadata, uint8 state))',
       'function readyCandidate(address nodeId)',
       'function readyValidator(address nodeId)',
       'function exit(address nodeId)',
@@ -312,7 +313,7 @@
       const label = selectedNode ? selectedNode.label : 'This node';
 
       if (!selectedNode || !selectedNode.wallet) {
-        hint.textContent = 'This node is not part of the deterministic demo set, so browser actions are unavailable.';
+        hint.textContent = 'Could not recover a signing key from this node\'s gcId and the demo mnemonic, so browser actions are unavailable.';
         setButtons({});
         return;
       }
@@ -399,17 +400,6 @@
       }
     }
 
-    function buildDemoNodes() {
-      const nodes = [
-        ...Array.from({ length: 4 }, (_, i) => {
-          const wallet = ethers.Wallet.fromMnemonic(DEMO_MNEMONIC, `${HOMI_BASE_PATH}${i}`).connect(provider);
-          return { label: `CN${i + 1}`, nodeId: wallet.address, wallet, supportsFullOnboard: false };
-        }),
-        { label: 'CN5', nodeId: CN5_NODEID, wallet: new ethers.Wallet(CN5_NODEKEY, provider), supportsFullOnboard: true },
-      ];
-      return new Map(nodes.map(node => [node.nodeId.toLowerCase(), node]));
-    }
-
     async function init() {
       nodeId = readNodeId();
       if (!/^0x[a-fA-F0-9]{40}$/.test(nodeId)) {
@@ -421,9 +411,24 @@
       provider = new ethers.providers.JsonRpcProvider(RPC);
       fundedWallet = new ethers.Wallet(FUNDED_KEY, provider);
       abv2Read = new ethers.Contract(ABV2, ABI_ABV2, provider);
-
-      const demoNodes = buildDemoNodes();
-      selectedNode = demoNodes.get(nodeId.toLowerCase()) || { label: 'Validator', nodeId, wallet: null, supportsFullOnboard: false };
+      const info = await abv2Read.getNodeInfo(nodeId);
+      const gcId = info.gcId.toNumber ? info.gcId.toNumber() : Number(info.gcId);
+      let wallet = null;
+      let supportsFullOnboard = false;
+      try {
+        wallet = ethers.Wallet.fromMnemonic(DEMO_MNEMONIC, `${HOMI_BASE_PATH}${gcId}`).connect(provider);
+        if (wallet.address.toLowerCase() !== nodeId.toLowerCase()) {
+          wallet = null;
+        }
+      } catch (_) {}
+      if (gcId >= 101) supportsFullOnboard = true;
+      selectedNode = {
+        label: Number.isFinite(gcId) ? `GC ${gcId}` : 'Validator',
+        nodeId,
+        wallet,
+        gcId,
+        supportsFullOnboard,
+      };
 
       document.getElementById('node-label').textContent = selectedNode.label;
       document.getElementById('node-id').textContent = nodeId;

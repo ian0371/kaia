@@ -559,6 +559,7 @@
     const gcIdCache = new Map();
     const gcIdPending = new Map();
     let registeredPreviewInitialized = false;
+    let latestValidators = [];
     const registeredState = {
       page: 1,
       nodesByAddr: new Map(),
@@ -643,10 +644,15 @@
       if (lookups.length > 0) await Promise.allSettled(lookups);
     }
 
+    const nodeIdDerivationCache = new Map();
     function deriveNodeId(pathIndex) {
+      if (nodeIdDerivationCache.has(pathIndex)) return nodeIdDerivationCache.get(pathIndex);
       try {
-        return window.ethers.Wallet.fromMnemonic(DEMO_MNEMONIC, `${HOMI_BASE_PATH}${pathIndex}`).address;
+        const addr = window.ethers.Wallet.fromMnemonic(DEMO_MNEMONIC, `${HOMI_BASE_PATH}${pathIndex}`).address;
+        nodeIdDerivationCache.set(pathIndex, addr);
+        return addr;
       } catch (_) {
+        nodeIdDerivationCache.set(pathIndex, null);
         return null;
       }
     }
@@ -709,6 +715,7 @@
             batchNodeIdSet.add(cacheKey);
             batchNodeIds.push(nodeId);
           }
+          await new Promise(r => setTimeout(r, 0)); // yield to event loop between each gcId
         }
 
         if (batchNodeIds.length > 0) {
@@ -737,14 +744,16 @@
       }
     }
 
-    function scheduleRegisteredScan(visibleValidators) {
-      scanRegisteredBatch(visibleValidators)
+    function scheduleRegisteredScan() {
+      scanRegisteredBatch(latestValidators)
         .then(() => {
           renderRegisteredPreview();
-          renderStateMachineAvatars(visibleValidators);
+          renderStateMachineAvatars(latestValidators);
+          setTimeout(scheduleRegisteredScan, 300);
         })
         .catch(e => {
           console.warn('registered scan failed', e);
+          setTimeout(scheduleRegisteredScan, 2000);
         });
     }
 
@@ -916,12 +925,13 @@
             `<td><a class="action-link" href="${actionHref(addr)}">Open Actions</a></td>`;
           tbody.appendChild(tr);
         });
+        latestValidators = validators;
         updateStateCounts(validators);
         renderStateMachineAvatars(validators);
         renderRegisteredPreview();
         if (!registeredPreviewInitialized) {
           registeredPreviewInitialized = true;
-          scheduleRegisteredScan(validators);
+          scheduleRegisteredScan();
         }
         knownAddrs = newAddrs;
       } catch (e) {

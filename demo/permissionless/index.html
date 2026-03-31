@@ -234,6 +234,30 @@
       text-align: center;
     }
     code { background: #161b22; padding: 0.1em 0.4em; border-radius: 3px; }
+    #state-machine-panel {
+      margin-bottom: 2rem;
+      padding: 1.25rem;
+      background: #161b22;
+      border: 1px solid #21262d;
+      border-radius: 12px;
+    }
+    #state-machine-panel h2 {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: #8b949e;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 1rem;
+    }
+    #state-machine-svg-wrap {
+      overflow-x: auto;
+      display: flex;
+      justify-content: center;
+    }
+    #state-machine-svg-wrap svg {
+      display: block;
+      max-width: 100%;
+    }
     @media (max-width: 760px) {
       header, #entry-panel { flex-direction: column; }
       .page-link { width: 100%; }
@@ -268,6 +292,7 @@
     <a class="page-link" href="onboard.html">Onboard a new validator</a>
   </section>
 
+
   <table>
     <thead>
       <tr>
@@ -289,6 +314,195 @@
       <button class="pager-btn" id="registered-prev" disabled>Previous</button>
       <span id="registered-page-label">Page 1</span>
       <button class="pager-btn" id="registered-next" disabled>Next</button>
+    </div>
+  </section>
+  <section id="state-machine-panel">
+    <h2>Node State Machine — KIP-286</h2>
+    <div id="state-machine-svg-wrap">
+      <svg viewBox="0 0 960 432" width="960" height="432" overflow="visible" xmlns="http://www.w3.org/2000/svg"
+           style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',monospace; background:#0d1117; border-radius:8px;">
+        <defs>
+          <!-- Epoch (blue) arrowhead -->
+          <marker id="ab" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+            <polygon points="0 0,8 3,0 6" fill="#58a6ff"/>
+          </marker>
+          <!-- Anytime (gray) arrowhead -->
+          <marker id="ak" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+            <polygon points="0 0,8 3,0 6" fill="#8b949e"/>
+          </marker>
+          <!-- Dark hatch pattern for staking-competition nodes -->
+          <pattern id="hatch" width="9" height="9" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+            <rect width="9" height="9" fill="#0d2318"/>
+            <line x1="0" y1="0" x2="0" y2="9" stroke="#2d6a3f" stroke-width="1.6"/>
+          </pattern>
+        </defs>
+
+        <!-- ── LEGEND (top-left) ──────────────────────────────── -->
+        <g transform="translate(18,16)" font-size="11" fill="#8b949e">
+          <line x1="0" y1="8" x2="32" y2="8" stroke="#58a6ff" stroke-width="1.6" marker-end="url(#ab)"/>
+          <text x="38" y="12">At Epoch interval</text>
+          <line x1="0" y1="26" x2="32" y2="26" stroke="#8b949e" stroke-width="1.6" marker-end="url(#ak)"/>
+          <text x="38" y="30">At Anytime</text>
+          <rect x="0" y="38" width="32" height="18" fill="url(#hatch)" stroke="#3fb950" stroke-width="1.2" rx="3"/>
+          <text x="38" y="51">Staking competition</text>
+        </g>
+
+        <!-- ── STATE BOXES ───────────────────────────────────────
+             cx/cy = center, box = 114×36, rx=5
+             Bottom row  y=345: Unknown(72) Registered(207) CandReady(342) CandTesting(483) ValActive(648) ValExiting(835)
+             Middle       y=215: ValReady(570)
+             Top          y=82:  ValInactive(483) ValPaused(758)
+        ──────────────────────────────────────────────────────── -->
+
+        <!-- Unknown -->
+        <rect x="15" y="327" width="114" height="36" rx="5" fill="#0d1117" stroke="#484f58" stroke-width="1.4"/>
+        <text x="72" y="339" text-anchor="middle" font-size="9" fill="#6e7681" id="sm-cnt-0">—</text>
+        <text x="72" y="352" text-anchor="middle" font-size="12" font-weight="600" fill="#c9d1d9">Unknown</text>
+
+        <!-- Registered -->
+        <rect x="150" y="327" width="114" height="36" rx="5" fill="#0d1117" stroke="#484f58" stroke-width="1.4"/>
+        <text x="207" y="339" text-anchor="middle" font-size="9" fill="#6e7681" id="sm-cnt-1">—</text>
+        <text x="207" y="352" text-anchor="middle" font-size="12" font-weight="600" fill="#c9d1d9">Registered</text>
+
+        <!-- CandReady -->
+        <rect x="285" y="327" width="114" height="36" rx="5" fill="#0d1117" stroke="#484f58" stroke-width="1.4"/>
+        <text x="342" y="339" text-anchor="middle" font-size="9" fill="#6e7681" id="sm-cnt-2">—</text>
+        <text x="342" y="352" text-anchor="middle" font-size="12" font-weight="600" fill="#c9d1d9">CandReady</text>
+
+        <!-- CandTesting [hatched] -->
+        <rect x="426" y="327" width="114" height="36" rx="5" fill="url(#hatch)" stroke="#3fb950" stroke-width="1.4"/>
+        <text x="483" y="339" text-anchor="middle" font-size="9" fill="#56d364" id="sm-cnt-3">—</text>
+        <text x="483" y="352" text-anchor="middle" font-size="12" font-weight="600" fill="#3fb950">CandTesting</text>
+
+        <!-- ValActive [hatched] -->
+        <rect x="591" y="327" width="114" height="36" rx="5" fill="url(#hatch)" stroke="#3fb950" stroke-width="1.4"/>
+        <text x="648" y="339" text-anchor="middle" font-size="9" fill="#56d364" id="sm-cnt-6">—</text>
+        <text x="648" y="352" text-anchor="middle" font-size="12" font-weight="600" fill="#3fb950">ValActive</text>
+
+        <!-- ValExiting -->
+        <rect x="778" y="327" width="114" height="36" rx="5" fill="#0d1117" stroke="#484f58" stroke-width="1.4"/>
+        <text x="835" y="339" text-anchor="middle" font-size="9" fill="#6e7681" id="sm-cnt-8">—</text>
+        <text x="835" y="352" text-anchor="middle" font-size="12" font-weight="600" fill="#c9d1d9">ValExiting</text>
+
+        <!-- ValReady [hatched] -->
+        <rect x="513" y="197" width="114" height="36" rx="5" fill="url(#hatch)" stroke="#3fb950" stroke-width="1.4"/>
+        <text x="570" y="209" text-anchor="middle" font-size="9" fill="#56d364" id="sm-cnt-5">—</text>
+        <text x="570" y="222" text-anchor="middle" font-size="12" font-weight="600" fill="#3fb950">ValReady</text>
+
+        <!-- ValInactive -->
+        <rect x="426" y="64" width="114" height="36" rx="5" fill="#0d1117" stroke="#484f58" stroke-width="1.4"/>
+        <text x="483" y="76" text-anchor="middle" font-size="9" fill="#6e7681" id="sm-cnt-4">—</text>
+        <text x="483" y="89" text-anchor="middle" font-size="12" font-weight="600" fill="#c9d1d9">ValInactive</text>
+
+        <!-- ValPaused [hatched] -->
+        <rect x="701" y="64" width="114" height="36" rx="5" fill="url(#hatch)" stroke="#3fb950" stroke-width="1.4"/>
+        <text x="758" y="76" text-anchor="middle" font-size="9" fill="#56d364" id="sm-cnt-7">—</text>
+        <text x="758" y="89" text-anchor="middle" font-size="12" font-weight="600" fill="#3fb950">ValPaused</text>
+
+        <!-- ── EPOCH (BLUE) ARROWS ───────────────────────────── -->
+
+        <!-- B1: CandReady → CandTesting -->
+        <line x1="399" y1="345" x2="425" y2="345"
+              stroke="#58a6ff" stroke-width="1.6" marker-end="url(#ab)"/>
+
+        <!-- B2: CandTesting → ValActive  "top N" -->
+        <line x1="540" y1="345" x2="590" y2="345"
+              stroke="#58a6ff" stroke-width="1.6" marker-end="url(#ab)"/>
+        <text x="565" y="338" text-anchor="middle" font-size="10" fill="#58a6ff">top N</text>
+
+        <!-- B3: CandTesting → CandReady  "stake &lt; min" (arc below) -->
+        <path d="M 483,363 C 483,386 342,386 342,363"
+              fill="none" stroke="#58a6ff" stroke-width="1.6" marker-end="url(#ab)"/>
+        <text x="412" y="400" text-anchor="middle" font-size="10" fill="#58a6ff">stake &lt; min</text>
+
+        <!-- B4: CandTesting → Registered  "Failed VRank" (deeper arc) -->
+        <path d="M 468,363 C 468,412 207,412 207,363"
+              fill="none" stroke="#58a6ff" stroke-width="1.6" marker-end="url(#ab)"/>
+        <text x="338" y="427" text-anchor="middle" font-size="10" fill="#58a6ff">Failed VRank</text>
+
+        <!-- B5: ValActive/ValReady/ValPaused → ValInactive  "stake &lt; min  /  below top N"
+             Route left of ValReady (x&lt;513) to avoid overlap -->
+        <path d="M 591,333 C 480,285 445,200 452,100"
+              fill="none" stroke="#58a6ff" stroke-width="1.6" marker-end="url(#ab)"/>
+        <text x="480" y="232" text-anchor="end" font-size="10" fill="#58a6ff">below top N</text>
+
+        <!-- B6: ValReady → ValActive  "top N" (diagonal down-right) -->
+        <path d="M 615,228 C 640,270 640,315 595,327"
+              fill="none" stroke="#58a6ff" stroke-width="1.6" marker-end="url(#ab)"/>
+        <text x="650" y="272" text-anchor="start" font-size="10" fill="#58a6ff">top N</text>
+
+        <!-- B7: ValReady → ValInactive  "below top N Ready" (up-left) -->
+        <path d="M 528,197 C 514,158 500,124 496,100"
+              fill="none" stroke="#58a6ff" stroke-width="1.6" marker-end="url(#ab)"/>
+        <text x="490" y="150" text-anchor="end" font-size="10" fill="#58a6ff">below top N</text>
+        <text x="490" y="162" text-anchor="end" font-size="10" fill="#58a6ff">Ready</text>
+
+        <!-- B8: ValInactive → Registered  "Idle timeout or offboard" (long top arc) -->
+        <path d="M 426,72 C 360,22 207,22 207,327"
+              fill="none" stroke="#58a6ff" stroke-width="1.6" marker-end="url(#ab)"/>
+        <text x="292" y="14" text-anchor="middle" font-size="10" fill="#58a6ff">Idle timeout or Want to offboard</text>
+
+        <!-- ── ANYTIME (GRAY) ARROWS ─────────────────────────── -->
+
+        <!-- K1: Unknown ↔ Registered -->
+        <line x1="130" y1="341" x2="149" y2="341"
+              stroke="#8b949e" stroke-width="1.6" marker-end="url(#ak)"/>
+        <line x1="149" y1="349" x2="130" y2="349"
+              stroke="#8b949e" stroke-width="1.6" marker-end="url(#ak)"/>
+
+        <!-- K2: Registered ↔ CandReady -->
+        <line x1="265" y1="341" x2="284" y2="341"
+              stroke="#8b949e" stroke-width="1.6" marker-end="url(#ak)"/>
+        <line x1="284" y1="349" x2="265" y2="349"
+              stroke="#8b949e" stroke-width="1.6" marker-end="url(#ak)"/>
+
+        <!-- K3: ValInactive → ValReady  (readyValidator) -->
+        <path d="M 540,78 C 572,118 572,178 570,197"
+              fill="none" stroke="#8b949e" stroke-width="1.6" marker-end="url(#ak)"/>
+
+        <!-- K4: ValReady → ValInactive  (unreadyValidator) -->
+        <path d="M 513,197 C 494,162 476,124 469,100"
+              fill="none" stroke="#8b949e" stroke-width="1.6" marker-end="url(#ak)"/>
+
+        <!-- K5: ValActive → ValPaused  "Pause" -->
+        <path d="M 678,327 C 714,238 752,160 752,100"
+              fill="none" stroke="#8b949e" stroke-width="1.6" marker-end="url(#ak)"/>
+        <text x="740" y="215" text-anchor="start" font-size="10" fill="#8b949e">Maintenance /</text>
+        <text x="740" y="227" text-anchor="start" font-size="10" fill="#8b949e">VRank violation</text>
+
+        <!-- K6: ValPaused → ValActive  "Unpause" -->
+        <path d="M 718,100 C 685,192 660,268 645,327"
+              fill="none" stroke="#8b949e" stroke-width="1.6" marker-end="url(#ak)"/>
+        <text x="650" y="205" text-anchor="end" font-size="10" fill="#8b949e">Unpause</text>
+
+        <!-- K7: ValActive → ValExiting  "Exit request / VRank violation" -->
+        <line x1="705" y1="345" x2="777" y2="345"
+              stroke="#8b949e" stroke-width="1.6" marker-end="url(#ak)"/>
+        <text x="741" y="362" text-anchor="middle" font-size="9.5" fill="#8b949e">Exit request /</text>
+        <text x="741" y="373" text-anchor="middle" font-size="9.5" fill="#8b949e">VRank violation</text>
+
+        <!-- K8: ValPaused → ValExiting  "Exit request" -->
+        <path d="M 815,78 C 878,175 858,262 836,327"
+              fill="none" stroke="#8b949e" stroke-width="1.6" marker-end="url(#ak)"/>
+        <text x="878" y="182" text-anchor="start" font-size="10" fill="#8b949e">Exit request</text>
+
+        <!-- K9: ValPaused → ValInactive  "Pause timeout" (horizontal left) -->
+        <line x1="700" y1="76" x2="541" y2="76"
+              stroke="#8b949e" stroke-width="1.6" marker-end="url(#ak)"/>
+        <text x="620" y="68" text-anchor="middle" font-size="10" fill="#8b949e">Pause timeout</text>
+
+        <!-- Avatar groups — populated by JS -->
+        <g id="sm-avatars-0"></g>
+        <g id="sm-avatars-1"></g>
+        <g id="sm-avatars-2"></g>
+        <g id="sm-avatars-3"></g>
+        <g id="sm-avatars-4"></g>
+        <g id="sm-avatars-5"></g>
+        <g id="sm-avatars-6"></g>
+        <g id="sm-avatars-7"></g>
+        <g id="sm-avatars-8"></g>
+
+      </svg>
     </div>
   </section>
 
@@ -507,6 +721,7 @@
       scanRegisteredBatch(visibleValidators)
         .then(() => {
           renderRegisteredPreview();
+          renderStateMachineAvatars(visibleValidators);
         })
         .catch(e => {
           console.warn('registered scan failed', e);
@@ -553,6 +768,79 @@
           `<a class="action-link" href="${actionHref(addr)}">Open Actions</a>`;
         list.appendChild(row);
       });
+    }
+
+    // Box right-edge x and circle-center y (= box_top - AVATAR_R so circles sit just above each box)
+    const SM_BOX = {
+      0: { rx: 129, cy: 314 }, 1: { rx: 264, cy: 314 }, 2: { rx: 399, cy: 314 },
+      3: { rx: 540, cy: 314 }, 4: { rx: 540, cy: 51  }, 5: { rx: 627, cy: 184 },
+      6: { rx: 705, cy: 314 }, 7: { rx: 815, cy: 51  }, 8: { rx: 892, cy: 314 },
+    };
+    const AVATAR_COLORS = [
+      '#1a7f64','#1565c0','#c62828','#e65100',
+      '#6a1b9a','#00695c','#5d4037','#37474f','#558b2f','#ad1457',
+    ];
+    const AVATAR_R = 13, AVATAR_STEP = 20, AVATAR_MAX = 6;
+
+    function avatarColor(addr) {
+      let h = 5381;
+      for (let i = 2; i < addr.length; i++) h = (((h << 5) + h) ^ addr.charCodeAt(i)) >>> 0;
+      return AVATAR_COLORS[h % AVATAR_COLORS.length];
+    }
+
+    function avatarLabel(addr) {
+      const gcId = gcIdCache.get(addr.toLowerCase());
+      return (Number.isFinite(gcId) && gcId > 0) ? String(gcId) : addr.slice(-2).toUpperCase();
+    }
+
+    function renderStateMachineAvatars(validators) {
+      const byState = {};
+      for (let i = 0; i <= 8; i++) byState[i] = [];
+      validators.forEach(({ addr, state }) => { if (state in byState) byState[state].push(addr); });
+      byState[1] = [...registeredState.nodesByAddr.values()].map(n => n.addr);
+
+      for (const [sid, box] of Object.entries(SM_BOX)) {
+        const g = document.getElementById(`sm-avatars-${sid}`);
+        if (!g) continue;
+        const addrs = byState[Number(sid)] || [];
+        if (!addrs.length) { g.innerHTML = ''; continue; }
+
+        const shown = addrs.slice(0, AVATAR_MAX);
+        const extra = addrs.length - AVATAR_MAX;
+        const parts = [];
+
+        shown.forEach((addr, i) => {
+          const cx = box.rx - AVATAR_R - i * AVATAR_STEP;
+          const label = avatarLabel(addr);
+          const fs = label.length > 2 ? '7' : '9';
+          parts.push(
+            `<circle cx="${cx}" cy="${box.cy}" r="${AVATAR_R}" fill="${avatarColor(addr)}" stroke="#0d1117" stroke-width="2.5"/>` +
+            `<text x="${cx}" y="${box.cy + 4}" text-anchor="middle" font-size="${fs}" font-weight="700" fill="#fff">${label}</text>`
+          );
+        });
+
+        if (extra > 0) {
+          const cx = box.rx - AVATAR_R - AVATAR_MAX * AVATAR_STEP;
+          parts.push(
+            `<circle cx="${cx}" cy="${box.cy}" r="${AVATAR_R}" fill="#484f58" stroke="#0d1117" stroke-width="2.5"/>` +
+            `<text x="${cx}" y="${box.cy + 4}" text-anchor="middle" font-size="8" font-weight="700" fill="#fff">+${extra}</text>`
+          );
+        }
+
+        g.innerHTML = parts.join('');
+      }
+    }
+
+    function updateStateCounts(validators) {
+      const counts = {};
+      for (let i = 0; i <= 8; i++) counts[i] = 0;
+      validators.forEach(({ state }) => { if (state in counts) counts[state]++; });
+      // Registered nodes come from the scan; use registeredState for state 1
+      counts[1] = registeredState.nodesByAddr.size;
+      for (let i = 0; i <= 8; i++) {
+        const el = document.getElementById(`sm-cnt-${i}`);
+        if (el) el.textContent = counts[i] > 0 ? counts[i] : '';
+      }
     }
 
     async function update() {
@@ -608,6 +896,8 @@
             `<td><a class="action-link" href="${actionHref(addr)}">Open Actions</a></td>`;
           tbody.appendChild(tr);
         });
+        updateStateCounts(validators);
+        renderStateMachineAvatars(validators);
         renderRegisteredPreview();
         if (!registeredPreviewInitialized) {
           registeredPreviewInitialized = true;

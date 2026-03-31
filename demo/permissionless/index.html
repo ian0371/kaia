@@ -81,13 +81,28 @@
       border-radius: 12px;
     }
     #registered-panel h2 {
-      font-size: 1.25rem;
-      font-weight: 700;
-      color: #e6edf3;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: #8b949e;
       text-transform: uppercase;
       letter-spacing: 0.08em;
       margin-bottom: 0.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
     }
+    #registered-spinner {
+      width: 14px;
+      height: 14px;
+      border: 2px solid #30363d;
+      border-top-color: #58a6ff;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      flex-shrink: 0;
+      display: none;
+    }
+    #registered-spinner.active { display: block; }
+    @keyframes spin { to { transform: rotate(360deg); } }
     #registered-summary {
       color: #8b949e;
       font-size: 0.85rem;
@@ -171,7 +186,7 @@
       transform: translateY(-1px);
       box-shadow: 0 14px 34px rgba(252, 74, 26, 0.28);
     }
-    table { width: 100%; border-collapse: collapse; }
+    table { width: 100%; border-collapse: collapse; margin: 2.5rem 0; }
     th {
       text-align: left;
       padding: 0.6rem 1rem;
@@ -293,6 +308,7 @@
   </section>
 
 
+  <h2 style="font-size:0.75rem;font-weight:600;color:#8b949e;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:0.75rem;">Validator Set <span style="color:#30363d">(AddressBookV2)</span></h2>
   <table>
     <thead>
       <tr>
@@ -307,7 +323,7 @@
   </table>
 
   <section id="registered-panel">
-    <h2>Registered Nodes</h2>
+    <h2>Registered Nodes <div id="registered-spinner"></div></h2>
     <p id="registered-summary">Loading registered nodes…</p>
     <div id="registered-list"></div>
     <div id="registered-pagination">
@@ -661,9 +677,12 @@
       }
     }
 
+    const registeredSpinner = () => document.getElementById('registered-spinner');
+
     async function scanRegisteredBatch(visibleValidators) {
       if (!abv2Read || registeredState.scanBusy) return;
       registeredState.scanBusy = true;
+      registeredSpinner()?.classList.add('active');
       try {
         await refreshLastAssignedGcId(visibleValidators);
         if (registeredState.scanCursorGcId > registeredState.lastAssignedGcId) {
@@ -714,6 +733,7 @@
         }
       } finally {
         registeredState.scanBusy = false;
+        registeredSpinner()?.classList.remove('active');
       }
     }
 

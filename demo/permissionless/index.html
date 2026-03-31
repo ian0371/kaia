@@ -335,7 +335,7 @@
   <section id="state-machine-panel">
     <h2>Node State Machine — KIP-286</h2>
     <div id="state-machine-svg-wrap">
-      <svg viewBox="0 0 960 432" width="960" height="432" overflow="visible" xmlns="http://www.w3.org/2000/svg"
+      <svg viewBox="0 0 960 450" width="960" height="450" overflow="visible" xmlns="http://www.w3.org/2000/svg"
            style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',monospace; background:#0d1117; border-radius:8px;">
         <defs>
           <!-- Epoch (blue) arrowhead -->
@@ -424,39 +424,39 @@
         <!-- B2: CandTesting → ValActive  "top N" -->
         <line x1="540" y1="345" x2="590" y2="345"
               stroke="#58a6ff" stroke-width="1.6" marker-end="url(#ab)"/>
-        <text x="565" y="338" text-anchor="middle" font-size="10" fill="#58a6ff">top N</text>
+        <text x="565" y="368" text-anchor="middle" font-size="10" fill="#58a6ff">top N</text>
 
         <!-- B3: CandTesting → CandReady  "stake &lt; min" (arc below) -->
         <path d="M 483,363 C 483,386 342,386 342,363"
               fill="none" stroke="#58a6ff" stroke-width="1.6" marker-end="url(#ab)"/>
-        <text x="412" y="400" text-anchor="middle" font-size="10" fill="#58a6ff">stake &lt; min</text>
+        <text x="412" y="375" text-anchor="middle" font-size="10" fill="#58a6ff">stake &lt; min</text>
 
         <!-- B4: CandTesting → Registered  "Failed VRank" (deeper arc) -->
         <path d="M 468,363 C 468,412 207,412 207,363"
               fill="none" stroke="#58a6ff" stroke-width="1.6" marker-end="url(#ab)"/>
-        <text x="338" y="427" text-anchor="middle" font-size="10" fill="#58a6ff">Failed VRank</text>
+        <text x="338" y="423" text-anchor="middle" font-size="10" fill="#58a6ff">Failed VRank</text>
 
         <!-- B5: ValActive/ValReady/ValPaused → ValInactive  "stake &lt; min  /  below top N"
              Route left of ValReady (x&lt;513) to avoid overlap -->
         <path d="M 591,333 C 480,285 445,200 452,100"
               fill="none" stroke="#58a6ff" stroke-width="1.6" marker-end="url(#ab)"/>
-        <text x="480" y="232" text-anchor="end" font-size="10" fill="#58a6ff">below top N</text>
+        <text x="500" y="272" text-anchor="start" font-size="10" fill="#58a6ff">below top N</text>
 
         <!-- B6: ValReady → ValActive  "top N" (diagonal down-right) -->
         <path d="M 615,228 C 640,270 640,315 595,327"
               fill="none" stroke="#58a6ff" stroke-width="1.6" marker-end="url(#ab)"/>
-        <text x="650" y="272" text-anchor="start" font-size="10" fill="#58a6ff">top N</text>
+        <text x="600" y="272" text-anchor="start" font-size="10" fill="#58a6ff">top N</text>
 
         <!-- B7: ValReady → ValInactive  "below top N Ready" (up-left) -->
         <path d="M 528,197 C 514,158 500,124 496,100"
               fill="none" stroke="#58a6ff" stroke-width="1.6" marker-end="url(#ab)"/>
-        <text x="490" y="150" text-anchor="end" font-size="10" fill="#58a6ff">below top N</text>
-        <text x="490" y="162" text-anchor="end" font-size="10" fill="#58a6ff">Ready</text>
+        <text x="520" y="145" text-anchor="start" font-size="10" fill="#58a6ff">below top N</text>
+        <text x="520" y="157" text-anchor="start" font-size="10" fill="#58a6ff">Ready</text>
 
         <!-- B8: ValInactive → Registered  "Idle timeout or offboard" (long top arc) -->
         <path d="M 426,72 C 360,22 207,22 207,327"
               fill="none" stroke="#58a6ff" stroke-width="1.6" marker-end="url(#ab)"/>
-        <text x="292" y="14" text-anchor="middle" font-size="10" fill="#58a6ff">Idle timeout or Want to offboard</text>
+        <text x="292" y="22" text-anchor="middle" font-size="10" fill="#58a6ff">Idle timeout or Want to offboard</text>
 
         <!-- ── ANYTIME (GRAY) ARROWS ─────────────────────────── -->
 
@@ -483,24 +483,24 @@
         <!-- K5: ValActive → ValPaused  "Pause" -->
         <path d="M 678,327 C 714,238 752,160 752,100"
               fill="none" stroke="#8b949e" stroke-width="1.6" marker-end="url(#ak)"/>
-        <text x="740" y="215" text-anchor="start" font-size="10" fill="#8b949e">Maintenance /</text>
-        <text x="740" y="227" text-anchor="start" font-size="10" fill="#8b949e">VRank violation</text>
+        <text x="730" y="218" text-anchor="start" font-size="10" fill="#8b949e">Maintenance /</text>
+        <text x="730" y="230" text-anchor="start" fill="#8b949e" font-size="10">VRank violation</text>
 
         <!-- K6: ValPaused → ValActive  "Unpause" -->
         <path d="M 718,100 C 685,192 660,268 645,327"
               fill="none" stroke="#8b949e" stroke-width="1.6" marker-end="url(#ak)"/>
-        <text x="650" y="205" text-anchor="end" font-size="10" fill="#8b949e">Unpause</text>
+        <text x="670" y="188" text-anchor="start" font-size="10" fill="#8b949e">Unpause</text>
 
         <!-- K7: ValActive → ValExiting  "Exit request / VRank violation" -->
         <line x1="705" y1="345" x2="777" y2="345"
               stroke="#8b949e" stroke-width="1.6" marker-end="url(#ak)"/>
-        <text x="741" y="362" text-anchor="middle" font-size="9.5" fill="#8b949e">Exit request /</text>
-        <text x="741" y="373" text-anchor="middle" font-size="9.5" fill="#8b949e">VRank violation</text>
+        <text x="741" y="368" text-anchor="middle" font-size="9.5" fill="#8b949e">Exit request /</text>
+        <text x="741" y="380" text-anchor="middle" font-size="9.5" fill="#8b949e">VRank violation</text>
 
         <!-- K8: ValPaused → ValExiting  "Exit request" -->
         <path d="M 815,78 C 878,175 858,262 836,327"
               fill="none" stroke="#8b949e" stroke-width="1.6" marker-end="url(#ak)"/>
-        <text x="878" y="182" text-anchor="start" font-size="10" fill="#8b949e">Exit request</text>
+        <text x="860" y="182" text-anchor="start" font-size="10" fill="#8b949e">Exit request</text>
 
         <!-- K9: ValPaused → ValInactive  "Pause timeout" (horizontal left) -->
         <line x1="700" y1="76" x2="541" y2="76"

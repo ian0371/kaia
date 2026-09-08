@@ -954,7 +954,12 @@ func (q *queue) DeliverStakingInfos(id string, stakingInfoList []*staking.P2PSta
 	q.lock.Lock()
 	defer q.lock.Unlock()
 	validate := func(index int, header *types.Header) error {
-		// TODO-Kaia-Snapsync update validation logic
+		// The staking info is not committed to the header, so only its binding to the
+		// requested block can be checked here. The block number must match the header
+		// whose hash was requested; the result is later persisted under that number.
+		if stakingInfoList[index] == nil || stakingInfoList[index].BlockNum != header.Number.Uint64() {
+			return errInvalidStakingInfo
+		}
 		return nil
 	}
 

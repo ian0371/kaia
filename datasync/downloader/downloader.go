@@ -92,6 +92,7 @@ var (
 	errInvalidChain            = errors.New("retrieved hash chain is invalid")
 	errInvalidBody             = errors.New("retrieved block body is invalid")
 	errInvalidReceipt          = errors.New("retrieved receipt is invalid")
+	errInvalidStakingInfo      = errors.New("retrieved staking info is invalid")
 	errCancelStateFetch        = errors.New("state data download canceled (requested)")
 	errCancelContentProcessing = errors.New("content processing canceled (requested)")
 	errCanceled                = errors.New("syncing canceled (requested)")
@@ -1887,8 +1888,9 @@ func (d *Downloader) commitFastSyncData(results []*fetchResult, stateSync *state
 		blocks[i] = types.NewBlockWithHeader(result.Header).WithBody(result.Transactions)
 		receipts[i] = result.Receipts
 		if result.StakingInfo != nil {
-			d.stakingModule.PutStakingInfoToDB(result.StakingInfo.BlockNum, staking.ToStakingInfo(result.StakingInfo))
-			logger.Info("Imported new staking information", "number", result.StakingInfo.BlockNum)
+			num := result.Header.Number.Uint64()
+			d.stakingModule.PutStakingInfoToDB(num, staking.ToStakingInfo(result.StakingInfo))
+			logger.Info("Imported new staking information", "number", num)
 		}
 	}
 	if index, err := d.blockchain.InsertReceiptChain(blocks, receipts); err != nil {
@@ -1902,8 +1904,8 @@ func (d *Downloader) commitPivotBlock(result *fetchResult) error {
 	block := types.NewBlockWithHeader(result.Header).WithBody(result.Transactions)
 	logger.Debug("Committing fast sync pivot as new head", "number", block.Number(), "hash", block.Hash())
 	if result.StakingInfo != nil {
-		d.stakingModule.PutStakingInfoToDB(result.StakingInfo.BlockNum, staking.ToStakingInfo(result.StakingInfo))
-		logger.Info("Imported new staking information on pivot block", "number", result.StakingInfo.BlockNum, "pivot", block.Number())
+		d.stakingModule.PutStakingInfoToDB(block.NumberU64(), staking.ToStakingInfo(result.StakingInfo))
+		logger.Info("Imported new staking information on pivot block", "number", block.NumberU64())
 	}
 	if _, err := d.blockchain.InsertReceiptChain([]*types.Block{block}, []types.Receipts{result.Receipts}); err != nil {
 		return err

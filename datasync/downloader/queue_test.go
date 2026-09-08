@@ -23,6 +23,7 @@
 package downloader
 
 import (
+	"errors"
 	"fmt"
 	"math/big"
 	"math/rand"
@@ -573,4 +574,82 @@ func (n *network) headers(from int) []*types.Header {
 		}
 	}
 	return hdrs
+}
+
+// newStakingInfoQueue schedules the test chain on a fresh queue and reserves the
+// first two staking info fetches (blocks 4 and 8) for "peer-1".
+func newStakingInfoQueue(t *testing.T) *queue {
+	config := params.TestChainConfig.Copy()
+	config.Governance.Reward.StakingUpdateInterval = testInterval
+	config.KaiaCompatibleBlock = nil
+
+	q := newQueue(50, 50, uint64(istanbul.WeightedRandom), config)
+	q.Prepare(1, FastSync)
+	q.Schedule(chain.headers(), 1)
+
+	fetchReq, _, _ := q.ReserveStakingInfos(dummyPeer("peer-1"), 2)
+	if got, exp := len(fetchReq.Headers), 2; got != exp {
+		t.Fatalf("expected %d requests, got %d", exp, got)
+	}
+	for i, exp := range []uint64{4, 8} {
+		if got := fetchReq.Headers[i].Number.Uint64(); got != exp {
+			t.Fatalf("expected header %d at index %d, got %d", exp, i, got)
+		}
+	}
+	return q
+}
+
+// Tests that a staking info whose block number does not match the requested
+// header is rejected, the fetch is returned to the queue, and a matching
+// redelivery is accepted.
+func TestDeliverStakingInfosRejectsMismatchedBlockNum(t *testing.T) {
+	q := newStakingInfoQueue(t)
+	pending := q.PendingStakingInfos()
+
+	// The first entry claims block 8 for the header of block 4.
+	accepted, err := q.DeliverStakingInfos("peer-1", []*staking.P2PStakingInfo{{BlockNum: 8}, {BlockNum: 8}})
+	if accepted != 0 {
+		t.Fatalf("expected no accepted staking info, got %d", accepted)
+	}
+	if !errors.Is(err, errInvalidStakingInfo) {
+		t.Fatalf("expected %v, got %v", errInvalidStakingInfo, err)
+	}
+	if got, exp := q.PendingStakingInfos(), pending+2; got != exp {
+		t.Fatalf("expected %d pending staking infos after rejection, got %d", exp, got)
+	}
+
+	// The same blocks can be reserved again and a matching delivery is accepted.
+	fetchReq, _, _ := q.ReserveStakingInfos(dummyPeer("peer-1"), 2)
+	if got, exp := len(fetchReq.Headers), 2; got != exp {
+		t.Fatalf("expected %d requests, got %d", exp, got)
+	}
+	accepted, err = q.DeliverStakingInfos("peer-1", []*staking.P2PStakingInfo{{BlockNum: 4}, {BlockNum: 8}})
+	if accepted != 2 || err != nil {
+		t.Fatalf("expected 2 accepted staking infos, got %d (err %v)", accepted, err)
+	}
+	if got, exp := q.PendingStakingInfos(), pending; got != exp {
+		t.Fatalf("expected %d pending staking infos after delivery, got %d", exp, got)
+	}
+}
+
+// Tests that a batch is accepted only up to the first mismatched entry and the
+// rest is returned to the queue.
+func TestDeliverStakingInfosAcceptsValidPrefix(t *testing.T) {
+	q := newStakingInfoQueue(t)
+	pending := q.PendingStakingInfos()
+
+	accepted, err := q.DeliverStakingInfos("peer-1", []*staking.P2PStakingInfo{{BlockNum: 4}, {BlockNum: 12}})
+	if accepted != 1 {
+		t.Fatalf("expected 1 accepted staking info, got %d", accepted)
+	}
+	if err == nil {
+		t.Fatal("expected a partial failure, got nil")
+	}
+	if got, exp := q.PendingStakingInfos(), pending+1; got != exp {
+		t.Fatalf("expected %d pending staking infos, got %d", exp, got)
+	}
+	fetchReq, _, _ := q.ReserveStakingInfos(dummyPeer("peer-1"), 1)
+	if got, exp := fetchReq.Headers[0].Number.Uint64(), uint64(8); got != exp {
+		t.Fatalf("expected the rejected block %d to be requeued, got %d", exp, got)
+	}
 }
